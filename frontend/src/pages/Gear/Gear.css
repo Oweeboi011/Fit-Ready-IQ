@@ -1,0 +1,147 @@
+.gear-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  max-width: 900px;
+}
+
+.gear-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.gear-group-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.gear-diff-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.6rem;
+}
+
+.diff-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+  text-align: left;
+  font-size: 1.2rem;
+}
+
+.diff-btn:hover {
+  border-color: var(--primary);
+  background: rgba(46, 204, 113, 0.06);
+  color: var(--text-light);
+}
+
+.diff-btn.active {
+  border-color: var(--primary);
+  background: rgba(46, 204, 113, 0.1);
+  color: var(--white);
+}
+
+.diff-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: inherit;
+}
+
+.diff-desc {
+  font-size: 0.72rem;
+  opacity: 0.7;
+  margin-top: 0.1rem;
+}
+
+.gear-option-group {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 1.25rem;
+}
+
+.gear-options {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.gear-option-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  cursor: pointer;
+}
+
+.gear-option-toggle input[type="checkbox"] {
+  display: none;
+}
+
+.toggle-track {
+  width: 36px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  position: relative;
+  transition: background var(--transition);
+  flex-shrink: 0;
+}
+
+.toggle-track::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 14px;
+  height: 14px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  transition: all var(--transition);
+}
+
+.gear-option-toggle input:checked + .toggle-track {
+  background: var(--primary);
+}
+
+.gear-option-toggle input:checked + .toggle-track::after {
+  left: 19px;
+  background: var(--dark);
+}
+
+.toggle-label {
+  font-size: 0.88rem;
+  color: var(--text-light);
+}
+
+.gear-results {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.gear-badge {
+  margin-left: 0.6rem;
+  vertical-align: middle;
+}
+
+@media (max-width: 600px) {
+  .gear-diff-buttons {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .gear-options {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}
