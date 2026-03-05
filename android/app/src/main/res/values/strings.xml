@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FitReady IQ</string>
+    <string name="connect_strava">Connect Strava</string>
+    <string name="connect_garmin">Connect Garmin</string>
+    <string name="connect_coros">Connect COROS</string>
+    <string name="dashboard_title">Dashboard</string>
+    <string name="score_label">Fitness Readiness Score</string>
+    <string name="routes_title">Trail Routes</string>
+    <string name="gear_title">Gear Recommendations</string>
+    <string name="score_detail_title">Score Breakdown</string>
+    <string name="metric_vo2max">VO₂max</string>
+    <string name="metric_hrv">HRV</string>
+    <string name="metric_weekly_miles">Weekly Miles</string>
+    <string name="metric_training_load">Training Load</string>
+    <string name="loading">Loading…</string>
+    <string name="retry">Retry</string>
+    <string name="back">Back</string>
+    <string name="refresh">Refresh</string>
+    <string name="live_data">Live data</string>
+    <string name="demo_data">Demo data</string>
+    <string name="use_demo">Use demo data instead</string>
+    <string name="connect_tracker">Connect Fitness Tracker</string>
+    <string name="privacy_notice">Your data is only used to compute your readiness score and is never shared with third parties.</string>
+    <string name="score_excellent">Excellent</string>
+    <string name="score_good">Good</string>
+    <string name="score_fair">Fair</string>
+    <string name="score_poor">Needs Work</string>
+    <string name="difficulty_easy">Easy</string>
+    <string name="difficulty_moderate">Moderate</string>
+    <string name="difficulty_hard">Hard</string>
+    <string name="difficulty_expert">Expert</string>
+    <string name="gear_essential">Essential</string>
+    <string name="gear_recommended">Recommended</string>
+    <string name="gear_optional">Optional</string>
+</resources>
