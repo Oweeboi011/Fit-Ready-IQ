@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand colors -->
+    <color name="primary_green">#2ecc71</color>
+    <color name="primary_green_dark">#27ae60</color>
+    <color name="secondary_blue">#3498db</color>
+    <color name="secondary_blue_dark">#2980b9</color>
+
+    <!-- Background colors -->
+    <color name="dark_navy">#1a1a2e</color>
+    <color name="dark_navy_variant">#16213e</color>
+    <color name="dark_surface">#0f3460</color>
+    <color name="dark_card">#1e2a3a</color>
+
+    <!-- Score tier colors -->
+    <color name="score_excellent">#2ecc71</color>
+    <color name="score_good">#3498db</color>
+    <color name="score_fair">#f39c12</color>
+    <color name="score_poor">#e74c3c</color>
+
+    <!-- Difficulty colors -->
+    <color name="difficulty_easy">#2ecc71</color>
+    <color name="difficulty_moderate">#f39c12</color>
+    <color name="difficulty_hard">#e74c3c</color>
+    <color name="difficulty_expert">#8e44ad</color>
+
+    <!-- Neutral -->
+    <color name="white">#FFFFFF</color>
+    <color name="off_white">#F0F4F8</color>
+    <color name="light_gray">#B0BEC5</color>
+    <color name="medium_gray">#607D8B</color>
+
+    <!-- System -->
+    <color name="status_bar">#1a1a2e</color>
+</resources>
