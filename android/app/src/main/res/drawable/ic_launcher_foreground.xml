@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Background circle -->
+    <path
+        android:fillColor="#1a1a2e"
+        android:pathData="M0,0 L108,0 L108,108 L0,108 Z" />
+
+    <!-- Outer ring -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#2ecc71"
+        android:strokeWidth="3"
+        android:pathData="M54,18 A36,36 0 1,1 53.99,18 Z" />
+
+    <!-- Progress arc (fitness gauge) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#2ecc71"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M27,54 A27,27 0 0,1 81,54" />
+
+    <!-- Dumbbell icon center -->
+    <path
+        android:fillColor="#2ecc71"
+        android:pathData="M38,50 L70,50 Q72,50 72,52 L72,56 Q72,58 70,58 L38,58 Q36,58 36,56 L36,52 Q36,50 38,50 Z" />
+    <path
+        android:fillColor="#2ecc71"
+        android:pathData="M32,44 L40,44 Q42,44 42,46 L42,62 Q42,64 40,64 L32,64 Q30,64 30,62 L30,46 Q30,44 32,44 Z" />
+    <path
+        android:fillColor="#2ecc71"
+        android:pathData="M68,44 L76,44 Q78,44 78,46 L78,62 Q78,64 76,64 L68,64 Q66,64 66,62 L66,46 Q66,44 68,44 Z" />
+
+    <!-- Score dot at top -->
+    <path
+        android:fillColor="#3498db"
+        android:pathData="M54,20 A4,4 0 1,1 53.99,20 Z" />
+</vector>
