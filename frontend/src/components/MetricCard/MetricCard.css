@@ -1,0 +1,81 @@
+.metric-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.25rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card--highlight {
+  border-color: rgba(46, 204, 113, 0.3);
+  background: linear-gradient(135deg, rgba(46, 204, 113, 0.06) 0%, var(--dark-card) 60%);
+}
+
+.metric-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.metric-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.metric-trend {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 20px;
+}
+
+.trend-up {
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+}
+
+.trend-down {
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
+}
+
+.metric-value {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+.metric-number {
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: var(--white);
+  line-height: 1.1;
+}
+
+.metric-na {
+  color: var(--text-muted);
+  font-size: 1.5rem;
+}
+
+.metric-unit {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.metric-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+}
+
+.metric-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+  opacity: 0.8;
+}

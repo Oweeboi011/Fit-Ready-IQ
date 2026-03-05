@@ -1,0 +1,260 @@
+.score-details-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  max-width: 960px;
+}
+
+.mock-banner-score {
+  padding: 0.7rem 1rem;
+  background: rgba(52, 152, 219, 0.1);
+  border: 1px solid rgba(52, 152, 219, 0.2);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #3498db;
+}
+
+.mock-banner-score a {
+  font-weight: 600;
+}
+
+/* ── Overview card ── */
+.score-overview {
+  display: flex;
+  gap: 2.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.score-overview-gauge {
+  flex-shrink: 0;
+}
+
+.score-overview-info {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.score-tier-icon {
+  font-size: 2rem;
+}
+
+.score-tier-label {
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+.score-tier-advice {
+  color: var(--text-muted);
+  line-height: 1.65;
+  font-size: 0.92rem;
+  max-width: 440px;
+}
+
+.score-trail-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.88rem;
+  color: var(--text-light);
+}
+
+.suggestion-icon {
+  font-size: 1.1rem;
+}
+
+/* ── Score bands ── */
+.score-bands {
+  overflow: hidden;
+}
+
+.bands-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.6rem;
+}
+
+.band-item {
+  padding: 0.85rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
+  position: relative;
+}
+
+.band-active {
+  box-shadow: 0 0 0 2px currentColor;
+}
+
+.band-range {
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.band-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.band-you {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-top: 0.3rem;
+}
+
+/* ── Metric detail rows ── */
+.score-metrics-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.section-subtitle-small {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.metrics-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.metric-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.25rem;
+}
+
+.mdr-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.mdr-icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.mdr-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--white);
+}
+
+.mdr-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+  line-height: 1.4;
+}
+
+.mdr-right {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.mdr-value {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--white);
+  white-space: nowrap;
+}
+
+.mdr-unit {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.mdr-rating {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.65rem;
+  border-radius: 20px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.mdr-weight {
+  font-size: 0.73rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ── Tips ── */
+.score-tips {
+  background: linear-gradient(135deg, rgba(46,204,113,0.05) 0%, var(--dark-card) 70%);
+}
+
+.tips-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--white);
+}
+
+.tips-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  list-style: none;
+  padding-left: 0;
+}
+
+.tips-list li {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  padding-left: 1.2rem;
+  position: relative;
+}
+
+.tips-list li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--primary);
+}
+
+.tips-list strong {
+  color: var(--text-light);
+}
+
+@media (max-width: 700px) {
+  .score-overview {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .score-trail-suggestion {
+    justify-content: center;
+  }
+
+  .metric-detail-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .mdr-right {
+    width: 100%;
+  }
+}
