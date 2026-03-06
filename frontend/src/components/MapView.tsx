@@ -1,0 +1,444 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { GoogleMap, Marker, Polyline, useJsApiLoader } from "@react-google-maps/api";
+
+interface Route {
+  id: string;
+  name: string;
+  coordinates: [number, number];
+  distance_km: number;
+  elevation_gain_m: number;
+  difficulty: string;
+  activity_type: string;
+  polyline?: [number, number][];
+}
+
+interface Mountain {
+  id: string;
+  name: string;
+  coordinates: [number, number];
+  elevation_m: number;
+  prominence_m?: number;
+  type: string; // peak, summit, mountain
+}
+
+interface Campsite {
+  id: string;
+  name: string;
+  coordinates: [number, number];
+  type: string;
+  rating?: number;
+  amenities?: string[];
+}
+
+interface MapViewProps {
+  initialCenter?: [number, number];
+  initialZoom?: number;
+  routes?: Route[];
+  mountains?: Mountain[];
+  campsites?: Campsite[];
+  userLocation?: [number, number];
+  onRouteClick?: (route: Route) => void;
+  onMountainClick?: (mountain: Mountain) => void;
+  onCampsiteClick?: (campsite: Campsite) => void;
+}
+
+const mapContainerStyle = {
+  width: "100%",
+  height: "100%",
+};
+
+const libraries: ("places" | "geometry")[] = ["places", "geometry"];
+
+export default function MapView({
+  initialCenter = [-122.4194, 37.7749],
+  initialZoom = 12,
+  routes = [],
+  mountains = [],
+  campsites = [],
+  userLocation: userLocationProp,
+  onRouteClick,
+  onMountainClick,
+  onCampsiteClick,
+}: MapViewProps) {
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(userLocationProp || null);
+  const [mapCenter, setMapCenter] = useState({
+    lat: initialCenter[1],
+    lng: initialCenter[0],
+  });
+  const [map, setMap] = useState<google.maps.Map | null>(null);
+
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+    libraries,
+  });
+
+  const onLoad = useCallback((map: google.maps.Map) => {
+    setMap(map);
+  }, []);
+
+  const onUnmount = useCallback(() => {
+    setMap(null);
+  }, []);
+
+  // Adjust map bounds to show all routes
+  useEffect(() => {
+    if (!map || routes.length === 0) return;
+
+    const bounds = new google.maps.LatLngBounds();
+    let hasValidCoordinates = false;
+
+    // Add user location to bounds if available
+    if (userLocation) {
+      bounds.extend({ lat: userLocation[1], lng: userLocation[0] });
+      hasValidCoordinates = true;
+    }
+
+    // Add all route coordinates to bounds
+    routes.forEach((route) => {
+      if (route.coordinates && route.coordinates.length === 2) {
+        bounds.extend({ lat: route.coordinates[1], lng: route.coordinates[0] });
+        hasValidCoordinates = true;
+      }
+      // Also include polyline points if available
+      if (route.polyline && route.polyline.length > 0) {
+        route.polyline.forEach(([lng, lat]) => {
+          bounds.extend({ lat, lng });
+          hasValidCoordinates = true;
+        });
+      }
+    });
+
+    // Add all mountain coordinates to bounds
+    mountains.forEach((mountain) => {
+      if (mountain.coordinates && mountain.coordinates.length === 2) {
+        bounds.extend({ lat: mountain.coordinates[1], lng: mountain.coordinates[0] });
+        hasValidCoordinates = true;
+      }
+    });
+
+    // Add all campsite coordinates to bounds
+    campsites.forEach((campsite) => {
+      if (campsite.coordinates && campsite.coordinates.length === 2) {
+        bounds.extend({ lat: campsite.coordinates[1], lng: campsite.coordinates[0] });
+        hasValidCoordinates = true;
+      }
+    });
+
+    // Fit map to bounds with padding
+    if (hasValidCoordinates) {
+      map.fitBounds(bounds, {
+        top: 50,
+        right: 50,
+        bottom: 50,
+        left: 50,
+      });
+    }
+  }, [map, routes, mountains, campsites, userLocation]);
+
+  // Get user's current location
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const coords: [number, number] = [
+            position.coords.longitude,
+            position.coords.latitude,
+          ];
+          setUserLocation(coords);
+          setMapCenter({
+            lat: coords[1],
+            lng: coords[0],
+          });
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          // Fallback to default location (San Francisco)
+          const fallback: [number, number] = [-122.4194, 37.7749];
+          setUserLocation(fallback);
+          setMapCenter({
+            lat: fallback[1],
+            lng: fallback[0],
+          });
+        }
+      );
+    } else {
+      // Browser doesn't support geolocation
+      const fallback: [number, number] = [-122.4194, 37.7749];
+      setUserLocation(fallback);
+      setMapCenter({
+        lat: fallback[1],
+        lng: fallback[0],
+      });
+    }
+  }, []);
+
+  const getDifficultyColor = (difficulty: string): string => {
+    switch (difficulty.toLowerCase()) {
+      case "easy":
+        return "#22c55e";
+      case "moderate":
+        return "#f59e0b";
+      case "hard":
+        return "#ef4444";
+      default:
+        return "#3b82f6";
+    }
+  };
+
+  const getActivityIcon = (activityType: string): string => {
+    switch (activityType.toLowerCase()) {
+      case "hike":
+        return "🥾";
+      case "bike":
+      case "ride":
+        return "🚴";
+      case "run":
+        return "🏃";
+      default:
+        return "📍";
+    }
+  };
+
+  if (loadError) {
+    return (
+      <div className="relative h-full w-full flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <p className="text-red-600">Error loading Google Maps</p>
+          <p className="text-sm text-gray-500 mt-2">Check your API key configuration</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isLoaded) {
+    return (
+      <div className="relative h-full w-full flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent mx-auto mb-4" />
+          <p className="text-gray-600">Loading map...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-full w-full">
+      <GoogleMap
+        mapContainerStyle={mapContainerStyle}
+        center={mapCenter}
+        zoom={initialZoom}
+        onLoad={onLoad}
+        onUnmount={onUnmount}
+        options={{
+          mapTypeId: "terrain",
+          zoomControl: true,
+          streetViewControl: false,
+          mapTypeControl: true,
+          fullscreenControl: true,
+        }}
+      >
+        {/* User Location Marker */}
+        {userLocation && (
+          <Marker
+            position={{ lat: userLocation[1], lng: userLocation[0] }}
+            icon={{
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 8,
+              fillColor: "#3b82f6",
+              fillOpacity: 1,
+              strokeColor: "#ffffff",
+              strokeWeight: 2,
+            }}
+            title="Your Location"
+          />
+        )}
+
+        {/* Route Polylines */}
+        {routes
+          .filter((route) => route.polyline && route.polyline.length > 0)
+          .map((route) => (
+            <Polyline
+              key={`polyline-${route.id}`}
+              path={route.polyline!.map(([lng, lat]) => ({ lat, lng }))}
+              options={{
+                strokeColor: getDifficultyColor(route.difficulty),
+                strokeOpacity: 0.8,
+                strokeWeight: 4,
+              }}
+            />
+          ))}
+
+        {/* Route Markers */}
+        {routes
+          .filter(
+            (route) =>
+              route.coordinates &&
+              route.coordinates.length === 2 &&
+              typeof route.coordinates[0] === "number" &&
+              typeof route.coordinates[1] === "number"
+          )
+          .map((route) => (
+            <Marker
+              key={route.id}
+              position={{ lat: route.coordinates[1], lng: route.coordinates[0] }}
+              icon={{
+                url: `data:image/svg+xml,${encodeURIComponent(`
+                  <svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="18" fill="${getDifficultyColor(
+                      route.difficulty
+                    )}" stroke="white" stroke-width="2"/>
+                    <text x="20" y="28" text-anchor="middle" font-size="20">${getActivityIcon(
+                      route.activity_type
+                    )}</text>
+                  </svg>
+                `)}`,
+                scaledSize: new google.maps.Size(40, 40),
+              }}
+              title={route.name}
+              onClick={() => {
+                if (onRouteClick) {
+                  onRouteClick(route);
+                }
+              }}
+            />
+          ))}
+
+        {/* Mountain/Peak Markers */}
+        {mountains
+          .filter(
+            (mountain) =>
+              mountain.coordinates &&
+              mountain.coordinates.length === 2 &&
+              typeof mountain.coordinates[0] === "number" &&
+              typeof mountain.coordinates[1] === "number"
+          )
+          .map((mountain) => (
+            <Marker
+              key={mountain.id}
+              position={{ lat: mountain.coordinates[1], lng: mountain.coordinates[0] }}
+              icon={{
+                url: `data:image/svg+xml,${encodeURIComponent(`
+                  <svg width="36" height="36" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18 4 L10 20 L26 20 Z" fill="#8b4513" stroke="white" stroke-width="2"/>
+                    <circle cx="18" cy="8" r="3" fill="white"/>
+                    <text x="18" y="31" text-anchor="middle" font-size="14" fill="#333">⛰️</text>
+                  </svg>
+                `)}`,
+                scaledSize: new google.maps.Size(36, 36),
+              }}
+              title={`${mountain.name} (${mountain.elevation_m}m)`}
+              onClick={() => {
+                if (onMountainClick) {
+                  onMountainClick(mountain);
+                }
+              }}
+            />
+          ))}
+
+        {/* Campsite Markers */}
+        {campsites
+          .filter(
+            (campsite) =>
+              campsite.coordinates &&
+              campsite.coordinates.length === 2 &&
+              typeof campsite.coordinates[0] === "number" &&
+              typeof campsite.coordinates[1] === "number"
+          )
+          .map((campsite) => (
+            <Marker
+              key={campsite.id}
+              position={{ lat: campsite.coordinates[1], lng: campsite.coordinates[0] }}
+              icon={{
+                url: `data:image/svg+xml,${encodeURIComponent(`
+                  <svg width="36" height="36" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18 8 L8 24 L28 24 Z" fill="#228b22" stroke="white" stroke-width="2"/>
+                    <rect x="17" y="24" width="2" height="8" fill="#8b4513"/>
+                    <text x="18" y="35" text-anchor="middle" font-size="12">⛺</text>
+                  </svg>
+                `)}`,
+                scaledSize: new google.maps.Size(36, 36),
+              }}
+              title={`${campsite.name}${campsite.rating ? ` (★${campsite.rating})` : ''}`}
+              onClick={() => {
+                if (onCampsiteClick) {
+                  onCampsiteClick(campsite);
+                }
+              }}
+            />
+          ))}
+      </GoogleMap>
+
+      {/* Legend */}
+      <div className="absolute bottom-4 right-4 rounded-lg bg-white p-4 shadow-lg">
+        <h3 className="mb-2 text-sm font-semibold">Map Legend</h3>
+        <div className="space-y-2">
+          <div>
+            <p className="text-xs font-medium text-gray-700 mb-1">Route Difficulty</p>
+            <div className="space-y-1 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full bg-green-500" />
+                <span>Easy</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full bg-orange-500" />
+                <span>Moderate</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full bg-red-500" />
+                <span>Hard</span>
+              </div>
+            </div>
+          </div>
+          {(mountains.length > 0 || campsites.length > 0) && (
+            <div className="pt-2 border-t border-gray-200">
+              <p className="text-xs font-medium text-gray-700 mb-1">Points of Interest</p>
+              <div className="space-y-1 text-xs">
+                {mountains.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span>⛰️</span>
+                    <span>Mountain/Peak</span>
+                  </div>
+                )}
+                {campsites.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span>⛺</span>
+                    <span>Campsite</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <div className="h-3 w-3 rounded-full bg-blue-500" />
+                  <span>Your Location</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Route, Mountain, and Campsite Count */}
+      {(routes.length > 0 || mountains.length > 0 || campsites.length > 0) && (
+        <div className="absolute top-4 left-4 rounded-lg bg-white px-4 py-2 shadow-lg">
+          <div className="space-y-1">
+            {routes.length > 0 && (
+              <div className="text-sm font-semibold text-gray-900">
+                {routes.length} {routes.length === 1 ? "Route" : "Routes"}
+              </div>
+            )}
+            {mountains.length > 0 && (
+              <div className="text-sm text-gray-600">
+                {mountains.length} {mountains.length === 1 ? "Mountain" : "Mountains"}
+              </div>
+            )}
+            {campsites.length > 0 && (
+              <div className="text-sm text-gray-600">
+                {campsites.length} {campsites.length === 1 ? "Campsite" : "Campsites"}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
