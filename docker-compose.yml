@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # PostgreSQL with PostGIS for geospatial queries
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: fit-ready-iq-db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-fitreadyiq}
+      POSTGRES_USER: ${DB_USER:-fitreadyiq_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dev_password_change_in_production}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/infrastructure/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-fitreadyiq_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and rate limiting
+  redis:
+    image: redis:7-alpine
+    container_name: fit-ready-iq-cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fit-ready-iq-api
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-fitreadyiq_user}:${DB_PASSWORD:-dev_password_change_in_production}@postgres:5432/${DB_NAME:-fitreadyiq}
+      - REDIS_URL=redis://redis:6379
+      - ENVIRONMENT=development
+      - STRAVA_CLIENT_ID=${STRAVA_CLIENT_ID}
+      - STRAVA_CLIENT_SECRET=${STRAVA_CLIENT_SECRET}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev_secret_key_change_in_production}
+      - MAPBOX_ACCESS_TOKEN=${MAPBOX_ACCESS_TOKEN}
+      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:3001
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: fit-ready-iq-web
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_MAPBOX_TOKEN=${MAPBOX_ACCESS_TOKEN}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    command: npm run dev
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -1,0 +1,44 @@
+{
+  "name": "fit-ready-iq-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",
+    "test": "echo \"Tests not yet implemented. Run 'npm run build' to verify project structure.\""
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^3.3.4",
+    "@react-google-maps/api": "^2.19.3",
+    "@tanstack/react-query": "^5.17.0",
+    "axios": "^1.6.5",
+    "clsx": "^2.1.0",
+    "date-fns": "^3.0.6",
+    "lucide-react": "^0.577.0",
+    "next": "14.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hook-form": "^7.49.3",
+    "recharts": "^2.10.3",
+    "tailwind-merge": "^2.2.0",
+    "zod": "^3.22.4",
+    "zustand": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "14.1.0",
+    "postcss": "^8.4.33",
+    "prettier": "^3.2.2",
+    "prettier-plugin-tailwindcss": "^0.5.11",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.3.3"
+  }
+}
