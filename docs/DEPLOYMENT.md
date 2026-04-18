@@ -2,9 +2,193 @@
 
 ## Overview
 
-This guide covers deploying Fit-Ready-IQ to Azure using Infrastructure as Code (Bicep), CI/CD pipelines, and best practices for production environments.
+Fit-Ready-IQ is deployed as a **frontend-only** Next.js 14 application to Azure Container Apps.
+Deployment is exclusively via **Azure Developer CLI (`azd`)** — there are no CI/CD pipelines.
+All infrastructure is defined in Bicep under `infra/` and provisioned with `azd up`.
 
-## Architecture Overview
+> The Python FastAPI backend exists for local development only and is **not deployed to Azure**.
+
+## Azure Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Azure Cloud                              │
+│                   Resource Group: rg-sample-fit-maps             │
+│                                                                   │
+│  ┌────────────────────────────────────────────────────────┐     │
+│  │         Container Apps Environment (Consumption)        │     │
+│  │                                                          │     │
+│  │  ┌──────────────────────────────────────────────────┐  │     │
+│  │  │  Container App: ca-fri-fe-{token}                 │  │     │
+│  │  │  Next.js 14 ─ Port 3000 ─ Scale-to-zero          │  │     │
+│  │  │  Image: ACR/fit-ready-iq/frontend-fit-ready-iq   │  │     │
+│  │  └──────────────────────────────────────────────────┘  │     │
+│  └────────────────────────────────────────────────────────┘     │
+│                                                                   │
+│  ┌──────────────────────┐   ┌─────────────────────────────┐    │
+│  │  Azure Container     │   │  Azure Key Vault             │    │
+│  │  Registry (Basic)    │   │  kv-fri-{token8}             │    │
+│  │  acrfitreadyiq{tok}  │   │  Stores: google-maps-api-key │    │
+│  └──────────────────────┘   └─────────────────────────────┘    │
+│                                                                   │
+│  ┌──────────────────────┐   ┌─────────────────────────────┐    │
+│  │  Log Analytics       │   │  User-Assigned              │    │
+│  │  log-fitreadyiq{tok} │   │  Managed Identity           │    │
+│  │  Container App logs  │   │  ACR pull + KV read         │    │
+│  └──────────────────────┘   └─────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Google Maps API Key Flow
+
+`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is a **build-time** secret — Next.js bakes it into the JS bundle.
+
+```
+azd env set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY <key>
+    │
+    ▼
+azure.yaml prepackage hook
+    │  Set-Content frontend/.env.production
+    ▼
+ACR Tasks remote build
+    │  COPY . . (includes .env.production)
+    │  npm run build  ← Next.js reads .env.production
+    ▼
+.next/standalone  ← key is compiled into JS chunks
+    │
+    ▼
+Image pushed to ACR → Container App pulls → app is live
+```
+
+Key is also stored in Key Vault secret `google-maps-api-key` for audit and rotation.
+The Container App does **NOT** read the key at runtime — it is baked into the image.
+
+## Prerequisites
+
+```powershell
+# Azure CLI
+winget install Microsoft.AzureCLI
+
+# Azure Developer CLI
+winget install Microsoft.Azd
+
+# Node.js 20+
+winget install OpenJS.NodeJS.LTS
+```
+
+## Environment Variables
+
+Set these once per environment with `azd env set`:
+
+| Variable | Description |
+|---|---|
+| `AZURE_SUBSCRIPTION_ID` | Your Azure subscription ID |
+| `AZURE_RESOURCE_GROUP` | Target resource group name |
+| `AZURE_LOCATION` | Azure region (e.g. `eastus2`) |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Google Maps JS API key (baked at build time) |
+| `GOOGLE_MAPS_API_KEY` | Same key stored in Key Vault for rotation |
+
+## First-Time Setup
+
+```powershell
+# Create AZD environment
+azd env new fit-ready-iq
+
+# Set required variables
+azd env set AZURE_SUBSCRIPTION_ID 74fb4d08-b259-44bb-a495-c81e13d95fc7
+azd env set AZURE_RESOURCE_GROUP rg-sample-fit-maps
+azd env set AZURE_LOCATION eastus2
+azd env set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY <your-maps-key>
+azd env set GOOGLE_MAPS_API_KEY <your-maps-key>
+
+# Provision infrastructure + build + deploy
+azd up
+```
+
+## Redeploy (code changes only)
+
+```powershell
+azd deploy --all
+```
+
+The `prepackage` hook writes `frontend/.env.production` before the ACR remote build starts.
+
+## Provisioned Resources
+
+| Resource | Name Pattern | Azure Service | SKU |
+|---|---|---|---|
+| Container App | `ca-fri-fe-{token}` | Container Apps | Consumption |
+| Container Apps Env | `cae-fitreadyiq-{token}` | Container Apps Env | Consumption |
+| Container Registry | `acrfitreadyiq{token}` | ACR | Basic |
+| Key Vault | `kv-fri-{token8}` | Key Vault | Standard |
+| Log Analytics | `log-fitreadyiq-{token}` | Log Analytics | Pay-per-use |
+| Managed Identity | `id-fitreadyiq-{token}` | Managed Identity | — |
+
+`{token}` = `toLower(uniqueString(subscriptionId, envName, location))` — 13 chars
+
+## Repository Files
+
+| File | Purpose |
+|---|---|
+| `azure.yaml` | AZD service manifest — defines `frontend` service, prepackage hook |
+| `infra/main.bicep` | Bicep orchestrator (`targetScope = 'resourceGroup'`) |
+| `infra/modules/` | ACR, Container App, Key Vault, Log Analytics, Managed Identity modules |
+| `frontend/Dockerfile` | Multi-stage build: `deps` → `builder` → `runner` (`node:20-alpine`) |
+| `.dockerignore` | Reduces build context to ~546KB (excludes backend, node_modules, .git) |
+| `frontend/.dockerignore` | Excludes `node_modules`, `.next`, `.env*.local` from context |
+| `frontend/public/` | Required by Dockerfile `COPY --from=builder /app/public` step |
+
+## Dockerfile Build Stages
+
+```
+FROM node:20-alpine AS deps     ← install node_modules (clean Linux binaries)
+FROM node:20-alpine AS builder  ← COPY source, COPY --from=deps node_modules,
+                                   read .env.production, npm run build
+FROM node:20-alpine AS runner   ← copy .next/standalone, serve with node server.js
+```
+
+> **Important**: `COPY . .` must come BEFORE `COPY --from=deps /app/node_modules` in the
+> builder stage. This ensures clean Linux node_modules always overwrite any Windows binaries
+> that might slip through the build context.
+
+## Security Notes
+
+- `frontend/.env.production` is gitignored — never commit it
+- `.azure/fit-ready-iq/.env` is gitignored — never commit it
+- `NEXT_PUBLIC_*` vars are NOT set as Container App runtime environment variables
+- The Google Maps key is stored in Key Vault only for audit/rotation — not read at runtime
+
+## Monitoring
+
+View Container App logs in the Azure Portal:
+1. Navigate to `ca-fri-fe-{token}` → **Log stream**
+2. Or query Log Analytics: Container Apps Env → **Logs**
+
+```kql
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s == "ca-fri-fe-et2ckcxfwas6e"
+| order by TimeGenerated desc
+| take 50
+```
+
+## Rollback
+
+AZD stores previous image tags in ACR. To roll back, update the Container App image:
+
+```powershell
+az containerapp update \
+  --name ca-fri-fe-et2ckcxfwas6e \
+  --resource-group rg-sample-fit-maps \
+  --image acrfitreadyiqet2ckcxfwas6e.azurecr.io/fit-ready-iq/frontend-fit-ready-iq:<previous-tag>
+```
+
+## References
+
+- [Azure Container Apps Documentation](https://learn.microsoft.com/azure/container-apps/)
+- [Azure Developer CLI Documentation](https://learn.microsoft.com/azure/developer/azure-developer-cli/)
+- [Bicep Documentation](https://learn.microsoft.com/azure/azure-resource-manager/bicep/)
+- [Next.js standalone output](https://nextjs.org/docs/app/api-reference/config/next-config-js/output)
+
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐

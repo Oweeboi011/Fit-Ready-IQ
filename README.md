@@ -14,84 +14,77 @@ Fit-Ready-IQ is a comprehensive web application that helps outdoor enthusiasts p
 
 ## Architecture
 
+### Deployed (Azure)
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         USER DEVICES                             │
-│                  (Mobile, Tablet, Desktop)                       │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │
-                            │ HTTPS
-                            │
-┌───────────────────────────▼─────────────────────────────────────┐
-│                   NEXT.JS FRONTEND (Port 3000)                   │
-│  ┌──────────────┐  ┌──────────────┐  ┌─────────────────────┐  │
-│  │  Dashboard   │  │  Route Maps  │  │  Itinerary Builder  │  │
-│  │  Components  │  │  (Mapbox GL) │  │  Training Programs  │  │
-│  └──────────────┘  └──────────────┘  └─────────────────────┘  │
-│         React Query + Zustand State Management                  │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │
-                            │ REST API
-                            │
-┌───────────────────────────▼─────────────────────────────────────┐
-│                  FASTAPI BACKEND (Port 8000)                     │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              PRESENTATION LAYER                          │   │
-│  │  Routes | Middleware | Controllers | Validators         │   │
-│  └────────────────────┬────────────────────────────────────┘   │
-│  ┌────────────────────▼────────────────────────────────────┐   │
-│  │            APPLICATION LAYER                             │   │
-│  │  Use Cases | Services | Business Logic                  │   │
-│  └────────────────────┬────────────────────────────────────┘   │
-│  ┌────────────────────▼────────────────────────────────────┐   │
-│  │                 DOMAIN LAYER                             │   │
-│  │  Entities | Value Objects | Interfaces | Services       │   │
-│  └────────────────────┬────────────────────────────────────┘   │
-│  ┌────────────────────▼────────────────────────────────────┐   │
-│  │            INFRASTRUCTURE LAYER                          │   │
-│  │  API Clients | Database | Cache | External Services     │   │
-│  └────────────────────┬────────────────────────────────────┘   │
-└────────────────────────┼────────────────────────────────────────┘
-                         │
-        ┌────────────────┼────────────────┐
-        │                │                │
-┌───────▼────────┐  ┌───▼────────┐  ┌───▼──────────────┐
-│   PostgreSQL   │  │   Redis    │  │  External APIs   │
-│   + PostGIS    │  │   Cache    │  │  - Strava        │
-│   Database     │  │            │  │  - Mapbox        │
-│                │  │            │  │  - OpenWeather   │
-└────────────────┘  └────────────┘  │  - OSM Overpass  │
-                                    └──────────────────┘
+│                         USER DEVICES                            │
+│                   (Mobile, Tablet, Desktop)                     │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │ HTTPS
+┌──────────────────────────────▼──────────────────────────────────┐
+│             Azure Container Apps (serverless)                   │
+│          Next.js 14 App Router — Port 3000                      │
+│                                                                 │
+│  ┌──────────────┐  ┌───────────────┐  ┌──────────────────────┐  │
+│  │  MapView     │  │ DetailsModal  │  │   RouteFilter        │  │
+│  │  Component   │  │  Component    │  │   ConnectDevices     │  │
+│  └──────────────┘  └───────────────┘  └──────────────────────┘  │
+│                                                                 │
+│       Google Maps JS API + Places API + Elevation API           │
+│       (API key baked into bundle at build time)                 │
+└─────────────────────────────────────────────────────────────────┘
+
+Supporting Azure Resources:
+  Azure Container Registry       — stores frontend Docker image
+  Azure Key Vault                — stores Maps API key (audit/rotation)
+  Azure Log Analytics            — Container Apps telemetry
+  User-Assigned Managed Identity — ACR pull + Key Vault read
+```
+
+### Local Development (backend not deployed)
+
+```
+┌──────────────────┐       ┌───────────────────────────────┐
+│  Next.js 14      │       │  FastAPI Backend (Port 8000)  │
+│  Port 3000       │──────►│  Python 3.11+, Pydantic v2    │
+└──────────────────┘       │  SQLAlchemy 2.0 async         │
+                           └────────────────┬──────────────┘
+                                            │
+                           ┌────────────────┴──────────────┐
+                           │  Docker Compose (local only)  │
+                           │  PostgreSQL    │  Redis       │
+                           └───────────────────────────────┘
 ```
 
 ## Tech Stack
 
-### Backend
-- **Python 3.11+** with FastAPI
-- **PostgreSQL 15+** with PostGIS extension
-- **Redis** for caching and rate limiting
-- **SQLAlchemy** + GeoAlchemy2 for ORM
+### Frontend (deployed to Azure)
+- **Next.js 14** App Router, TypeScript
+- **Tailwind CSS** (`slate-*` palette)
+- **Google Maps JS API** — Places API, Elevation API
+- **Lucide React** for icons
+
+### Backend (local development only — not deployed)
+- **Python 3.11+**, FastAPI, Pydantic v2
+- **SQLAlchemy 2.0** async + asyncpg
+- **PostgreSQL** + PostGIS, Redis (via Docker Compose)
 - **Poetry** for dependency management
 
-### Frontend
-- **Next.js 14** with App Router
-- **TypeScript** for type safety
-- **Tailwind CSS** for styling
-- **React Query** for server state
-- **Zustand** for client state
-- **Mapbox GL** for interactive maps
-
 ### Infrastructure
-- **Docker** + Docker Compose for local development
-- **Azure** for production deployment
-- **GitHub Actions** for CI/CD
+- **Azure Container Apps** (serverless, scale-to-zero) — frontend
+- **Azure Container Registry** — Docker image storage
+- **Azure Key Vault** — Maps API key storage and rotation
+- **Azure Developer CLI (`azd`)** — provision and deploy
+- **Docker Compose** — local backend services only
 
 ## Quick Start
 
 ### Prerequisites
-- Docker and Docker Compose installed
-- Git installed
-- (Optional) Python 3.11+, Node.js 20+, PostgreSQL 15+
+- Node.js 20+
+- Git
+- A Google Maps API key (Maps JS API, Places API, Elevation API enabled)
+- For backend dev: Python 3.11+, Poetry, Docker Desktop
 
 ### 1. Clone Repository
 ```bash
@@ -99,38 +92,29 @@ git clone https://github.com/Oweeboi011/Fit-Ready-IQ.git
 cd Fit-Ready-IQ
 ```
 
-### 2. Configure Environment
+### 2. Run Frontend Locally
 ```bash
-cp .env.example .env
-# Edit .env with your API keys:
-# - STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET
-# - MAPBOX_ACCESS_TOKEN (required for map display)
-# - GOOGLE_MAPS_API_KEY
-# - OPENWEATHER_API_KEY
-# - JWT_SECRET_KEY (generate secure key)
-
-# Configure frontend environment
 cd frontend
-cp .env.example .env.local
-# Add your Mapbox token: NEXT_PUBLIC_MAPBOX_TOKEN=pk.your_token_here
-cd ..
+npm install
+
+# Create local env file
+echo "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_key_here" > .env.local
+
+npm run dev
+# App at http://localhost:3000
 ```
 
-### 3. Start Services
+### 3. Run Backend Locally (optional)
 ```bash
+# Start local Postgres + Redis
 docker-compose up -d
+
+cd backend
+poetry install
+poetry run alembic upgrade head
+poetry run uvicorn src.main:app --reload
+# API at http://localhost:8000
 ```
-
-This starts:
-- PostgreSQL with PostGIS on port 5432
-- Redis on port 6379
-- FastAPI backend on port 8000
-- Next.js frontend on port 3000
-
-### 4. Access Application
-- **Frontend**: http://localhost:3000
-- **API Docs**: http://localhost:8000/docs
-- **API Health**: http://localhost:8000/health
 
 ## Development Setup
 
@@ -174,38 +158,32 @@ Press `F5` to start debugging.
 
 ```
 Fit-Ready-IQ/
-├── backend/                    # Python FastAPI backend
+├── frontend/                  # Next.js 14 — DEPLOYED to Azure
 │   ├── src/
-│   │   ├── domain/            # Business logic (entities, value objects)
-│   │   ├── application/       # Use cases and services
-│   │   ├── infrastructure/    # External concerns (DB, APIs)
-│   │   ├── presentation/      # FastAPI routes and controllers
-│   │   └── config/            # Configuration management
-│   ├── tests/                 # Test suite
-│   ├── pyproject.toml         # Python dependencies
-│   └── Dockerfile             # Container image
-├── frontend/                  # Next.js frontend
+│   │   ├── app/              # App Router (layout, page, globals.css)
+│   │   └── components/       # MapView, DetailsModal, RouteFilter,
+│   │                         # ConnectDevicesModal
+│   ├── public/               # Static assets
+│   ├── Dockerfile            # Multi-stage: deps → builder → runner
+│   ├── next.config.js        # output: standalone, image domains
+│   ├── tailwind.config.js    # slate-* palette
+│   └── package.json
+├── backend/                   # Python FastAPI — LOCAL DEV ONLY
 │   ├── src/
-│   │   ├── app/              # Next.js pages and layouts
-│   │   ├── components/       # React components
-│   │   ├── lib/              # Utilities and helpers
-│   │   ├── store/            # State management
-│   │   └── types/            # TypeScript definitions
-│   ├── package.json          # Node dependencies
-│   └── Dockerfile            # Container image
-├── docs/                     # Comprehensive documentation
-│   ├── ARCHITECTURE.md       # System design and patterns
-│   ├── API.md                # API reference
-│   ├── DEPLOYMENT.md         # Azure deployment guide
-│   ├── SECURITY.md           # Security practices
-│   ├── TROUBLESHOOTING.md    # Common issues
-│   └── CONTRIBUTING.md       # Contribution guidelines
-├── .vscode/                  # VS Code configuration
-│   ├── launch.json           # Debug configurations
-│   ├── tasks.json            # Build tasks
-│   └── settings.json         # Editor settings
-├── docker-compose.yml        # Local development stack
-└── .env.example              # Environment template
+│   │   ├── domain/           # Entities, interfaces, services, value objects
+│   │   ├── infrastructure/   # API clients (Strava, Garmin, Google Maps...)
+│   │   │   └── database/     # SQLAlchemy async models + connection
+│   │   └── config/           # Settings via pydantic-settings
+│   ├── tests/
+│   └── pyproject.toml        # Poetry dependencies
+├── infra/                     # Bicep IaC — provisioned via azd up
+│   ├── main.bicep            # Orchestrator (targetScope: resourceGroup)
+│   └── modules/              # ACR, Container App, Key Vault, Log Analytics
+├── docs/                      # Documentation
+├── azure.yaml                 # AZD service manifest
+├── .dockerignore              # Excludes backend/node_modules from build context
+├── docker-compose.yml         # Local Postgres + Redis for backend dev
+└── .env.example               # Required env vars reference
 ```
 
 ## Key Features
@@ -279,44 +257,53 @@ npm run test:e2e
 
 ## Deployment
 
-### Azure Deployment
-Refer to [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for complete guide.
+Deployment is exclusively via **Azure Developer CLI (`azd`)**. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full guide.
 
-Resources provisioned:
-- Azure App Service (FastAPI backend)
-- Azure Static Web Apps (Next.js frontend)
-- Azure Database for PostgreSQL with PostGIS
-- Azure Key Vault (secrets management)
-- Azure Application Insights (monitoring)
-
+### One-time setup
 ```bash
-# Deploy using Azure CLI
-az deployment group create \
-  --resource-group fit-ready-iq-rg \
-  --template-file infrastructure/azure/main.bicep
+azd env new fit-ready-iq
+azd env set AZURE_SUBSCRIPTION_ID <your-subscription-id>
+azd env set AZURE_RESOURCE_GROUP rg-sample-fit-maps
+azd env set AZURE_LOCATION eastus2
+azd env set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY <your-maps-key>
+azd env set GOOGLE_MAPS_API_KEY <your-maps-key>
 ```
+
+### Provision + deploy
+```bash
+azd up          # provision infra + build + deploy
+```
+
+### Redeploy code only
+```bash
+azd deploy --all
+```
+
+### Resources provisioned
+| Resource | Azure Service |
+|---|---|
+| Frontend | Azure Container Apps (Consumption, scale-to-zero) |
+| Images | Azure Container Registry (Basic) |
+| Secrets | Azure Key Vault (Standard) |
+| Observability | Azure Log Analytics Workspace |
+| Identity | User-Assigned Managed Identity |
 
 ## API Keys Required
 
-### Strava API (Required)
-1. Create app at https://www.strava.com/settings/api
-2. Set callback URL to `http://localhost:3000/auth/callback/strava`
-3. Copy Client ID and Secret to `.env`
+### Google Maps API (Required for deployed app)
+1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. Enable: Maps JavaScript API, Places API, Elevation API
+3. Create an API key and (optionally) restrict to your Container App domain
+4. Set via: `azd env set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY <key>`
 
-### Mapbox API (Required)
-1. Create account at https://www.mapbox.com
-2. Generate access token
-3. Add to `.env` as `MAPBOX_ACCESS_TOKEN`
+> The key is baked into the Next.js bundle at build time via a `prepackage` hook.
+> It is also stored in Azure Key Vault for audit and rotation.
+> **Never commit the key** — `frontend/.env.production` is gitignored.
 
-### OpenWeather API (Required)
-1. Sign up at https://openweathermap.org/api
-2. Get free API key
-3. Add to `.env` as `OPENWEATHER_API_KEY`
-
-### Optional APIs
-- **Komoot**: Partner API (requires application)
-- **Hiking Project**: Free API key
-- **Garmin**: Commercial partnership required
+### Backend API keys (local dev only)
+- **Strava**: `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET`
+- **Garmin / COROS**: file import (no public API)
+- **Komoot**: partner API
 
 ## Contributing
 
