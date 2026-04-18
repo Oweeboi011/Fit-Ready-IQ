@@ -2,59 +2,100 @@
 
 ## System Overview
 
-Fit-Ready-IQ implements Clean Architecture with SOLID principles, ensuring separation of concerns, testability, and maintainability. The system is designed as a distributed application with a Python FastAPI backend and Next.js frontend.
+Fit-Ready-IQ implements Clean Architecture with SOLID principles across two layers:
 
-## Clean Architecture Layers
+- **Frontend** (`frontend/src/`) — Next.js 14 App Router, TypeScript, Tailwind CSS (`slate-*`), Google Maps JS API. **Deployed to Azure Container Apps.**
+- **Backend** (`backend/src/`) — Python 3.11+, FastAPI, Pydantic v2, SQLAlchemy 2.0 async. **Local development only — not deployed to Azure.**
+
+The deployed application runs entirely client-side via Google Maps Places API and Elevation API.
+Backend API calls are commented out in the frontend and will be wired in a future release.
+
+## Frontend Component Structure (`frontend/src/`)
+
+```
+app/
+  layout.tsx        ← root layout, metadata, Inter font
+  page.tsx          ← thin page: passes state to MapView
+  globals.css       ← Tailwind base styles
+
+components/
+  MapView.tsx           ← Google Maps container, mountain markers, Places search
+  DetailsModal.tsx      ← full detail panel (Banner → Stats → Photos → Strava →
+                           ElevProfile → RouteSummary → ElevDetails → PreClimbStats
+                           → Briefing → Gear → Reviews → Coordinates → Actions)
+  RouteFilter.tsx       ← filter controls (distance, difficulty, activity type)
+  ConnectDevicesModal.tsx ← device connection UI (Strava, Garmin, COROS, Komoot)
+```
+
+Rules:
+- Pages in `app/` stay thin — delegate rendering to `components/`
+- All Tailwind classes use `slate-*` palette — no `gray-*` classes
+- `Mountain` interface uses `mountain_type: string` (not `type`) in both `page.tsx` and `MapView.tsx`
+- No `console.log` in production code — only `console.error` for caught exceptions
+
+## Backend Clean Architecture Layers (`backend/src/`)
+
+> Local development only. Not deployed.
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│  ENTRY POINT                                                       │
+│  main.py — FastAPI app wiring only, no business logic              │
+└──────────────────────────────┬─────────────────────────────────────┘
+                               │ imports
+┌──────────────────────────────▼─────────────────────────────────────┐
+│  DOMAIN LAYER  (domain/)                                           │
+│  No imports from infrastructure/                                   │
+│                                                                    │
+│  entities/        ← core business objects                          │
+│  interfaces/      ← abstract contracts for infrastructure          │
+│  services/        ← pure domain logic                              │
+│  value_objects/   ← immutable typed wrappers                       │
+└──────────────────────────────┬─────────────────────────────────────┘
+                               │ implements interfaces
+┌──────────────────────────────▼─────────────────────────────────────┐
+│  INFRASTRUCTURE LAYER  (infrastructure/)                           │
+│  Implements domain interfaces — depends on domain, never reverse   │
+│                                                                    │
+│  api_clients/                                                      │
+│    coros/        ← COROS API client                                │
+│    garmin/       ← Garmin API client                               │
+│    google_maps/  ← Google Maps API client                          │
+│    komoot/       ← Komoot API client                               │
+│    strava/       ← Strava OAuth + activity client                  │
+│  database/                                                         │
+│    connection.py ← async engine, str(settings.database_url)        │
+│    models.py     ← SQLAlchemy ORM models (changes need Alembic)    │
+└────────────────────────────────────────────────────────────────────┘
+
+config/
+  settings.py     ← pydantic-settings, loaded via get_settings() + lru_cache
+```
+
+Dependency direction: `main.py` → `infrastructure/` → `domain/`; never reversed.
+
+## Azure Deployment Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    PRESENTATION LAYER                            │
-│  Handles HTTP requests/responses, validation, authentication     │
-│                                                                   │
-│  FastAPI:                         Next.js:                       │
-│  - Routes                         - Pages/App Router             │
-│  - Controllers                    - Components                   │
-│  - Middleware                     - API Client                   │
-│  - Request/Response Schemas       - State Management             │
-└────────────────────────┬──────────────────────────────────────┬─┘
-                         │                                      │
-                         │ Dependencies point INWARD            │
-                         │                                      │
-┌────────────────────────▼──────────────────────────────────────▼─┐
-│                   APPLICATION LAYER                              │
-│  Contains application-specific business rules and use cases      │
-│                                                                   │
-│  - Use Cases (CalculateFitnessScore, MatchRouteToUser)          │
-│  - Application Services (FitnessAnalysisService)                 │
-│  - DTOs and Mappers                                              │
-│  - Orchestrates domain objects                                   │
-└────────────────────────┬──────────────────────────────────────┬─┘
-                         │                                      │
-                         │ Core business logic                  │
-                         │                                      │
-┌────────────────────────▼──────────────────────────────────────▼─┐
-│                      DOMAIN LAYER                                │
-│  Pure business logic - no dependencies on external frameworks    │
-│                                                                   │
-│  - Entities (User, Activity, Route, TrainingProgram)            │
-│  - Value Objects (FitnessScore, RouteDifficulty, Coordinates)   │
-│  - Domain Services (FitnessScoreCalculator)                      │
-│  - Interfaces (IRepository, IAPIClient, ICacheService)           │
-│  - Business Rules and Invariants                                 │
-└────────────────────────┬──────────────────────────────────────┬─┘
-                         │                                      │
-                         │ Implementations of interfaces        │
-                         │                                      │
-┌────────────────────────▼──────────────────────────────────────▼─┐
-│                 INFRASTRUCTURE LAYER                             │
-│  All external concerns and implementation details                │
-│                                                                   │
-│  - Database (SQLAlchemy, PostgreSQL, PostGIS)                   │
-│  - External APIs (Strava, Mapbox, OpenWeather)                  │
-│  - Caching (Redis)                                               │
-│  - File System Access                                            │
-│  - Configuration Management                                      │
-└──────────────────────────────────────────────────────────────────┘
+│                         Azure Cloud                             │
+│                                                                 │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  Container Apps Environment (cae-fitreadyiq-{token})      │  │
+│  │                                                           │  │
+│  │  ┌─────────────────────────────────────────────────────┐  │  │
+│  │  │  ca-fri-fe-{token}  ─  Next.js 14  ─  Port 3000     │  │  │
+│  │  │  minReplicas: 0  (scale-to-zero)                    │  │  │
+│  │  └─────────────────────────────────────────────────────┘  │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│  ACR: acrfitreadyiq{token}   KV: kv-fri-{token8}                │
+│  Log: log-fitreadyiq{token}  MI: id-fitreadyiq-{token}          │
+└─────────────────────────────────────────────────────────────────┘
+
+Deployment: azd deploy --all  (no CI/CD pipelines)
+Image built: ACR Tasks (remote build — no local Docker required)
+Key flow:   azd env → prepackage hook → .env.production → npm run build → baked into bundle
 ```
 
 ## SOLID Principles Implementation
