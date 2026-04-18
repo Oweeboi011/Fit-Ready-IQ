@@ -5,7 +5,6 @@ from typing import Optional
 
 from ..entities import Activity, Route
 from ..value_objects import (
-    DifficultyLevel,
     FitnessScore,
     HeartRateZones,
     ReadinessStatus,
@@ -72,19 +71,26 @@ class FitnessScoreCalculator:
         )
 
     def _calculate_vo2max_score(
-        self, activities: list[Activity], user_age: Optional[int], user_max_hr: Optional[int]
+        self,
+        activities: list[Activity],
+        user_age: Optional[int],
+        user_max_hr: Optional[int],
     ) -> float:
         """Estimate VO2max score from activity data."""
         # Filter to running/hiking activities with HR data
         cardio_activities = [
-            a for a in activities if a.activity_type in ["run", "hike"] and a.average_heart_rate
+            a
+            for a in activities
+            if a.activity_type in ["run", "hike"] and a.average_heart_rate
         ]
 
         if not cardio_activities:
             return 50.0  # Default moderate score
 
         # Use most recent activities with good data
-        recent = sorted(cardio_activities, key=lambda x: x.start_date, reverse=True)[:10]
+        recent = sorted(cardio_activities, key=lambda x: x.start_date, reverse=True)[
+            :10
+        ]
 
         # Calculate average pace and heart rate
         avg_speeds = [a.speed_kph for a in recent if a.speed_kph]
@@ -94,7 +100,6 @@ class FitnessScoreCalculator:
             return 50.0
 
         avg_speed = sum(avg_speeds) / len(avg_speeds)
-        avg_hr = sum(avg_hrs) / len(avg_hrs)
 
         # Simplified VO2max estimation (Cooper formula adapted)
         # This is a rough estimate - real VO2max requires lab testing
@@ -191,7 +196,9 @@ class FitnessScoreCalculator:
 
         return min(100.0, score)
 
-    def _determine_experience_level(self, activities: list[Activity], total_score: float) -> str:
+    def _determine_experience_level(
+        self, activities: list[Activity], total_score: float
+    ) -> str:
         """Determine experience level from activity history and score."""
         # Consider both score and activity count
         total_activities = len(activities)
@@ -230,7 +237,9 @@ class RouteDifficultyCalculator:
         """
         # Calculate component factors
         distance_factor = self._calculate_distance_factor(route.distance)
-        elevation_factor = self._calculate_elevation_factor(route.elevation_gain, route.distance)
+        elevation_factor = self._calculate_elevation_factor(
+            route.elevation_gain, route.distance
+        )
         grade_factor = self._calculate_grade_factor(route.max_grade, route.avg_grade)
         technical_factor = self._calculate_technical_factor(
             route.technical_rating, route.surface_types
@@ -274,7 +283,9 @@ class RouteDifficultyCalculator:
         else:
             return min(100, 80 + ((distance_km - 30) / 20) * 20)
 
-    def _calculate_elevation_factor(self, elevation_gain: float, distance_meters: float) -> float:
+    def _calculate_elevation_factor(
+        self, elevation_gain: float, distance_meters: float
+    ) -> float:
         """Score elevation component considering gain and distance ratio."""
         if distance_meters == 0:
             return 0.0
@@ -322,7 +333,9 @@ class RouteDifficultyCalculator:
 
         return max_score * 0.7 + avg_score * 0.3
 
-    def _calculate_technical_factor(self, technical_rating: int, surface_types: list[str]) -> float:
+    def _calculate_technical_factor(
+        self, technical_rating: int, surface_types: list[str]
+    ) -> float:
         """Score technical difficulty and terrain."""
         # Technical rating (1-5) base score
         rating_score = (technical_rating / 5) * 60

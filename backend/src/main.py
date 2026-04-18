@@ -67,7 +67,11 @@ app.add_middleware(
 async def health_check():
     """Health check endpoint for monitoring."""
     return JSONResponse(
-        content={"status": "healthy", "environment": settings.environment, "version": "0.1.0"}
+        content={
+            "status": "healthy",
+            "environment": settings.environment,
+            "version": "0.1.0",
+        }
     )
 
 

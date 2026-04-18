@@ -30,20 +30,20 @@ venv/
 ENV/
 env/
 .venv
+.env.example
 
 # PyCharm
 .idea/
 
+
 # VS Code
-.vscode/
-!.vscode/launch.json
-!.vscode/settings.json
-!.vscode/tasks.json
+.vscode/chrome-debug-profile
 
 # Environment variables
 .env
 .env.local
 .env.*.local
+.env.production
 
 # Node.js
 node_modules/

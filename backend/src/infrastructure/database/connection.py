@@ -12,7 +12,7 @@ settings = get_settings()
 
 # Create async engine
 engine = create_async_engine(
-    settings.database_url.replace("postgresql://", "postgresql+asyncpg://"),
+    str(settings.database_url).replace("postgresql://", "postgresql+asyncpg://"),
     echo=settings.environment == "development",
     poolclass=NullPool if settings.environment == "test" else None,
     pool_pre_ping=True,

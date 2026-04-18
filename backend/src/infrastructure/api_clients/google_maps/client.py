@@ -83,7 +83,9 @@ class GoogleMapsClient(IMapClient, IRoutingClient):
 
             if data["status"] == "OK" and data["results"]:
                 address = data["results"][0]["formatted_address"]
-                logger.info("reverse_geocode_success", coordinates=coordinates, address=address)
+                logger.info(
+                    "reverse_geocode_success", coordinates=coordinates, address=address
+                )
                 return address
 
             logger.warning("reverse_geocode_no_results", coordinates=coordinates)
@@ -94,7 +96,10 @@ class GoogleMapsClient(IMapClient, IRoutingClient):
             return None
 
     async def get_poi_nearby(
-        self, coordinates: Coordinates, radius_meters: float, poi_type: Optional[str] = None
+        self,
+        coordinates: Coordinates,
+        radius_meters: float,
+        poi_type: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         """Get points of interest near coordinates.
 
@@ -210,7 +215,9 @@ class GoogleMapsClient(IMapClient, IRoutingClient):
                     "steps": leg["steps"],
                 }
 
-                logger.info("route_calculated", distance_km=result["distance_meters"] / 1000)
+                logger.info(
+                    "route_calculated", distance_km=result["distance_meters"] / 1000
+                )
                 return result
 
             logger.warning("route_calculation_failed", status=data["status"])
@@ -220,7 +227,9 @@ class GoogleMapsClient(IMapClient, IRoutingClient):
             logger.error("route_calculation_error", error=str(e))
             return {}
 
-    async def get_elevation_profile(self, coordinates: list[Coordinates]) -> list[float]:
+    async def get_elevation_profile(
+        self, coordinates: list[Coordinates]
+    ) -> list[float]:
         """Get elevation data for a series of coordinates.
 
         Args:

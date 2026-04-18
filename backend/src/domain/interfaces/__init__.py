@@ -51,7 +51,9 @@ class IActivityRepository(IRepository):
     """Repository interface for Activity entities."""
 
     @abstractmethod
-    async def get_by_user(self, user_id: UUID, limit: int = 50, offset: int = 0) -> list[Activity]:
+    async def get_by_user(
+        self, user_id: UUID, limit: int = 50, offset: int = 0
+    ) -> list[Activity]:
         """Get activities for a user."""
         pass
 
@@ -63,7 +65,9 @@ class IActivityRepository(IRepository):
         pass
 
     @abstractmethod
-    async def get_by_external_id(self, external_id: str, platform: str) -> Optional[Activity]:
+    async def get_by_external_id(
+        self, external_id: str, platform: str
+    ) -> Optional[Activity]:
         """Find activity by external platform ID."""
         pass
 
@@ -162,7 +166,9 @@ class IFitnessPlatformClient(ABC):
         pass
 
     @abstractmethod
-    async def get_activity_detail(self, access_token: str, activity_id: str) -> dict[str, Any]:
+    async def get_activity_detail(
+        self, access_token: str, activity_id: str
+    ) -> dict[str, Any]:
         """Get detailed information about a specific activity."""
         pass
 
@@ -200,7 +206,9 @@ class IRoutingClient(ABC):
         pass
 
     @abstractmethod
-    async def get_elevation_profile(self, coordinates: list[Coordinates]) -> list[float]:
+    async def get_elevation_profile(
+        self, coordinates: list[Coordinates]
+    ) -> list[float]:
         """Get elevation data for a series of coordinates."""
         pass
 
@@ -214,7 +222,9 @@ class IWeatherClient(ABC):
         pass
 
     @abstractmethod
-    async def get_forecast(self, coordinates: Coordinates, date: datetime) -> dict[str, Any]:
+    async def get_forecast(
+        self, coordinates: Coordinates, date: datetime
+    ) -> dict[str, Any]:
         """Get weather forecast for a specific date."""
         pass
 
@@ -241,7 +251,10 @@ class IMapClient(ABC):
 
     @abstractmethod
     async def get_poi_nearby(
-        self, coordinates: Coordinates, radius_meters: float, poi_type: Optional[str] = None
+        self,
+        coordinates: Coordinates,
+        radius_meters: float,
+        poi_type: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         """Get points of interest near coordinates."""
         pass
@@ -256,7 +269,9 @@ class ICacheService(ABC):
         pass
 
     @abstractmethod
-    async def set(self, key: str, value: Any, ttl_seconds: Optional[int] = None) -> bool:
+    async def set(
+        self, key: str, value: Any, ttl_seconds: Optional[int] = None
+    ) -> bool:
         """Store value in cache with optional TTL."""
         pass
 

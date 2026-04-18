@@ -150,16 +150,16 @@ export default function ConnectDevicesModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
       <div className="w-full max-w-2xl rounded-xl bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-200 p-6">
+        <div className="flex items-center justify-between border-b border-slate-200 p-6">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Connect Devices</h2>
-            <p className="mt-1 text-sm text-gray-600">
+            <h2 className="text-2xl font-bold text-slate-900">Connect Devices</h2>
+            <p className="mt-1 text-sm text-slate-600">
               Sync your fitness data from multiple sources
             </p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
           >
             <svg
               className="h-6 w-6"
@@ -182,7 +182,7 @@ export default function ConnectDevicesModal({
           {devices.map((device) => (
             <div
               key={device.id}
-              className="rounded-lg border border-gray-200 p-5 transition-shadow hover:shadow-md"
+              className="rounded-lg border border-slate-200 p-5 transition-shadow hover:shadow-md"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-4">
@@ -192,8 +192,8 @@ export default function ConnectDevicesModal({
                     {device.icon}
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">{device.name}</h3>
-                    <p className="mt-1 text-sm text-gray-600">{device.description}</p>
+                    <h3 className="font-semibold text-slate-900">{device.name}</h3>
+                    <p className="mt-1 text-sm text-slate-600">{device.description}</p>
                     
                     {/* Status Badge */}
                     <div className="mt-2">
@@ -213,7 +213,7 @@ export default function ConnectDevicesModal({
                           Connected
                         </span>
                       ) : (
-                        <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-800">
                           Not Connected
                         </span>
                       )}
@@ -252,7 +252,7 @@ export default function ConnectDevicesModal({
                           <button
                             onClick={() => handleFileUpload(device.id)}
                             disabled={uploadingDevice === device.id}
-                            className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+                            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
                           >
                             {uploadingDevice === device.id
                               ? "Uploading..."
@@ -288,15 +288,15 @@ export default function ConnectDevicesModal({
 
               {/* Selected Files Preview */}
               {selectedFiles[device.id] && selectedFiles[device.id].length > 0 && (
-                <div className="mt-3 rounded-lg bg-gray-50 p-3">
-                  <p className="mb-2 text-xs font-medium text-gray-700">
+                <div className="mt-3 rounded-lg bg-slate-50 p-3">
+                  <p className="mb-2 text-xs font-medium text-slate-700">
                     Selected files:
                   </p>
                   <ul className="space-y-1">
                     {selectedFiles[device.id].map((file, index) => (
-                      <li key={index} className="flex items-center gap-2 text-xs text-gray-600">
+                      <li key={index} className="flex items-center gap-2 text-xs text-slate-600">
                         <svg
-                          className="h-4 w-4 text-gray-400"
+                          className="h-4 w-4 text-slate-400"
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -319,8 +319,8 @@ export default function ConnectDevicesModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 bg-gray-50 p-6">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
+        <div className="border-t border-slate-200 bg-slate-50 p-6">
+          <div className="flex items-center gap-2 text-sm text-slate-600">
             <svg
               className="h-5 w-5 text-blue-500"
               fill="none"

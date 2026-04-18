@@ -9,7 +9,6 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
-    Enum,
     Float,
     ForeignKey,
     Integer,
@@ -47,7 +46,9 @@ class UserModel(Base):
     weight_kg = Column(Float)
 
     # Relationships
-    activities = relationship("ActivityModel", back_populates="user", cascade="all, delete-orphan")
+    activities = relationship(
+        "ActivityModel", back_populates="user", cascade="all, delete-orphan"
+    )
     training_programs = relationship("TrainingProgramModel", back_populates="user")
     itineraries = relationship("ItineraryModel", back_populates="user")
 
@@ -58,7 +59,9 @@ class ActivityModel(Base):
     __tablename__ = "activities"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
 
     # External reference
     external_id = Column(String(100), index=True)
@@ -190,13 +193,17 @@ class TrainingSessionModel(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     program_id = Column(
-        UUID(as_uuid=True), ForeignKey("training_programs.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("training_programs.id", ondelete="CASCADE"),
+        nullable=False,
     )
 
     # Session details
     week = Column(Integer, nullable=False)
     session_number = Column(Integer, nullable=False)
-    session_type = Column(String(20), nullable=False)  # endurance, interval, hill, recovery
+    session_type = Column(
+        String(20), nullable=False
+    )  # endurance, interval, hill, recovery
 
     # Targets
     duration_minutes = Column(Integer)

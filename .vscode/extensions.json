@@ -1,0 +1,14 @@
+{
+    "recommendations": [
+        "ms-python.python",
+        "ms-python.pylint",
+        "ms-python.black-formatter",
+        "ms-python.isort",
+        "ms-vscode-remote.remote-wsl",
+        "ms-vscode-remote.remote-containers",
+        "redhat.vscode-yaml",
+        "ms-vscode.azure-account",
+        "ms-python.mypy-type-checker",
+        "github.copilot-chat"
+    ]
+}

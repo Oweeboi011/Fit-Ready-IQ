@@ -1,0 +1,304 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    // ========================================================================
+    // QUICK START: Most Common Development Tasks
+    // ========================================================================
+    {
+      "name": "Backend: Start API Server",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["src.main:app", "--host", "127.0.0.1", "--port", "6790", "--log-level", "debug", "--reload"],
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend",
+        "ENVIRONMENT": "development",
+        "PYTHONUNBUFFERED": "1",
+        "UVICORN_LOG_LEVEL": "debug",
+        "PYTHONHTTPSVERIFY": "0",
+        "CURL_CA_BUNDLE": "",
+        "REQUESTS_CA_BUNDLE": ""
+      },
+      "console": "integratedTerminal",
+      "logToFile": true,
+      "showReturnValue": true,
+      "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+      "preLaunchTask": "Backend Pre-Launch"
+    },
+    {
+      "name": "Frontend: Next.js Server",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:4790",
+      "webRoot": "${workspaceFolder}/frontend",
+      "env": {
+        "NODE_ENV": "development",
+        "DEBUG": "*"
+      },
+      "runtimeArgs": ["--disable-extensions", "--enable-logging"],
+      "userDataDir": "${workspaceFolder}/.vscode/chrome-debug-profile",
+      "sourceMaps": true,
+      "timeout": 90000,
+      "sourceMapPathOverrides": {
+        "webpack://_N_E/./*": "${webRoot}/*",
+        "webpack:///./*": "${webRoot}/*"
+      },
+      "preLaunchTask": "npm: dev - frontend"
+    },
+    {
+      "name": "Frontend: Next.js Server (Node)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/frontend",
+      "env": {
+        "NODE_ENV": "development",
+        "DEBUG": "*"
+      }
+    },
+
+    // ========================================================================
+    // BACKEND DEBUGGING
+    // ========================================================================
+    {
+      "name": "Backend: FastAPI Server",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "src.main:app",
+        "--reload",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "6790",
+        "--log-level",
+        "debug"
+      ],
+      "jinja": true,
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend",
+        "PYTHONUNBUFFERED": "1",
+        "ENVIRONMENT": "development",
+        "UVICORN_LOG_LEVEL": "debug",
+        "PYTHONHTTPSVERIFY": "0",
+        "CURL_CA_BUNDLE": "",
+        "REQUESTS_CA_BUNDLE": ""
+      },
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+      "preLaunchTask": "Backend Pre-Launch",
+      "logToFile": true,
+      "showReturnValue": true
+    },
+
+    // ========================================================================
+    // TESTING
+    // ========================================================================
+    {
+      "name": "Test: All Backend Tests",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["tests/", "-v", "--tb=short"],
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend",
+        "ENVIRONMENT": "test"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+      "logToFile": true,
+      "showReturnValue": true
+    },
+    {
+      "name": "Test: Current Test File",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["${file}", "-v", "--tb=short"],
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend",
+        "ENVIRONMENT": "test"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+      "logToFile": true,
+      "showReturnValue": true
+    },
+    {
+      "name": "Test: Coverage Report",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "tests/",
+        "--cov=src",
+        "--cov-report=html",
+        "--cov-report=term",
+        "-v"
+      ],
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend",
+        "ENVIRONMENT": "test"
+      },
+      "console": "integratedTerminal",
+      "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+      "logToFile": true,
+      "showReturnValue": true
+    },
+    {
+      "name": "Kill All Ports (Task Only)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/.vscode/kill_ports_dummy.js",
+      "skipFiles": ["<node_internals>/**"],
+      "preLaunchTask": "Kill Frontend Port"
+    },
+    {
+      "name": "Kill Backend Port (Task Only)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/.vscode/kill_ports_dummy.js",
+      "skipFiles": ["<node_internals>/**"],
+      "preLaunchTask": "Kill Backend Port"
+    },
+    {
+      "name": "Test: Frontend Tests",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm test",
+      "cwd": "${workspaceFolder}/frontend"
+    },
+    {
+      "name": "Test: Frontend - Watch Mode",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run test:watch",
+      "cwd": "${workspaceFolder}/frontend"
+    },
+    {
+      "name": "Test: Frontend - With Coverage",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run test:coverage",
+      "cwd": "${workspaceFolder}/frontend"
+    },
+
+    // ========================================================================
+    // DEBUGGING
+    // ========================================================================
+    {
+      "name": "Debug: Current Python File",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend",
+        "ENVIRONMENT": "development"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+      "logToFile": true,
+      "showReturnValue": true
+    },
+
+    // ========================================================================
+    // SETUP & INSTALLATION
+    // ========================================================================
+    {
+      "name": "Setup: Install All Dependencies",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/.vscode/kill_ports_dummy.js",
+      "skipFiles": ["<node_internals>/**"],
+      "preLaunchTask": "Install All Dependencies"
+    },
+    {
+      "name": "Setup: Install Backend Dependencies",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/.vscode/kill_ports_dummy.js",
+      "skipFiles": ["<node_internals>/**"],
+      "preLaunchTask": "Install Backend Dependencies"
+    },
+    {
+      "name": "Setup: Install Frontend Dependencies",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/.vscode/kill_ports_dummy.js",
+      "skipFiles": ["<node_internals>/**"],
+      "preLaunchTask": "Install Frontend Dependencies"
+    },
+    {
+      "name": "Setup: Install All Dependencies",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/.vscode/kill_ports_dummy.js",
+      "skipFiles": ["<node_internals>/**"],
+      "preLaunchTask": "Install All Dependencies"
+    }
+  ],
+
+  // ==========================================================================
+  // COMPOUND CONFIGURATIONS: Run Multiple at Once
+  // ==========================================================================
+  "compounds": [
+    {
+      "name": "Full Stack: Start Everything",
+      "configurations": [
+        "Backend: Start API Server",
+        "Frontend: Next.js Server (Node)"
+      ],
+      "stopAll": true,
+      "presentation": {
+        "order": 1
+      }
+    },
+    {
+      "name": "Run All Tests",
+      "configurations": ["Test: All Backend Tests", "Test: Frontend Tests"],
+      "stopAll": false,
+      "presentation": {
+        "order": 2
+      }
+    },
+    {
+      "name": "Kill All Ports",
+      "preLaunchTask": "Kill Frontend Port",
+      "configurations": ["Kill All Ports (Task Only)"],
+      "presentation": {
+        "order": 3
+      }
+    },
+    {
+      "name": "Kill Backend Port",
+      "preLaunchTask": "Kill Backend Port",
+      "configurations": ["Kill Backend Port (Task Only)"],
+      "presentation": {
+        "order": 4
+      }
+    }
+  ],
+
+  // ==========================================================================
+  // INPUT VARIABLES
+  // ==========================================================================
+  "inputs": [
+    {
+      "id": "migrationMessage",
+      "type": "promptString",
+      "description": "Migration message",
+      "default": "Add new field"
+    }
+  ]
+}
