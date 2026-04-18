@@ -35,7 +35,8 @@ class KomootClient(IRoutingClient):
         self.client = httpx.AsyncClient(timeout=30.0)
         logger.info("komoot_client_initialized", has_api_key=bool(api_key))
 
-    async def search_routes(self n        self, coordinates: Coordinates, radius_km: float, activity_type: str
+    async def search_routes(
+        self, coordinates: Coordinates, radius_km: float, activity_type: str
     ) -> list[dict[str, Any]]:
         """Search for routes near a location.
 
@@ -138,7 +139,9 @@ class KomootClient(IRoutingClient):
             logger.error("komoot_calculate_route_error", error=str(e))
             return {}
 
-    async def get_elevation_profile(self, coordinates: list[Coordinates]) -> list[float]:
+    async def get_elevation_profile(
+        self, coordinates: list[Coordinates]
+    ) -> list[float]:
         """Get elevation data for a series of coordinates.
 
         Args:
@@ -151,7 +154,9 @@ class KomootClient(IRoutingClient):
             return []
 
         try:
-            logger.info("komoot_elevation_profile_requested", point_count=len(coordinates))
+            logger.info(
+                "komoot_elevation_profile_requested", point_count=len(coordinates)
+            )
             return []
 
         except Exception as e:

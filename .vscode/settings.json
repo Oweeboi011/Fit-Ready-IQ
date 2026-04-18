@@ -1,0 +1,21 @@
+{
+    "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+    "python.terminal.activateEnvironment": true,
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": false,
+    "python.linting.flake8Enabled": true,
+    "python.formatting.provider": "black",
+    "python.debugging.logLevel": "Debug",
+    "debug.terminal.clearBeforeReusing": true,
+    "debug.onTaskErrors": "showErrors",
+    "debug.showBreakpointsInOverviewRuler": true,
+    "debug.inlineValues": "on",
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/*.pyc": true
+    },
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/backend"
+    ],
+    "python-envs.defaultEnvManager": "ms-python.python:system"
+}

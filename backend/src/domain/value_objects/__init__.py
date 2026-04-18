@@ -51,9 +51,13 @@ class Coordinates:
     def __post_init__(self) -> None:
         """Validate coordinate ranges."""
         if not -90 <= self.latitude <= 90:
-            raise ValueError(f"Latitude must be between -90 and 90, got {self.latitude}")
+            raise ValueError(
+                f"Latitude must be between -90 and 90, got {self.latitude}"
+            )
         if not -180 <= self.longitude <= 180:
-            raise ValueError(f"Longitude must be between -180 and 180, got {self.longitude}")
+            raise ValueError(
+                f"Longitude must be between -180 and 180, got {self.longitude}"
+            )
 
     def distance_to(self, other: "Coordinates") -> float:
         """
@@ -100,7 +104,9 @@ class FitnessScore:
     def __post_init__(self) -> None:
         """Validate score ranges."""
         if not 0 <= self.total_score <= 100:
-            raise ValueError(f"Total score must be between 0 and 100, got {self.total_score}")
+            raise ValueError(
+                f"Total score must be between 0 and 100, got {self.total_score}"
+            )
 
     @property
     def grade(self) -> str:
@@ -143,7 +149,9 @@ class RouteDifficulty:
     def __post_init__(self) -> None:
         """Validate score range."""
         if not 0 <= self.score <= 100:
-            raise ValueError(f"Difficulty score must be between 0 and 100, got {self.score}")
+            raise ValueError(
+                f"Difficulty score must be between 0 and 100, got {self.score}"
+            )
 
     @classmethod
     def from_score(cls, score: float, **kwargs) -> "RouteDifficulty":
@@ -186,7 +194,9 @@ class RouteMatch:
     def __post_init__(self) -> None:
         """Validate confidence range."""
         if not 0 <= self.confidence <= 1:
-            raise ValueError(f"Confidence must be between 0 and 1, got {self.confidence}")
+            raise ValueError(
+                f"Confidence must be between 0 and 1, got {self.confidence}"
+            )
 
     @property
     def is_ready(self) -> bool:

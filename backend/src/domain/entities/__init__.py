@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 class User:
     """
     User entity representing an athlete using the platform.
-    
+
     Attributes:
         id: Unique identifier
         email: User's email address
@@ -20,7 +20,7 @@ class User:
         strava_id: Connected Strava account ID
         fitness_level: User's current fitness level (beginner/intermediate/advanced)
     """
-    
+
     id: UUID = field(default_factory=uuid4)
     email: str = ""
     username: str = ""
@@ -28,7 +28,7 @@ class User:
     updated_at: datetime = field(default_factory=datetime.utcnow)
     strava_id: Optional[str] = None
     fitness_level: str = "beginner"
-    
+
     def update_fitness_level(self, level: str) -> None:
         """Update user's fitness level classification."""
         valid_levels = ["beginner", "intermediate", "advanced", "expert"]
@@ -42,7 +42,7 @@ class User:
 class Activity:
     """
     Activity entity representing a single workout or activity.
-    
+
     Attributes:
         id: Unique identifier
         user_id: Owner of the activity
@@ -60,7 +60,7 @@ class Activity:
         training_load: Calculated training load/stress
         calories: Energy expenditure
     """
-    
+
     id: UUID = field(default_factory=uuid4)
     user_id: UUID = field(default_factory=uuid4)
     external_id: Optional[str] = None
@@ -75,15 +75,15 @@ class Activity:
     average_power: Optional[float] = None
     normalized_power: Optional[float] = None
     training_load: Optional[float] = None
-    calories: Optional<int> = None
-    
+    calories: Optional[int] = None
+
     @property
     def pace_per_km(self) -> Optional[float]:
         """Calculate pace in minutes per kilometer."""
         if self.distance > 0 and self.duration > 0:
             return (self.duration / 60) / (self.distance / 1000)
         return None
-    
+
     @property
     def speed_kph(self) -> Optional[float]:
         """Calculate average speed in km/h."""
@@ -96,7 +96,7 @@ class Activity:
 class Route:
     """
     Route entity representing a hiking or biking route.
-    
+
     Attributes:
         id: Unique identifier
         name: Route name/title
@@ -120,7 +120,7 @@ class Route:
         created_at: When route was added
         source: Data source (osm, komoot, user-generated)
     """
-    
+
     id: UUID = field(default_factory=uuid4)
     name: str = ""
     description: str = ""
@@ -148,7 +148,7 @@ class Route:
 class TrainingProgram:
     """
     Training program entity for preparing for specific routes.
-    
+
     Attributes:
         id: Unique identifier
         user_id: Target user
@@ -162,7 +162,7 @@ class TrainingProgram:
         status: Program status (not_started, in_progress, completed)
         created_at: Program creation timestamp
     """
-    
+
     id: UUID = field(default_factory=uuid4)
     user_id: UUID = field(default_factory=uuid4)
     route_id: UUID = field(default_factory=uuid4)
@@ -180,7 +180,7 @@ class TrainingProgram:
 class TrainingSession:
     """
     Individual training session within a program.
-    
+
     Attributes:
         id: Unique identifier
         program_id: Parent training program
@@ -194,7 +194,7 @@ class TrainingSession:
         completed: Whether session is done
         completed_at: Completion timestamp
     """
-    
+
     id: UUID = field(default_factory=uuid4)
     program_id: UUID = field(default_factory=uuid4)
     week: int = 1
@@ -206,7 +206,7 @@ class TrainingSession:
     description: str = ""
     completed: bool = False
     completed_at: Optional[datetime] = None
-    
+
     def mark_completed(self) -> None:
         """Mark session as completed."""
         self.completed = True
@@ -217,7 +217,7 @@ class TrainingSession:
 class Itinerary:
     """
     Complete adventure itinerary with all planning details.
-    
+
     Attributes:
         id: Unique identifier
         user_id: Owner
@@ -234,7 +234,7 @@ class Itinerary:
         estimated_finish_time: Suggested finish time
         created_at: Itinerary creation time
     """
-    
+
     id: UUID = field(default_factory=uuid4)
     user_id: UUID = field(default_factory=uuid4)
     route_id: UUID = field(default_factory=uuid4)

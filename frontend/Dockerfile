@@ -12,11 +12,14 @@ RUN npm ci
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+COPY --from=deps /app/node_modules ./node_modules
 
 # Set environment variables for build
 ENV NEXT_TELEMETRY_DISABLED 1
+
+# NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is injected via frontend/.env.production
+# by the AZD prepackage hook before this image is built.
 
 RUN npm run build
 

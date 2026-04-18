@@ -37,7 +37,9 @@ class StravaAPIClient(IFitnessPlatformClient):
         self.redirect_uri = redirect_uri
         self._http_client = httpx.AsyncClient(timeout=30.0)
 
-    def get_authorization_url(self, state: str, scope: str = "read,activity:read_all") -> str:
+    def get_authorization_url(
+        self, state: str, scope: str = "read,activity:read_all"
+    ) -> str:
         """
         Generate Strava OAuth authorization URL.
 
@@ -84,7 +86,9 @@ class StravaAPIClient(IFitnessPlatformClient):
             response.raise_for_status()
 
             data = response.json()
-            logger.info("strava_token_exchanged", athlete_id=data.get("athlete", {}).get("id"))
+            logger.info(
+                "strava_token_exchanged", athlete_id=data.get("athlete", {}).get("id")
+            )
 
             return data
         except httpx.HTTPError as e:
@@ -133,7 +137,9 @@ class StravaAPIClient(IFitnessPlatformClient):
         headers = {"Authorization": f"Bearer {access_token}"}
 
         try:
-            response = await self._http_client.get(f"{self.BASE_URL}/athlete", headers=headers)
+            response = await self._http_client.get(
+                f"{self.BASE_URL}/athlete", headers=headers
+            )
             response.raise_for_status()
 
             return response.json()
@@ -218,7 +224,9 @@ class StravaAPIClient(IFitnessPlatformClient):
             logger.error("strava_activities_fetch_failed", error=str(e))
             raise
 
-    async def get_activity_detail(self, access_token: str, activity_id: str) -> dict[str, Any]:
+    async def get_activity_detail(
+        self, access_token: str, activity_id: str
+    ) -> dict[str, Any]:
         """
         Get detailed information about a specific activity.
 
@@ -240,7 +248,9 @@ class StravaAPIClient(IFitnessPlatformClient):
             return response.json()
         except httpx.HTTPError as e:
             logger.error(
-                "strava_activity_detail_fetch_failed", activity_id=activity_id, error=str(e)
+                "strava_activity_detail_fetch_failed",
+                activity_id=activity_id,
+                error=str(e),
             )
             raise
 

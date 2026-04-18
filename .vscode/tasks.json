@@ -1,0 +1,139 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Kill Frontend Port",
+      "type": "shell",
+      "command": "$ports = @(3000, 3001); foreach ($port in $ports) { $procs = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; if ($procs) { $procs | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue; Write-Host \"Killed process $_ on port $port\" } } else { Write-Host \"No process on port $port\" } }",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+    {
+      "label": "Kill Backend Port",
+      "type": "shell",
+      "command": "$procs = Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; if ($procs) { $procs | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue; Write-Host \"Killed process $_ on port 8000\" } } else { Write-Host \"No process on port 8000\" }; Start-Sleep -Milliseconds 500",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+    {
+      "label": "npm: dev - frontend",
+      "type": "npm",
+      "script": "dev",
+      "path": "frontend",
+      "isBackground": true,
+      "dependsOn": ["Kill Frontend Port"],
+      "problemMatcher": {
+        "owner": "typescript",
+        "fileLocation": "relative",
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+): (error|warning) (.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "next dev|ready|started",
+          "endsPattern": "(Local:|ready|localhost)"
+        }
+      }
+    },
+    {
+      "label": "npm: build - frontend",
+      "type": "npm",
+      "script": "build",
+      "path": "frontend",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "npm: install - frontend",
+      "type": "npm",
+      "script": "install",
+      "path": "frontend"
+    },
+    {
+      "label": "pip: install - backend",
+      "type": "shell",
+      "command": "$env:PATH = 'C:\\Users\\cromwel.m.penaranda\\AppData\\Local\\Programs\\Python\\Python312;C:\\Users\\cromwel.m.penaranda\\AppData\\Local\\Programs\\Python\\Python312\\Scripts;' + $env:PATH; poetry install",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      }
+    },
+    {
+      "label": "Install Backend Dependencies",
+      "type": "shell",
+      "command": "$env:PATH = 'C:\\Users\\cromwel.m.penaranda\\AppData\\Local\\Programs\\Python\\Python312;C:\\Users\\cromwel.m.penaranda\\AppData\\Local\\Programs\\Python\\Python312\\Scripts;' + $env:PATH; poetry install",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "echo": true,
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "Install Frontend Dependencies",
+      "type": "shell",
+      "command": "npm install",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "echo": true,
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "kill-port-8000-powershell",
+      "type": "shell",
+      "command": "Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Where-Object { $_.State -eq 'Listen' } | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }",
+      "presentation": {
+        "reveal": "silent",
+        "close": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Install All Dependencies",
+      "dependsOn": [
+        "Install Frontend Dependencies",
+        "Install Backend Dependencies"
+      ],
+      "dependsOrder": "parallel",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "echo": true
+      }
+    },
+    {
+      "label": "Backend Pre-Launch",
+      "dependsOn": [
+        "Kill Backend Port"
+      ],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "showReuseMessage": false
+      }
+    }
+  ]
+}

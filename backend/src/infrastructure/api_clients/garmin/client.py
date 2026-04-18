@@ -5,7 +5,6 @@ This client provides FIT file parsing functionality as a workaround.
 Users can upload FIT files exported from Garmin Connect.
 """
 
-from datetime import datetime
 from typing import Any, Optional
 
 import structlog
