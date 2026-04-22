@@ -1,7 +1,11 @@
 /** @type {import('next').NextConfig} */
+const isGitHubPages = process.env.GITHUB_PAGES === 'true';
+
 const nextConfig = {
   reactStrictMode: true,
-  output: 'standalone',
+  output: isGitHubPages ? 'export' : 'standalone',
+  basePath: isGitHubPages ? '/Fit-Ready-IQ' : '',
+  assetPrefix: isGitHubPages ? '/Fit-Ready-IQ/' : undefined,
   
   // Environment variables available to the browser
   env: {
@@ -12,6 +16,7 @@ const nextConfig = {
   
   // Image optimization
   images: {
+    unoptimized: isGitHubPages,
     remotePatterns: [
       {
         protocol: 'https',
