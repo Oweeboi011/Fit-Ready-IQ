@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from ..entities import Activity, Itinerary, Route, TrainingProgram, User
@@ -13,7 +13,7 @@ class IRepository(ABC):
     """Base repository interface."""
 
     @abstractmethod
-    async def get_by_id(self, id: UUID) -> Optional[Any]:
+    async def get_by_id(self, id: UUID) -> Any | None:
         """Retrieve entity by ID."""
         pass
 
@@ -32,12 +32,12 @@ class IUserRepository(IRepository):
     """Repository interface for User entities."""
 
     @abstractmethod
-    async def get_by_email(self, email: str) -> Optional[User]:
+    async def get_by_email(self, email: str) -> User | None:
         """Find user by email address."""
         pass
 
     @abstractmethod
-    async def get_by_strava_id(self, strava_id: str) -> Optional[User]:
+    async def get_by_strava_id(self, strava_id: str) -> User | None:
         """Find user by Strava account ID."""
         pass
 
@@ -67,7 +67,7 @@ class IActivityRepository(IRepository):
     @abstractmethod
     async def get_by_external_id(
         self, external_id: str, platform: str
-    ) -> Optional[Activity]:
+    ) -> Activity | None:
         """Find activity by external platform ID."""
         pass
 
@@ -85,8 +85,8 @@ class IRouteRepository(IRepository):
         self,
         coordinates: Coordinates,
         radius_meters: float,
-        activity_type: Optional[str] = None,
-        max_difficulty: Optional[float] = None,
+        activity_type: str | None = None,
+        max_difficulty: float | None = None,
         limit: int = 20,
     ) -> list[Route]:
         """Search for routes near coordinates within radius."""
@@ -99,7 +99,7 @@ class IRouteRepository(IRepository):
         max_lat: float,
         min_lon: float,
         max_lon: float,
-        activity_type: Optional[str] = None,
+        activity_type: str | None = None,
     ) -> list[Route]:
         """Search for routes within geographic bounds."""
         pass
@@ -134,7 +134,7 @@ class IItineraryRepository(IRepository):
 
     @abstractmethod
     async def get_upcoming(
-        self, user_id: UUID, from_date: Optional[datetime] = None
+        self, user_id: UUID, from_date: datetime | None = None
     ) -> list[Itinerary]:
         """Get upcoming itineraries."""
         pass
@@ -157,8 +157,8 @@ class IFitnessPlatformClient(ABC):
     async def get_activities(
         self,
         access_token: str,
-        after: Optional[datetime] = None,
-        before: Optional[datetime] = None,
+        after: datetime | None = None,
+        before: datetime | None = None,
         page: int = 1,
         per_page: int = 30,
     ) -> list[dict[str, Any]]:
@@ -240,12 +240,12 @@ class IMapClient(ABC):
     """Abstract interface for map/geocoding clients."""
 
     @abstractmethod
-    async def geocode(self, address: str) -> Optional[Coordinates]:
+    async def geocode(self, address: str) -> Coordinates | None:
         """Convert address to coordinates."""
         pass
 
     @abstractmethod
-    async def reverse_geocode(self, coordinates: Coordinates) -> Optional[str]:
+    async def reverse_geocode(self, coordinates: Coordinates) -> str | None:
         """Convert coordinates to address."""
         pass
 
@@ -254,7 +254,7 @@ class IMapClient(ABC):
         self,
         coordinates: Coordinates,
         radius_meters: float,
-        poi_type: Optional[str] = None,
+        poi_type: str | None = None,
     ) -> list[dict[str, Any]]:
         """Get points of interest near coordinates."""
         pass
@@ -264,13 +264,13 @@ class ICacheService(ABC):
     """Abstract interface for caching service."""
 
     @abstractmethod
-    async def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Any | None:
         """Retrieve value from cache."""
         pass
 
     @abstractmethod
     async def set(
-        self, key: str, value: Any, ttl_seconds: Optional[int] = None
+        self, key: str, value: Any, ttl_seconds: int | None = None
     ) -> bool:
         """Store value in cache with optional TTL."""
         pass

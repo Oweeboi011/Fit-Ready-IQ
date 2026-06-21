@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
 
 interface RouteFilterProps {
   onFilterChange: (filters: FilterState) => void;
@@ -14,6 +15,19 @@ export interface FilterState {
   maxElevation: number;
 }
 
+const activityOptions = [
+  { value: "hike", label: "Backpacking", icon: "GEAR", activeClass: "bg-sky-500/20 text-sky-300 border-sky-500/40 ring-1 ring-sky-500/30" },
+  { value: "bike", label: "Bikepacking", icon: "BIKE", activeClass: "bg-violet-500/20 text-violet-300 border-violet-500/40 ring-1 ring-violet-500/30" },
+  { value: "rock_climb", label: "Rock Climbing", icon: "CLIMB", activeClass: "bg-orange-500/20 text-orange-300 border-orange-500/40 ring-1 ring-orange-500/30" },
+  { value: "tour", label: "Touring", icon: "MAP️", activeClass: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 ring-1 ring-emerald-500/30" },
+];
+
+const difficultyOptions = [
+  { value: "easy", label: "Easy", dot: "bg-emerald-500", activeClass: "bg-emerald-500/15 text-emerald-300 border-emerald-500/40 ring-1 ring-emerald-500/30" },
+  { value: "moderate", label: "Moderate", dot: "bg-amber-500", activeClass: "bg-amber-500/15 text-amber-300 border-amber-500/40 ring-1 ring-amber-500/30" },
+  { value: "hard", label: "Hard", dot: "bg-red-500", activeClass: "bg-red-500/15 text-red-300 border-red-500/40 ring-1 ring-red-500/30" },
+];
+
 export default function RouteFilter({ onFilterChange }: RouteFilterProps) {
   const [filters, setFilters] = useState<FilterState>({
     activityTypes: [],
@@ -22,197 +36,221 @@ export default function RouteFilter({ onFilterChange }: RouteFilterProps) {
     minElevation: 0,
     maxElevation: 3000,
   });
-
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const activityOptions = [
-    { value: "hike", label: "Backpacking", icon: "🎒" },
-    { value: "bike", label: "Bikepacking", icon: "🚴" },
-    { value: "tour", label: "Touring", icon: "🗺️" },
-  ];
-
-  const difficultyOptions = [
-    { value: "easy", label: "Easy", color: "bg-green-500" },
-    { value: "moderate", label: "Moderate", color: "bg-amber-500" },
-    { value: "hard", label: "Hard", color: "bg-red-500" },
-  ];
+  const activeCount = filters.activityTypes.length + filters.difficulty.length;
 
   const toggleActivityType = (type: string) => {
     const newTypes = filters.activityTypes.includes(type)
       ? filters.activityTypes.filter((t) => t !== type)
       : [...filters.activityTypes, type];
-    
-    const newFilters = { ...filters, activityTypes: newTypes };
-    setFilters(newFilters);
-    onFilterChange(newFilters);
+    const next = { ...filters, activityTypes: newTypes };
+    setFilters(next);
+    onFilterChange(next);
   };
 
   const toggleDifficulty = (diff: string) => {
     const newDiff = filters.difficulty.includes(diff)
       ? filters.difficulty.filter((d) => d !== diff)
       : [...filters.difficulty, diff];
-    
-    const newFilters = { ...filters, difficulty: newDiff };
-    setFilters(newFilters);
-    onFilterChange(newFilters);
+    const next = { ...filters, difficulty: newDiff };
+    setFilters(next);
+    onFilterChange(next);
   };
 
   const updateDistance = (distance: number) => {
-    const newFilters = { ...filters, maxDistance: distance };
-    setFilters(newFilters);
-    onFilterChange(newFilters);
+    const next = { ...filters, maxDistance: distance };
+    setFilters(next);
+    onFilterChange(next);
   };
 
   const updateElevation = (min: number, max: number) => {
-    const newFilters = { ...filters, minElevation: min, maxElevation: max };
-    setFilters(newFilters);
-    onFilterChange(newFilters);
+    const next = { ...filters, minElevation: min, maxElevation: max };
+    setFilters(next);
+    onFilterChange(next);
   };
 
   const resetFilters = () => {
-    const defaultFilters: FilterState = {
+    const defaults: FilterState = {
       activityTypes: [],
       difficulty: [],
       maxDistance: 50,
       minElevation: 0,
       maxElevation: 3000,
     };
-    setFilters(defaultFilters);
-    onFilterChange(defaultFilters);
+    setFilters(defaults);
+    onFilterChange(defaults);
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <span className="text-base">🎚️</span>
-          <h2 className="text-sm font-semibold text-slate-800">Filters</h2>
-          {(filters.activityTypes.length > 0 || filters.difficulty.length > 0) && (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white">
-              {filters.activityTypes.length + filters.difficulty.length}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-white/[0.06]">
+            <SlidersHorizontal className="h-3.5 w-3.5 text-slate-400" />
+          </div>
+          <span className="text-sm font-semibold text-slate-200">Filters</span>
+          {activeCount > 0 && (
+            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-500 px-1.5 text-[10px] font-bold text-white">
+              {activeCount}
             </span>
           )}
         </div>
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="rounded-lg px-2.5 py-1 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
-        >
-          {isExpanded ? "Less" : "More"}
-        </button>
+        <div className="flex items-center gap-1">
+          {activeCount > 0 && (
+            <button
+              onClick={resetFilters}
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-slate-300"
+              title="Reset all filters"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Reset
+            </button>
+          )}
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-medium text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-slate-300"
+          >
+            {isExpanded ? (
+              <><ChevronUp className="h-3.5 w-3.5" />Less</>
+            ) : (
+              <><ChevronDown className="h-3.5 w-3.5" />More</>
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* Quick Filters (Always Visible) */}
+      {/* Quick Filters */}
       <div className="p-4 space-y-4">
+        {/* Activity */}
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Activity
+          <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+            Activity Type
           </p>
-          <div className="flex flex-wrap gap-2">
-            {activityOptions.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => toggleActivityType(option.value)}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all active:scale-95 ${
-                  filters.activityTypes.includes(option.value)
-                    ? "bg-blue-500 text-white shadow-sm shadow-blue-200"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                <span>{option.icon}</span>
-                <span>{option.label}</span>
-              </button>
-            ))}
+          <div className="flex flex-wrap gap-1.5">
+            {activityOptions.map((opt) => {
+              const active = filters.activityTypes.includes(opt.value);
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => toggleActivityType(opt.value)}
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all active:scale-95 ${
+                    active
+                      ? opt.activeClass
+                      : "border-white/[0.08] bg-white/[0.04] text-slate-400 hover:bg-white/[0.08] hover:text-slate-300"
+                  }`}
+                >
+                  <span className="text-sm leading-none">{opt.icon}</span>
+                  <span>{opt.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
+        {/* Difficulty */}
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+          <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
             Difficulty
           </p>
-          <div className="flex flex-wrap gap-2">
-            {difficultyOptions.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => toggleDifficulty(option.value)}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all active:scale-95 ${
-                  filters.difficulty.includes(option.value)
-                    ? "ring-2 ring-inset ring-slate-400 bg-slate-50"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 opacity-70 hover:opacity-100"
-                }`}
-              >
-                <div className={`h-2.5 w-2.5 rounded-full ${option.color}`} />
-                <span>{option.label}</span>
-              </button>
-            ))}
+          <div className="flex flex-wrap gap-1.5">
+            {difficultyOptions.map((opt) => {
+              const active = filters.difficulty.includes(opt.value);
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => toggleDifficulty(opt.value)}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all active:scale-95 ${
+                    active
+                      ? opt.activeClass
+                      : "border-white/[0.08] bg-white/[0.04] text-slate-400 hover:bg-white/[0.08] hover:text-slate-300"
+                  }`}
+                >
+                  <div className={`h-2 w-2 rounded-full ${opt.dot} ${active ? "shadow-sm" : "opacity-60"}`} />
+                  <span>{opt.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      {/* Advanced Filters (Expandable) */}
+      {/* Advanced Filters */}
       {isExpanded && (
-        <div className="border-t border-slate-100 p-4 space-y-4">
+        <div className="border-t border-white/[0.06] p-4 space-y-5">
           {/* Distance */}
           <div>
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Max Distance</p>
-              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Max Distance</p>
+              <span className="rounded-md bg-blue-500/10 px-2 py-0.5 text-xs font-semibold text-blue-400 border border-blue-500/20">
                 {filters.maxDistance.toLocaleString()} km
               </span>
             </div>
-            <input
-              type="range"
-              min="1"
-              max="10000"
-              value={filters.maxDistance}
-              onChange={(e) => updateDistance(Number(e.target.value))}
-              className="w-full accent-blue-500"
-            />
-            <div className="mt-1 flex justify-between text-[10px] text-slate-400">
+            <div className="relative">
+              <input
+                type="range"
+                min="1"
+                max="10000"
+                value={filters.maxDistance}
+                onChange={(e) => updateDistance(Number(e.target.value))}
+                className="w-full h-1.5 rounded-full accent-blue-500 cursor-pointer"
+                style={{
+                  background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(filters.maxDistance / 10000) * 100}%, rgba(255,255,255,0.1) ${(filters.maxDistance / 10000) * 100}%, rgba(255,255,255,0.1) 100%)`,
+                }}
+              />
+            </div>
+            <div className="mt-1.5 flex justify-between text-[10px] text-slate-600">
               <span>1 km</span>
               <span>10,000 km</span>
             </div>
           </div>
 
-          {/* Elevation */}
+          {/* Elevation Gain */}
           <div>
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Elevation Gain</p>
-              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Elevation Gain</p>
+              <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
                 {filters.minElevation}–{filters.maxElevation} m
               </span>
             </div>
             <div className="space-y-2">
-              <input
-                type="range"
-                min="0"
-                max="3000"
-                value={filters.minElevation}
-                onChange={(e) => updateElevation(Number(e.target.value), filters.maxElevation)}
-                className="w-full accent-blue-500"
-              />
-              <input
-                type="range"
-                min="0"
-                max="3000"
-                value={filters.maxElevation}
-                onChange={(e) => updateElevation(filters.minElevation, Number(e.target.value))}
-                className="w-full accent-blue-500"
-              />
-            </div>
-            <div className="mt-1 flex justify-between text-[10px] text-slate-400">
-              <span>0 m</span>
-              <span>3,000 m</span>
+              <div>
+                <div className="mb-1 flex justify-between text-[10px] text-slate-600">
+                  <span>Min</span>
+                  <span>{filters.minElevation} m</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="3000"
+                  value={filters.minElevation}
+                  onChange={(e) => updateElevation(Number(e.target.value), filters.maxElevation)}
+                  className="w-full h-1.5 rounded-full accent-emerald-500 cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, #10b981 0%, #10b981 ${(filters.minElevation / 3000) * 100}%, rgba(255,255,255,0.1) ${(filters.minElevation / 3000) * 100}%, rgba(255,255,255,0.1) 100%)`,
+                  }}
+                />
+              </div>
+              <div>
+                <div className="mb-1 flex justify-between text-[10px] text-slate-600">
+                  <span>Max</span>
+                  <span>{filters.maxElevation} m</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="3000"
+                  value={filters.maxElevation}
+                  onChange={(e) => updateElevation(filters.minElevation, Number(e.target.value))}
+                  className="w-full h-1.5 rounded-full accent-emerald-500 cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, #10b981 0%, #10b981 ${(filters.maxElevation / 3000) * 100}%, rgba(255,255,255,0.1) ${(filters.maxElevation / 3000) * 100}%, rgba(255,255,255,0.1) 100%)`,
+                  }}
+                />
+              </div>
             </div>
           </div>
-
-          {/* Reset Button */}
-          <button
-            onClick={resetFilters}
-            className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 active:scale-95"
-          >
-            Reset Filters
-          </button>
         </div>
       )}
     </div>

@@ -1,22 +1,16 @@
 /** @type {import('next').NextConfig} */
-const isGitHubPages = process.env.GITHUB_PAGES === 'true';
-
 const nextConfig = {
   reactStrictMode: true,
-  output: isGitHubPages ? 'export' : 'standalone',
-  basePath: isGitHubPages ? '/Fit-Ready-IQ' : '',
-  assetPrefix: isGitHubPages ? '/Fit-Ready-IQ/' : undefined,
-  
+
   // Environment variables available to the browser
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:6790',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4790',
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || 'Fit-Ready-IQ',
   },
-  
+
   // Image optimization
   images: {
-    unoptimized: isGitHubPages,
     remotePatterns: [
       {
         protocol: 'https',

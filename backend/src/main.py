@@ -8,8 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .config.settings import get_settings
-from .infrastructure.database.connection import engine
-from .infrastructure.database.models import Base
+from .infrastructure.database.connection import initialize_firebase
 
 # Configure structured logging
 structlog.configure(
@@ -30,17 +29,17 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("starting_application", environment=settings.environment)
 
-    # Create database tables (in production, use Alembic migrations)
-    if settings.environment == "development":
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-            logger.info("database_tables_created")
+    initialize_firebase()
+    logger.info(
+        "firebase_initialized",
+        project_id=settings.firebase_project_id,
+        emulator=settings.firebase_use_emulator,
+    )
 
     yield
 
     # Shutdown
     logger.info("shutting_down_application")
-    await engine.dispose()
 
 
 # Create FastAPI application
@@ -58,7 +57,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

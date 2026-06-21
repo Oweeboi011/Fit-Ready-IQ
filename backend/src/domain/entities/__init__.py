@@ -1,8 +1,7 @@
 """Domain entities: Core business objects with identity."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Optional
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 
@@ -24,9 +23,9 @@ class User:
     id: UUID = field(default_factory=uuid4)
     email: str = ""
     username: str = ""
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
-    strava_id: Optional[str] = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    strava_id: str | None = None
     fitness_level: str = "beginner"
 
     def update_fitness_level(self, level: str) -> None:
@@ -35,7 +34,7 @@ class User:
         if level not in valid_levels:
             raise ValueError(f"Invalid fitness level. Must be one of: {valid_levels}")
         self.fitness_level = level
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(UTC)
 
 
 @dataclass
@@ -63,29 +62,29 @@ class Activity:
 
     id: UUID = field(default_factory=uuid4)
     user_id: UUID = field(default_factory=uuid4)
-    external_id: Optional[str] = None
+    external_id: str | None = None
     platform: str = "manual"
     activity_type: str = "run"
-    start_date: datetime = field(default_factory=datetime.utcnow)
+    start_date: datetime = field(default_factory=lambda: datetime.now(UTC))
     distance: float = 0.0  # meters
     duration: int = 0  # seconds
     elevation_gain: float = 0.0  # meters
-    average_heart_rate: Optional[float] = None
-    max_heart_rate: Optional[float] = None
-    average_power: Optional[float] = None
-    normalized_power: Optional[float] = None
-    training_load: Optional[float] = None
-    calories: Optional[int] = None
+    average_heart_rate: float | None = None
+    max_heart_rate: float | None = None
+    average_power: float | None = None
+    normalized_power: float | None = None
+    training_load: float | None = None
+    calories: int | None = None
 
     @property
-    def pace_per_km(self) -> Optional[float]:
+    def pace_per_km(self) -> float | None:
         """Calculate pace in minutes per kilometer."""
         if self.distance > 0 and self.duration > 0:
             return (self.duration / 60) / (self.distance / 1000)
         return None
 
     @property
-    def speed_kph(self) -> Optional[float]:
+    def speed_kph(self) -> float | None:
         """Calculate average speed in km/h."""
         if self.distance > 0 and self.duration > 0:
             return (self.distance / 1000) / (self.duration / 3600)
@@ -128,8 +127,8 @@ class Route:
     distance: float = 0.0  # meters
     elevation_gain: float = 0.0  # meters
     elevation_loss: float = 0.0  # meters
-    max_elevation: Optional[float] = None  # meters
-    min_elevation: Optional[float] = None  # meters
+    max_elevation: float | None = None  # meters
+    min_elevation: float | None = None  # meters
     max_grade: float = 0.0  # percentage
     avg_grade: float = 0.0  # percentage
     surface_types: list[str] = field(default_factory=list)
@@ -137,10 +136,10 @@ class Route:
     location_name: str = ""
     latitude: float = 0.0
     longitude: float = 0.0
-    geometry: Optional[str] = None  # GeoJSON LineString
-    estimated_duration: Optional[int] = None  # minutes
-    difficulty_score: Optional[float] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    geometry: str | None = None  # GeoJSON LineString
+    estimated_duration: int | None = None  # minutes
+    difficulty_score: float | None = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     source: str = "osm"
 
 
@@ -166,14 +165,14 @@ class TrainingProgram:
     id: UUID = field(default_factory=uuid4)
     user_id: UUID = field(default_factory=uuid4)
     route_id: UUID = field(default_factory=uuid4)
-    start_date: datetime = field(default_factory=datetime.utcnow)
-    end_date: Optional[datetime] = None
+    start_date: datetime = field(default_factory=lambda: datetime.now(UTC))
+    end_date: datetime | None = None
     weeks: int = 8
     sessions_per_week: int = 3
     current_fitness_score: float = 0.0
     target_fitness_score: float = 0.0
     status: str = "not_started"
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -201,16 +200,16 @@ class TrainingSession:
     session_number: int = 1
     session_type: str = "endurance"
     duration_minutes: int = 60
-    distance_meters: Optional[float] = None
+    distance_meters: float | None = None
     intensity_zone: str = "zone2"
     description: str = ""
     completed: bool = False
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
 
     def mark_completed(self) -> None:
         """Mark session as completed."""
         self.completed = True
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(UTC)
 
 
 @dataclass
@@ -238,7 +237,7 @@ class Itinerary:
     id: UUID = field(default_factory=uuid4)
     user_id: UUID = field(default_factory=uuid4)
     route_id: UUID = field(default_factory=uuid4)
-    planned_date: datetime = field(default_factory=datetime.utcnow)
+    planned_date: datetime = field(default_factory=lambda: datetime.now(UTC))
     readiness_status: str = "unknown"
     fitness_score: float = 0.0
     route_difficulty: float = 0.0
@@ -246,6 +245,6 @@ class Itinerary:
     weather_forecast: dict = field(default_factory=dict)
     gear_checklist: list[dict] = field(default_factory=list)
     safety_alerts: list[str] = field(default_factory=list)
-    estimated_start_time: Optional[datetime] = None
-    estimated_finish_time: Optional[datetime] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    estimated_start_time: datetime | None = None
+    estimated_finish_time: datetime | None = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))

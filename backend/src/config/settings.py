@@ -1,9 +1,8 @@
 """Application configuration using Pydantic settings."""
 
 from functools import lru_cache
-from typing import Optional
 
-from pydantic import PostgresDsn, field_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,29 +22,24 @@ class Settings(BaseSettings):
     api_port: int = 8000
     log_level: str = "INFO"
 
-    # Database
-    database_url: PostgresDsn
-    db_echo: bool = False
-
-    # Redis
-    redis_url: str = "redis://localhost:6379"
-
-    # Security
-    jwt_secret_key: str
-    jwt_algorithm: str = "HS256"
-    jwt_expiration_minutes: int = 1440  # 24 hours
-
-    # Azure Key Vault (Production)
-    azure_key_vault_url: Optional[str] = None
-    azure_tenant_id: Optional[str] = None
-    azure_client_id: Optional[str] = None
-    azure_client_secret: Optional[str] = None
+    # Firebase
+    firebase_project_id: str
+    # Path to service account JSON key file (local dev) OR JSON string (production/env var)
+    firebase_service_account_key_path: str | None = None
+    firebase_service_account_key_json: str | None = None
+    firebase_storage_bucket: str | None = None  # e.g. "project-id.appspot.com"
+    # Emulator settings for local development and testing
+    firebase_use_emulator: bool = False
+    firebase_emulator_host: str = "localhost"
+    firebase_firestore_emulator_port: int = 8080
+    firebase_auth_emulator_port: int = 9099
+    firebase_storage_emulator_port: int = 9199
 
     # Strava API
     strava_client_id: str
     strava_client_secret: str
     strava_redirect_uri: str
-    strava_webhook_verify_token: Optional[str] = None
+    strava_webhook_verify_token: str | None = None
 
     # External APIs
     mapbox_access_token: str
@@ -54,7 +48,7 @@ class Settings(BaseSettings):
 
     # Route data sources
     osm_overpass_url: str = "https://overpass-api.de/api/interpreter"
-    hiking_project_api_key: Optional[str] = None
+    hiking_project_api_key: str | None = None
 
     # Rate limiting
     rate_limit_per_minute: int = 60

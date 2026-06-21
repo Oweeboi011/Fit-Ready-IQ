@@ -1,10 +1,12 @@
 """Test main application."""
 
+import pytest
 from fastapi.testclient import TestClient
 
 from src.main import app
 
 
+@pytest.mark.integration
 def test_health_endpoint(client: TestClient):
     """Test health check endpoint."""
     response = client.get("/health")
@@ -12,6 +14,7 @@ def test_health_endpoint(client: TestClient):
     assert response.json()["status"] == "healthy"
 
 
+@pytest.mark.integration
 def test_root_endpoint(client: TestClient):
     """Test root endpoint."""
     response = client.get("/")

@@ -15,6 +15,7 @@ interface RouteDetails {
   difficulty: string;
   activity_type: string;
   photos?: string[];
+  place_id?: string;
   jumpoff_elevation?: number;
   summit_elevation?: number;
   strava_segment?: {
@@ -37,6 +38,7 @@ interface MountainDetails {
   prominence_m: number;
   mountain_type: string;
   photos?: string[];
+  place_id?: string;
   jumpoff_elevation?: number;
   summit_elevation?: number;
   strava_segment?: {
@@ -59,9 +61,26 @@ interface CampsiteDetails {
   rating?: number;
   amenities?: string[];
   photos?: string[];
+  place_id?: string;
 }
 
-type DetailsData = RouteDetails | MountainDetails | CampsiteDetails;
+interface ActivityDetails {
+  type: 'activity';
+  id: string;
+  name: string;
+  source: 'strava' | 'coros' | 'garmin' | 'komoot';
+  sport_type: string;
+  start_date: string;
+  distance_km: number;
+  elevation_gain_m: number;
+  moving_time_s: number;
+  avg_heartrate?: number;
+  max_heartrate?: number;
+  coordinates?: [number, number];
+  external_id?: string;
+}
+
+type DetailsData = RouteDetails | MountainDetails | CampsiteDetails | ActivityDetails;
 
 interface DetailsModalProps {
   isOpen: boolean;
@@ -71,8 +90,47 @@ interface DetailsModalProps {
 
 export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProps) {
   const [elevHoverIdx, setElevHoverIdx] = useState<number | null>(null);
+  const [runtimePhotos, setRuntimePhotos] = useState<string[]>([]);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
+
+  // Lazily fetch photos from Google Places when the modal opens
+  useEffect(() => {
+    if (!isOpen || !data) {
+      setRuntimePhotos([]);
+      return;
+    }
+
+    if (data.type === 'activity') {
+      return;
+    }
+
+    const placeId = data.place_id;
+    const existingPhotos = data.photos;
+    if (!placeId || (existingPhotos && existingPhotos.length > 0)) return;
+    if (typeof window === 'undefined' || !window.google?.maps?.places) return;
+
+    setLoadingPhotos(true);
+    const service = new google.maps.places.PlacesService(document.createElement('div'));
+    service.getDetails(
+      { placeId, fields: ['photos'] },
+      (place, status) => {
+        setLoadingPhotos(false);
+        if (status === google.maps.places.PlacesServiceStatus.OK && place?.photos) {
+          setRuntimePhotos(
+            place.photos.slice(0, 6).map(p => p.getUrl({ maxWidth: 800, maxHeight: 600 }))
+          );
+        }
+      }
+    );
+  }, [isOpen, data]);
 
   if (!isOpen || !data) return null;
+
+  // Merge pre-fetched photos with any runtime-loaded ones
+  const resolvedPhotos =
+    data.type !== 'activity' && data.photos?.length
+      ? data.photos
+      : runtimePhotos;
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -90,13 +148,15 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
   const getActivityEmoji = (type: string) => {
     switch (type) {
       case 'hike':
-        return '🥾';
+        return 'HIKE';
       case 'bike':
-        return '🚴';
+        return 'BIKE';
       case 'run':
-        return '🏃';
+        return 'RUN';
+      case 'rock_climb':
+        return 'CLIMB';
       default:
-        return '🗺️';
+        return 'MAP️';
     }
   };
 
@@ -176,7 +236,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-xl bg-white shadow-2xl ring-1 ring-black/10">
+      <div className="modal-enter relative w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-xl bg-white shadow-2xl ring-1 ring-black/10">
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/95 backdrop-blur-xl px-6 py-4 rounded-t-xl">
           <div className="flex items-start gap-3 flex-1 min-w-0 pr-4">
@@ -221,7 +281,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
               // Determine profile type
               const isCycling = data.activity_type === 'bike';
               const isHiking = !isCycling;
-              const profileTitle = isCycling ? '🚴 Cycling Profile' : '⛰️ Mountaineering Profile';
+              const profileTitle = isCycling ? 'BIKE Cycling Profile' : 'MTN Mountaineering Profile';
               const profileDescription = isCycling
                 ? 'Complete cycling route analysis with terrain, grade, and performance metrics'
                 : 'Detailed mountaineering route with elevation, grade, and terrain information';
@@ -275,9 +335,16 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                       <Camera className="h-3.5 w-3.5" />
                       Photos
                     </h3>
-                    {data.photos && data.photos.length > 0 ? (
+                    {loadingPhotos ? (
+                      <div className="flex items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 py-8">
+                        <div className="text-center">
+                          <div className="mx-auto mb-2 h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                          <p className="text-sm text-slate-400">Loading photos…</p>
+                        </div>
+                      </div>
+                    ) : resolvedPhotos.length > 0 ? (
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {data.photos.slice(0, 6).map((photo, index) => (
+                        {resolvedPhotos.slice(0, 6).map((photo, index) => (
                           <div key={index} className="relative group cursor-pointer rounded-lg overflow-hidden aspect-square">
                             <Image
                               src={photo}
@@ -718,7 +785,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                       {/* Pre-Climb Briefing */}
                       <div className="space-y-3">
                         <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500">
-                          <span className="flex h-5 w-5 items-center justify-center rounded bg-slate-100 text-xs">📋</span>
+                          <span className="flex h-5 w-5 items-center justify-center rounded bg-slate-100 text-xs">LIST</span>
                           Pre-Climb Briefing
                         </h3>
 
@@ -735,7 +802,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
 
                         <div className="rounded-lg border border-slate-200 bg-white p-4">
                           <div className="flex items-start gap-3">
-                            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-emerald-50 text-sm">🚩</span>
+                            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-emerald-50 text-sm">FLAG</span>
                             <div>
                               <p className="text-sm font-semibold text-slate-900">Jumpoff Point</p>
                               <p className="mt-1 text-sm text-slate-600">{jumpoffInfo}</p>
@@ -746,7 +813,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
 
                         <div className="rounded-lg border border-slate-200 bg-white p-4">
                           <div className="flex items-start gap-3">
-                            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-cyan-50 text-sm">💧</span>
+                            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-cyan-50 text-sm">WATER</span>
                             <div className="flex-1">
                               <p className="text-sm font-semibold text-slate-900">Water Sources</p>
                               <ul className="mt-1.5 space-y-1">
@@ -756,14 +823,14 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                                   </li>
                                 ))}
                               </ul>
-                              <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">⚠️ Always filter or treat water from natural sources</p>
+                              <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">WARNING: Always filter or treat water from natural sources</p>
                             </div>
                           </div>
                         </div>
 
                         <div className="rounded-lg border border-slate-200 bg-white p-4">
                           <div className="flex items-start gap-3">
-                            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-sky-50 text-sm">🌤️</span>
+                            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-sky-50 text-sm">WEATHER</span>
                             <div className="flex-1">
                               <p className="text-sm font-semibold text-slate-900">Weather Conditions</p>
                               <div className="mt-2 grid grid-cols-2 gap-2">
@@ -776,7 +843,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                                   <p className="text-sm font-bold text-red-900">{weatherNotes.avoid}</p>
                                 </div>
                               </div>
-                              <p className="mt-2 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">⚡ {weatherNotes.risk}</p>
+                              <p className="mt-2 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">RISK: {weatherNotes.risk}</p>
                             </div>
                           </div>
                         </div>
@@ -785,14 +852,14 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                       {/* Gear */}
                       <div>
                         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500">
-                          <span className="flex h-5 w-5 items-center justify-center rounded bg-slate-100 text-xs">🎒</span>
+                          <span className="flex h-5 w-5 items-center justify-center rounded bg-slate-100 text-xs">GEAR</span>
                           Recommended Gear
                         </h3>
                         <div className="rounded-lg border border-slate-200 bg-white p-4">
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
                             {gearList.map((item, i) => (
                               <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                                <span className="mt-0.5 flex-shrink-0 text-emerald-500">✓</span>{item}
+                                <span className="mt-0.5 flex-shrink-0 text-emerald-500">-</span>{item}
                               </div>
                             ))}
                           </div>
@@ -820,7 +887,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                                 </div>
                                 <div className="flex gap-0.5 flex-shrink-0">
                                   {Array.from({ length: 5 }).map((_, s) => (
-                                    <span key={s} className={s < review.rating ? 'text-amber-400' : 'text-slate-200'}>★</span>
+                                    <span key={s} className={s < review.rating ? 'text-amber-400' : 'text-slate-200'}>*</span>
                                   ))}
                                 </div>
                               </div>
@@ -904,9 +971,16 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                   <Camera className="h-3.5 w-3.5" />
                   Photos
                 </h3>
-                {data.photos && data.photos.length > 0 ? (
+                {loadingPhotos ? (
+                  <div className="flex items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 py-8">
+                    <div className="text-center">
+                      <div className="mx-auto mb-2 h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                      <p className="text-sm text-slate-400">Loading photos…</p>
+                    </div>
+                  </div>
+                ) : resolvedPhotos.length > 0 ? (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {data.photos.slice(0, 6).map((photo, index) => (
+                    {resolvedPhotos.slice(0, 6).map((photo, index) => (
                       <div key={index} className="relative group cursor-pointer rounded-lg overflow-hidden aspect-square">
                         <Image
                           src={photo}
@@ -1302,7 +1376,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                     {/* Logistics cards */}
                     <div className="space-y-3">
                       <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500">
-                        <span className="flex h-5 w-5 items-center justify-center rounded bg-slate-100 text-xs">📋</span>
+                        <span className="flex h-5 w-5 items-center justify-center rounded bg-slate-100 text-xs">LIST</span>
                         Pre-Climb Briefing
                       </h3>
 
@@ -1328,7 +1402,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                       {/* Jumpoff */}
                       <div className="rounded-lg border border-slate-200 bg-white p-4">
                         <div className="flex items-start gap-3">
-                          <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-emerald-50 text-sm">🚩</span>
+                          <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-emerald-50 text-sm">FLAG</span>
                           <div>
                             <p className="text-sm font-bold text-slate-900">Jumpoff Point</p>
                             <p className="mt-1 text-sm text-slate-600">{jumpoffInfo}</p>
@@ -1340,7 +1414,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                       {/* Water sources */}
                       <div className="rounded-lg border border-slate-200 bg-white p-4">
                         <div className="flex items-start gap-3">
-                          <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-cyan-50 text-sm">💧</span>
+                          <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-cyan-50 text-sm">WATER</span>
                           <div className="flex-1">
                             <p className="text-sm font-bold text-slate-900">Water Sources</p>
                             <ul className="mt-2 space-y-1">
@@ -1351,7 +1425,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                                 </li>
                               ))}
                             </ul>
-                            <p className="mt-2 text-xs font-medium text-amber-700 bg-amber-50 rounded-lg px-2 py-1">⚠️ Always filter or treat water from natural sources</p>
+                            <p className="mt-2 text-xs font-medium text-amber-700 bg-amber-50 rounded-lg px-2 py-1">WARNING: Always filter or treat water from natural sources</p>
                           </div>
                         </div>
                       </div>
@@ -1359,7 +1433,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                       {/* Weather */}
                       <div className="rounded-lg border border-slate-200 bg-white p-4">
                         <div className="flex items-start gap-3">
-                          <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-sky-50 text-sm">🌤️</span>
+                          <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-sky-50 text-sm">WEATHER</span>
                           <div className="flex-1">
                             <p className="text-sm font-semibold text-slate-900">Weather Conditions</p>
                             <div className="mt-2 grid grid-cols-2 gap-2">
@@ -1373,7 +1447,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                               </div>
                             </div>
                             <p className="mt-2 text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2">
-                              ⚡ {weatherNotes.risk}
+                              RISK: {weatherNotes.risk}
                             </p>
                           </div>
                         </div>
@@ -1383,14 +1457,14 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                     {/* Recommended Gear */}
                     <div>
                       <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500">
-                        <span className="flex h-5 w-5 items-center justify-center rounded bg-slate-100 text-xs">🎒</span>
+                        <span className="flex h-5 w-5 items-center justify-center rounded bg-slate-100 text-xs">GEAR</span>
                         Recommended Gear
                       </h3>
                       <div className="rounded-lg border border-slate-200 bg-white p-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
                           {gearList.map((item, i) => (
                             <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                              <span className="mt-0.5 flex-shrink-0 text-emerald-500">✓</span>
+                              <span className="mt-0.5 flex-shrink-0 text-emerald-500">-</span>
                               {item}
                             </div>
                           ))}
@@ -1419,7 +1493,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                               </div>
                               <div className="flex gap-0.5 flex-shrink-0">
                                 {Array.from({ length: 5 }).map((_, s) => (
-                                  <span key={s} className={s < review.rating ? 'text-amber-400' : 'text-slate-200'}>★</span>
+                                  <span key={s} className={s < review.rating ? 'text-amber-400' : 'text-slate-200'}>*</span>
                                 ))}
                               </div>
                             </div>
@@ -1507,9 +1581,16 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                   <Camera className="h-3.5 w-3.5" />
                   Photos
                 </h3>
-                {data.photos && data.photos.length > 0 ? (
+                {loadingPhotos ? (
+                  <div className="flex items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 py-8">
+                    <div className="text-center">
+                      <div className="mx-auto mb-2 h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                      <p className="text-sm text-slate-400">Loading photos…</p>
+                    </div>
+                  </div>
+                ) : resolvedPhotos.length > 0 ? (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {data.photos.slice(0, 6).map((photo, index) => (
+                    {resolvedPhotos.slice(0, 6).map((photo, index) => (
                       <div key={index} className="relative group cursor-pointer rounded-lg overflow-hidden aspect-square">
                         <Image
                           src={photo}
@@ -1679,6 +1760,135 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                 <button className="rounded-md border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">
                   Share
                 </button>
+              </div>
+            </div>
+          ) : data.type === 'activity' ? (
+            <div className="space-y-6">
+              {/* Source badge */}
+              {(() => {
+                const sourceMeta: Record<string, { label: string; bg: string; text: string }> = {
+                  strava:  { label: 'Strava',        bg: 'bg-orange-50',  text: 'text-orange-700' },
+                  coros:   { label: 'COROS',          bg: 'bg-blue-50',    text: 'text-blue-700'   },
+                  garmin:  { label: 'Garmin Connect', bg: 'bg-sky-50',     text: 'text-sky-700'    },
+                  komoot:  { label: 'Komoot',         bg: 'bg-green-50',   text: 'text-green-700'  },
+                };
+                const meta = sourceMeta[data.source] ?? { label: data.source, bg: 'bg-slate-50', text: 'text-slate-700' };
+                const activityDate = new Date(data.start_date).toLocaleDateString(undefined, {
+                  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                });
+                return (
+                  <div className={`flex items-center gap-3 rounded-lg border border-slate-200 ${meta.bg} px-4 py-3`}>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-white shadow-sm">
+                      <Route className={`h-4 w-4 ${meta.text}`} />
+                    </div>
+                    <div>
+                      <p className={`text-sm font-semibold ${meta.text}`}>{meta.label} Activity</p>
+                      <p className="text-xs text-slate-500">{activityDate}</p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Distance</p>
+                  <p className="font-tabular mt-1.5 text-xl font-bold text-slate-900">
+                    {data.distance_km.toFixed(2)}{' '}
+                    <span className="text-sm font-normal text-slate-500">km</span>
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Elevation Gain</p>
+                  <p className="font-tabular mt-1.5 text-xl font-bold text-slate-900">
+                    {data.elevation_gain_m}{' '}
+                    <span className="text-sm font-normal text-slate-500">m</span>
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Moving Time</p>
+                  <p className="font-tabular mt-1.5 text-xl font-bold text-slate-900">
+                    {(() => {
+                      const h = Math.floor(data.moving_time_s / 3600);
+                      const m = Math.floor((data.moving_time_s % 3600) / 60);
+                      return h > 0 ? `${h}h ${m}m` : `${m}m`;
+                    })()}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Sport</p>
+                  <p className="mt-1.5 text-base font-bold capitalize text-slate-900">{data.sport_type}</p>
+                </div>
+                {data.avg_heartrate && (
+                  <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Avg Heart Rate</p>
+                    <p className="font-tabular mt-1.5 text-xl font-bold text-slate-900">
+                      {Math.round(data.avg_heartrate)}{' '}
+                      <span className="text-sm font-normal text-slate-500">bpm</span>
+                    </p>
+                  </div>
+                )}
+                {data.max_heartrate && (
+                  <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Max Heart Rate</p>
+                    <p className="font-tabular mt-1.5 text-xl font-bold text-slate-900">
+                      {Math.round(data.max_heartrate)}{' '}
+                      <span className="text-sm font-normal text-slate-500">bpm</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Pace / Speed */}
+              {data.moving_time_s > 0 && data.distance_km > 0 && (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-500">Performance</h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase text-slate-400">Avg Speed</p>
+                      <p className="font-tabular mt-0.5 font-bold text-slate-900">
+                        {((data.distance_km / data.moving_time_s) * 3600).toFixed(1)} km/h
+                      </p>
+                    </div>
+                    {data.sport_type.toLowerCase() !== 'ride' && (
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase text-slate-400">Avg Pace</p>
+                        <p className="font-tabular mt-0.5 font-bold text-slate-900">
+                          {(() => {
+                            const secPerKm = data.moving_time_s / data.distance_km;
+                            const m = Math.floor(secPerKm / 60);
+                            const s = Math.round(secPerKm % 60);
+                            return `${m}:${s.toString().padStart(2, '0')} /km`;
+                          })()}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-5">
+                {data.source === 'strava' && data.external_id && (
+                  <a
+                    href={`https://www.strava.com/activities/${data.external_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 rounded-md bg-orange-500 px-5 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+                  >
+                    View on Strava
+                  </a>
+                )}
+                {data.coordinates && (
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${data.coordinates[1]},${data.coordinates[0]}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 rounded-md border border-slate-300 bg-white px-5 py-2.5 text-center text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                  >
+                    Open in Maps
+                  </a>
+                )}
               </div>
             </div>
           ) : null}

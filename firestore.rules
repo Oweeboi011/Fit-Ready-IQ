@@ -1,0 +1,56 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: check if the request is from an authenticated user
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper: check if the requesting user owns the document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Activities collection — scoped to the owning user
+    match /activities/{activityId} {
+      allow read, write: if isAuthenticated()
+        && request.auth.uid == resource.data.user_id;
+      allow create: if isAuthenticated()
+        && request.auth.uid == request.resource.data.user_id;
+    }
+
+    // Routes collection — readable by all authenticated users, writable only by the backend
+    match /routes/{routeId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // backend service account only
+    }
+
+    // Training programs — scoped to the owning user
+    match /training_programs/{programId} {
+      allow read, write: if isAuthenticated()
+        && request.auth.uid == resource.data.user_id;
+      allow create: if isAuthenticated()
+        && request.auth.uid == request.resource.data.user_id;
+    }
+
+    // Training sessions — scoped to the owning user via parent program
+    match /training_sessions/{sessionId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Itineraries — scoped to the owning user
+    match /itineraries/{itineraryId} {
+      allow read, write: if isAuthenticated()
+        && request.auth.uid == resource.data.user_id;
+      allow create: if isAuthenticated()
+        && request.auth.uid == request.resource.data.user_id;
+    }
+  }
+}
