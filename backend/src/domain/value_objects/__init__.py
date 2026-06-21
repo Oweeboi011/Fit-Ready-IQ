@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 
 class ActivityType(str, Enum):
@@ -14,6 +13,7 @@ class ActivityType(str, Enum):
     WALK = "walk"
     SWIM = "swim"
     SKI = "ski"
+    ROCK_CLIMB = "rock_climb"
     OTHER = "other"
 
 
@@ -95,10 +95,10 @@ class FitnessScore:
     """
 
     total_score: float
-    vo2max_score: Optional[float] = None
-    volume_score: Optional[float] = None
-    consistency_score: Optional[float] = None
-    intensity_score: Optional[float] = None
+    vo2max_score: float | None = None
+    volume_score: float | None = None
+    consistency_score: float | None = None
+    intensity_score: float | None = None
     experience_level: str = "intermediate"
 
     def __post_init__(self) -> None:

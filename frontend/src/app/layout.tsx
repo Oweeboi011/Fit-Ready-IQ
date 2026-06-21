@@ -6,11 +6,13 @@ const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
   display: 'swap',
+  weight: ['400', '500', '600', '700'],
 });
 
 export const metadata: Metadata = {
-  title: 'Fit Ready IQ',
-  description: 'Adventure readiness and fitness tracking platform',
+  title: 'Fit Ready IQ — Adventure Readiness Platform',
+  description: 'Discover trails, mountains, and campsites near you. Track your fitness readiness for any adventure.',
+  keywords: 'hiking, trail finder, adventure, fitness, route planning, mountains, camping',
   icons: {
     icon: [
       { url: '/icon.svg', type: 'image/svg+xml' },
@@ -28,7 +30,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className="font-sans antialiased">{children}</body>
+      <body suppressHydrationWarning className="font-sans antialiased bg-slate-950">{children}</body>
     </html>
   );
 }

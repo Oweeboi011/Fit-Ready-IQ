@@ -2,12 +2,23 @@
 
 // Fit Ready IQ - Main Page
 import React, { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useJsApiLoader } from "@react-google-maps/api";
-import { Mountain, Tent, Route, Search, X, Watch, User, ChevronRight, MapPin, TrendingUp, ArrowUpDown } from 'lucide-react';
+import { type User as FirebaseUser } from "firebase/auth";
+import { Mountain, Tent, Route, Search, X, Watch, User as UserIcon, ChevronRight, MapPin, TrendingUp, ArrowUpDown, Clock, Menu } from 'lucide-react';
 import RouteFilter, { FilterState } from "@/components/RouteFilter";
 import ConnectDevicesModal from "@/components/ConnectDevicesModal";
 import DetailsModal from "@/components/DetailsModal";
+import { type Activity, type ActivityPolyline, loadActivities, saveActivities, mergeActivities, SOURCE_BG, SOURCE_LABELS, formatDuration } from "@/lib/activityTypes";
+import { decodePolyline } from "@/lib/polylineDecoder";
+import {
+  isFirebaseAuthConfigured,
+  onFirebaseAuthStateChanged,
+  signInWithGoogle,
+  signOutFirebaseUser,
+} from "@/lib/firebaseClient";
+import ChatBot from "@/components/ChatBot";
 
 const libraries: ("places" | "geometry")[] = ["places", "geometry"];
 
@@ -15,10 +26,14 @@ const libraries: ("places" | "geometry")[] = ["places", "geometry"];
 const MapView = dynamic(() => import("@/components/MapView"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full items-center justify-center bg-slate-100">
+    <div className="flex h-full flex-col items-center justify-center gap-4 bg-slate-950">
+      <div className="relative h-14 w-14">
+        <div className="h-14 w-14 animate-spin rounded-full border-4 border-blue-500/20 border-t-blue-500" />
+        <div className="absolute inset-0 m-auto h-6 w-6 animate-pulse rounded-full bg-blue-500/20" />
+      </div>
       <div className="text-center">
-        <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent mx-auto" />
-        <p className="text-slate-500">Loading map...</p>
+        <p className="text-sm font-semibold text-slate-300">Loading map…</p>
+        <p className="mt-1 text-xs text-slate-500">Discovering nearby adventures</p>
       </div>
     </div>
   ),
@@ -34,6 +49,7 @@ interface Route {
   activity_type: string;
   polyline?: [number, number][];
   photos?: string[];
+  place_id?: string;
   jumpoff_elevation?: number;
   summit_elevation?: number;
   strava_segment?: {
@@ -55,6 +71,7 @@ interface Mountain {
   prominence_m?: number;
   mountain_type: string;
   photos?: string[];
+  place_id?: string;
   jumpoff_elevation?: number;
   summit_elevation?: number;
   strava_segment?: {
@@ -76,6 +93,7 @@ interface Campsite {
   rating?: number;
   amenities?: string[];
   photos?: string[];
+  place_id?: string;
 }
 
 export default function Home() {
@@ -87,59 +105,99 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'routes' | 'mountains' | 'campsites'>('routes');
+  const [activeTab, setActiveTab] = useState<'routes' | 'mountains' | 'campsites' | 'history'>('routes');
   const focusUserLocationRef = useRef<() => void>(() => {});
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedDetails, setSelectedDetails] = useState<
     | { type: 'route'; data: Route }
     | { type: 'mountain'; data: Mountain }
     | { type: 'campsite'; data: Campsite }
+    | { type: 'activity'; data: Activity }
     | null
   >(null);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [userLocation, setUserLocation] = useState<{
     lat: number;
     lng: number;
     address?: string;
   } | null>(null);
+  const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
+  const [authBusy, setAuthBusy] = useState(false);
 
-  const { isLoaded } = useJsApiLoader({
+  const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
     libraries,
   });
 
-  // Helper function to fetch place photos
-  const fetchPlacePhotos = async (placeId: string): Promise<string[]> => {
+  useEffect(() => {
+    if (!isFirebaseAuthConfigured()) {
+      return;
+    }
+    const unsubscribe = onFirebaseAuthStateChanged((user) => {
+      setAuthUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleGoogleSignIn = async () => {
+    setAuthBusy(true);
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      console.error("Google sign-in failed:", err);
+      alert("Google sign-in failed. Verify Firebase Auth settings and try again.");
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleGoogleSignOut = async () => {
+    setAuthBusy(true);
+    try {
+      await signOutFirebaseUser();
+    } catch (err) {
+      console.error("Sign-out failed:", err);
+      alert("Sign-out failed. Please try again.");
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  // Helper function to fetch place photos on demand (called lazily when detail modal opens)
+  const fetchPlaceDetails = async (placeId: string): Promise<{ photos: string[] }> => {
     try {
       if (!window.google || !window.google.maps || !window.google.maps.places) {
-        console.warn('Google Maps API not loaded — no photos available');
-        return [];
+        console.warn('Google Maps API not loaded — no details available');
+        return { photos: [] };
       }
-      
+
       return new Promise((resolve) => {
         const placesService = new google.maps.places.PlacesService(
           document.createElement('div')
         );
-        
+
         placesService.getDetails(
           {
             placeId,
             fields: ['photos'],
           },
           (place, status) => {
-            console.log(`Photo fetch for ${placeId}:`, status, place?.photos?.length || 0, 'photos');
-            if (status === google.maps.places.PlacesServiceStatus.OK && place?.photos && place.photos.length > 0) {
-              const photoUrls = place.photos
-                .slice(0, 6)
-                .map(photo => photo.getUrl({ maxWidth: 800, maxHeight: 600 }));
-              resolve(photoUrls);
-            } else {
-              resolve([]);
+            if (status !== google.maps.places.PlacesServiceStatus.OK) {
+              resolve({ photos: [] });
+              return;
             }
+
+            const photoUrls = (place?.photos || [])
+              .slice(0, 6)
+              .map(photo => photo.getUrl({ maxWidth: 800, maxHeight: 600 }));
+
+            resolve({ photos: photoUrls });
           }
         );
       });
     } catch (error) {
-      console.error('Error in fetchPlacePhotos:', error);
-      return [];
+      console.error('Error in fetchPlaceDetails:', error);
+      return { photos: [] };
     }
   };
 
@@ -204,6 +262,50 @@ export default function Home() {
       ).then(all => resolve(all.flat()));
     });
   };
+
+  // Load activities from localStorage and refresh Strava on mount
+  useEffect(() => {
+    const stored = loadActivities();
+    if (stored.length > 0) setActivities(stored);
+
+    const tokenRaw = typeof window !== 'undefined' ? localStorage.getItem('fri_strava_token') : null;
+    if (!tokenRaw) return;
+    try {
+      const token = JSON.parse(tokenRaw) as { access_token: string; expires_at: number };
+      if (token.expires_at * 1000 < Date.now()) return;
+      fetch(`/api/strava/activities?token=${encodeURIComponent(token.access_token)}`)
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then((items: Array<{
+          id: number; name: string; sport_type: string; start_date: string;
+          distance: number; total_elevation_gain: number; moving_time: number;
+          average_heartrate?: number; max_heartrate?: number;
+          map?: { summary_polyline?: string };
+          start_latlng?: [number, number];
+        }>) => {
+          const incoming: Activity[] = items.map(item => ({
+            id: `strava-${item.id}`,
+            source: 'strava' as const,
+            name: item.name,
+            sport_type: item.sport_type,
+            start_date: item.start_date,
+            distance_km: item.distance / 1000,
+            elevation_gain_m: Math.round(item.total_elevation_gain),
+            moving_time_s: item.moving_time,
+            avg_heartrate: item.average_heartrate,
+            max_heartrate: item.max_heartrate,
+            external_id: String(item.id),
+            start_latlng: item.start_latlng,
+            polyline: item.map?.summary_polyline ? decodePolyline(item.map.summary_polyline) : undefined,
+          }));
+          const merged = mergeActivities(stored, incoming);
+          saveActivities(merged);
+          setActivities(merged);
+        })
+        .catch(() => { /* Strava fetch failed silently */ });
+    } catch {
+      // ignore malformed token
+    }
+  }, []);
 
   // Fetch real data from Google Maps Places API
   useEffect(() => {
@@ -343,22 +445,10 @@ export default function Home() {
             }));
             const mountainElevations = await fetchElevations(mountainLocations);
 
-            const mountainPromises = filteredMountainPlaces
-                .map(async (place, index) => {
+            const mountainData = filteredMountainPlaces.map((place, index) => {
                   const elevation = mountainElevations[index] ?? (Math.floor(Math.random() * 3000) + 500);
                   const prominence = Math.floor(elevation * (0.2 + Math.random() * 0.4));
-                  // Jumpoff: trailhead is typically at 40–55% of summit elevation
                   const jumpoff = Math.floor(elevation * (0.40 + Math.random() * 0.15));
-
-                  let photos: string[] = [];
-                  if (place.place_id) {
-                    try {
-                      photos = await fetchPlacePhotos(place.place_id);
-                    } catch {
-                      photos = [];
-                    }
-                  }
-
                   const distance = Math.random() * 8 + 2;
 
                   return {
@@ -371,14 +461,13 @@ export default function Home() {
                     elevation_m: elevation,
                     prominence_m: prominence,
                     mountain_type: 'peak',
-                    photos,
+                    place_id: place.place_id,
+                    photos: [],
                     jumpoff_elevation: jumpoff,
                     summit_elevation: elevation,
                     strava_segment: generateStravaSegment(place.name || 'Mountain', distance, elevation - jumpoff),
                   };
                 });
-
-            const mountainData = await Promise.all(mountainPromises);
             resolve(mountainData);
           });
         } catch (err) {
@@ -426,6 +515,11 @@ export default function Home() {
               'DENR protected area',
               'provincial park trail',
               'heritage trail',
+              'rock climbing area',
+              'climbing crag',
+              'bouldering area',
+              'outdoor climbing wall',
+              'rappelling site',
             ];
 
             // Helper: fetch one textSearch query with up to 3 pages of results
@@ -499,11 +593,11 @@ export default function Home() {
             }));
             const routeBaseElevations = await fetchElevations(routeLocations);
 
-            const routePromises = filteredRoutePlaces
-              .map(async (place, index) => {
+            const routeData = filteredRoutePlaces.map((place, index) => {
                 const name = place.name!.toLowerCase();
                 let activityType = 'hike';
                 if (name.includes('bike') || name.includes('cycling') || name.includes('bikepacking')) activityType = 'bike';
+                else if (name.includes('climb') || name.includes('crag') || name.includes('boulder') || name.includes('rock wall') || name.includes('rappel')) activityType = 'rock_climb';
                 else if (name.includes('tour') || name.includes('road') || name.includes('scenic drive') || name.includes('heritage road') || name.includes('route')) activityType = 'tour';
 
                 let difficulty = 'moderate';
@@ -513,15 +607,6 @@ export default function Home() {
                 const distance = Math.random() * 15 + 2;
                 const elevationGain = Math.floor(Math.random() * 800 + 50);
                 const jumpoff = routeBaseElevations[index] ?? Math.floor(Math.random() * 300 + 100);
-
-                let photos: string[] = [];
-                if (place.place_id) {
-                  try {
-                    photos = await fetchPlacePhotos(place.place_id);
-                  } catch {
-                    photos = [];
-                  }
-                }
 
                 return {
                   id: `r${index + 1}`,
@@ -534,14 +619,13 @@ export default function Home() {
                   elevation_gain_m: elevationGain,
                   difficulty,
                   activity_type: activityType,
-                  photos,
+                  place_id: place.place_id,
+                  photos: [],
                   jumpoff_elevation: jumpoff,
                   summit_elevation: jumpoff + elevationGain,
                   strava_segment: generateStravaSegment(place.name || 'Trail', distance, elevationGain),
                 };
               });
-
-            const routeData = await Promise.all(routePromises);
             resolve(routeData);
           });
         } catch (err) {
@@ -611,7 +695,7 @@ export default function Home() {
             const EXCLUDE_CAMP_TYPES = new Set(['restaurant', 'food', 'bar', 'cafe', 'bakery', 'meal_takeaway', 'meal_delivery', 'store', 'shopping_mall', 'hospital', 'school', 'church', 'place_of_worship', 'gas_station', 'bank', 'farm']);
             const EXCLUDE_CAMP_KEYWORDS = ['farm', 'resort', 'hotel', 'motel', 'inn', 'pension', 'hostel'];
 
-            const campsitePromises = allCampsitePlaces
+            const campsiteData = allCampsitePlaces
               .filter(place =>
                 place.name &&
                 place.geometry?.location &&
@@ -619,31 +703,19 @@ export default function Home() {
                 !EXCLUDE_CAMP_KEYWORDS.some(kw => place.name!.toLowerCase().includes(kw))
               )
               .slice(0, 60)
-              .map(async (place, index) => {
-                let photos: string[] = [];
-                if (place.place_id) {
-                  try {
-                    photos = await fetchPlacePhotos(place.place_id);
-                  } catch {
-                    photos = [];
-                  }
-                }
-
-                return {
-                  id: `c${index + 1}`,
-                  name: place.name || 'Campsite',
-                  coordinates: [
-                    place.geometry!.location!.lng(),
-                    place.geometry!.location!.lat(),
-                  ] as [number, number],
-                  type: 'campground',
-                  rating: place.rating,
-                  amenities: [],
-                  photos,
-                };
-              });
-
-            const campsiteData = await Promise.all(campsitePromises);
+              .map((place, index) => ({
+                id: `c${index + 1}`,
+                name: place.name || 'Campsite',
+                coordinates: [
+                  place.geometry!.location!.lng(),
+                  place.geometry!.location!.lat(),
+                ] as [number, number],
+                type: 'campground',
+                rating: place.rating,
+                amenities: [],
+                place_id: place.place_id,
+                photos: [],
+              }));
             resolve(campsiteData);
           });
         } catch (err) {
@@ -708,32 +780,85 @@ export default function Home() {
   };
 
   return (
-    <main className="flex h-screen flex-col">
+    <main className="relative flex h-screen flex-col overflow-hidden bg-slate-950">
+      {/* Ambient background orbs */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0">
+        <div className="orb-float absolute -left-32 -top-32 h-96 w-96 rounded-full bg-blue-600/20 blur-3xl" />
+        <div className="orb-float-slow absolute -bottom-40 -right-20 h-80 w-80 rounded-full bg-emerald-600/15 blur-3xl" />
+        <div className="orb-float-alt absolute bottom-1/3 left-1/3 h-64 w-64 rounded-full bg-violet-600/10 blur-3xl" />
+      </div>
       {/* Header */}
-      <header className="z-20 flex h-14 flex-shrink-0 items-center justify-between border-b border-slate-800 bg-slate-950 px-5">
+      <header className="relative z-20 flex h-14 flex-shrink-0 items-center justify-between border-b border-white/[0.06] bg-slate-950/95 backdrop-blur px-5">
         {/* Brand */}
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600">
+          <div className="glow-pulse flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-900/40">
             <Mountain className="h-4 w-4 text-white" strokeWidth={2.5} />
           </div>
-          <span className="text-[15px] font-semibold tracking-tight text-white">Fit Ready IQ</span>
-          <span className="hidden sm:flex items-center gap-1 rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-400">
-            Beta
-          </span>
+          <div className="flex items-baseline gap-2">
+            <span className="brand-shimmer text-[15px] font-bold tracking-tight">Fit Ready IQ</span>
+            <span className="hidden sm:inline-flex items-center rounded-full bg-blue-500/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-blue-400 ring-1 ring-blue-500/30">
+              Beta
+            </span>
+          </div>
         </div>
 
         {/* Nav actions */}
         <div className="flex items-center gap-2">
           <button
+            aria-label="Toggle sidebar"
+            onClick={() => setSidebarOpen(s => !s)}
+            className="md:hidden flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 transition-all hover:border-white/20 hover:bg-white/10 hover:text-white"
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+          <button
             onClick={() => setIsDeviceModalOpen(true)}
-            className="flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:border-slate-600 hover:text-white"
+            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 transition-all hover:border-white/20 hover:bg-white/10 hover:text-white"
           >
             <Watch className="h-3.5 w-3.5" />
-            Connect Devices
+            <span className="hidden sm:inline">Connect Devices</span>
           </button>
-          <button className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-800 text-slate-400 transition-colors hover:border-slate-700 hover:text-slate-200">
-            <User className="h-4 w-4" />
-          </button>
+          {isFirebaseAuthConfigured() ? (
+            authUser ? (
+              <button
+                onClick={handleGoogleSignOut}
+                disabled={authBusy}
+                className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-slate-300 transition-all hover:border-white/20 hover:bg-white/10 hover:text-white disabled:opacity-50"
+                title="Sign out"
+              >
+                {authUser.photoURL ? (
+                  <Image
+                    src={authUser.photoURL}
+                    alt="Profile"
+                    width={20}
+                    height={20}
+                    className="h-5 w-5 rounded-full border border-white/20"
+                    unoptimized
+                  />
+                ) : (
+                  <UserIcon className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">{authUser.displayName ?? "Signed in"}</span>
+                <span className="hidden md:inline">Sign out</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleGoogleSignIn}
+                disabled={authBusy}
+                className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 transition-all hover:border-white/20 hover:bg-white/10 hover:text-white disabled:opacity-50"
+              >
+                <UserIcon className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Sign in with Google</span>
+              </button>
+            )
+          ) : (
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 transition-all hover:border-white/20 hover:bg-white/10 hover:text-white"
+              title="Firebase Auth not configured"
+            >
+              <UserIcon className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </header>
 
@@ -741,49 +866,61 @@ export default function Home() {
       <ConnectDevicesModal
         isOpen={isDeviceModalOpen}
         onClose={() => setIsDeviceModalOpen(false)}
+        onActivitiesLoaded={(acts) => {
+          const merged = mergeActivities(activities, acts);
+          saveActivities(merged);
+          setActivities(merged);
+        }}
       />
 
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="relative z-10 flex flex-1 overflow-hidden">
+        {/* Mobile sidebar backdrop */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-20 bg-black/60 backdrop-blur-sm md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
         {/* Sidebar */}
-        <aside className="sidebar-scroll flex w-80 flex-shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white p-3 gap-2.5">
+        <aside className={`sidebar-scroll flex flex-col overflow-y-auto border-r border-white/[0.06] bg-slate-900/98 backdrop-blur-xl p-3 gap-2.5 transition-transform duration-300 ease-out fixed inset-y-0 left-0 z-30 w-[min(320px,85vw)] md:relative md:inset-auto md:z-auto md:w-80 md:flex-shrink-0 ${sidebarOpen ? 'translate-x-0 shadow-2xl shadow-black/60' : '-translate-x-full md:translate-x-0'}`}>
           {/* Current Location */}
           {userLocation && (
             <button
               type="button"
               onClick={() => focusUserLocationRef.current?.()}
-              className="flex w-full items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/40"
+              className="flex w-full items-center gap-2.5 rounded-xl border border-blue-500/20 bg-blue-500/10 px-3 py-2.5 text-left transition-all hover:border-blue-500/40 hover:bg-blue-500/20"
               title="Focus map on your location"
             >
-              <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-blue-600">
+              <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-blue-600 shadow-md shadow-blue-900/50">
                 <MapPin className="h-3.5 w-3.5 text-white" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium text-slate-700">
+                <p className="truncate text-xs font-medium text-blue-100">
                   {userLocation.address || 'Getting location…'}
                 </p>
-                <p className="font-tabular text-[10px] text-slate-400">
+                <p className="font-tabular text-[10px] text-blue-400/70">
                   {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
                 </p>
               </div>
-              <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
+              <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-blue-400" />
             </button>
           )}
 
           {/* Search */}
           <div className="relative">
-            <Search className="pointer-events-none absolute inset-y-0 left-2.5 my-auto h-3.5 w-3.5 text-slate-400" />
+            <Search className="pointer-events-none absolute inset-y-0 left-3 my-auto h-3.5 w-3.5 text-slate-500" />
             <input
               type="text"
-              placeholder="Search…"
+              placeholder="Search routes, peaks, camps…"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full rounded-md border border-slate-200 bg-white py-2 pl-8 pr-7 text-[13px] text-slate-800 placeholder-slate-400 outline-none transition-colors focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-xl border border-white/10 bg-white/5 py-2 pl-9 pr-8 text-[13px] text-slate-200 placeholder-slate-500 outline-none transition-all focus:border-blue-500/50 focus:bg-white/8 focus:ring-2 focus:ring-blue-500/20"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute inset-y-0 right-2.5 my-auto flex items-center text-slate-400 hover:text-slate-600"
+                className="absolute inset-y-0 right-2.5 my-auto flex items-center text-slate-500 hover:text-slate-300"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -791,32 +928,37 @@ export default function Home() {
           </div>
 
           {/* Tabs */}
-          <div className="flex rounded-md border border-slate-200 bg-slate-50 p-0.5">
+          <div className="flex rounded-xl border border-white/[0.08] bg-white/5 p-1 gap-0.5">
             {([
-              { id: 'routes', label: 'Routes', Icon: Route },
-              { id: 'mountains', label: 'Mountains', Icon: Mountain },
-              { id: 'campsites', label: 'Camps', Icon: Tent },
+              { id: 'routes',     label: 'Routes',    Icon: Route,    activeClass: 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' },
+              { id: 'mountains',  label: 'Peaks',     Icon: Mountain, activeClass: 'bg-slate-600 text-white shadow-lg shadow-slate-900/50' },
+              { id: 'campsites',  label: 'Camps',     Icon: Tent,     activeClass: 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/50' },
+              { id: 'history',    label: 'History',   Icon: Clock,    activeClass: 'bg-violet-600 text-white shadow-lg shadow-violet-900/50' },
             ] as const).map(tab => {
               const count = tab.id === 'routes'
                 ? filteredRoutes.filter(r => !searchQuery || r.name.toLowerCase().includes(searchQuery.toLowerCase())).length
                 : tab.id === 'mountains'
                 ? mountains.filter(m => !searchQuery || m.name.toLowerCase().includes(searchQuery.toLowerCase())).length
-                : campsites.filter(c => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase())).length;
+                : tab.id === 'campsites'
+                ? campsites.filter(c => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase())).length
+                : activities.filter(a => !searchQuery || a.name.toLowerCase().includes(searchQuery.toLowerCase())).length;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded py-1.5 text-[11px] font-medium transition-colors ${
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-[11px] font-semibold transition-all ${
                     activeTab === tab.id
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
+                      ? tab.activeClass
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
                   }`}
                 >
                   <tab.Icon className="h-3 w-3" />
                   {tab.label}
-                  <span className={`rounded px-1 text-[9px] font-semibold ${
-                    activeTab === tab.id ? 'bg-slate-100 text-slate-600' : 'text-slate-400'
-                  }`}>{count}</span>
+                  {count > 0 && (
+                    <span className={`rounded-full px-1.5 text-[9px] font-bold ${
+                      activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-white/10 text-slate-400'
+                    }`}>{count}</span>
+                  )}
                 </button>
               );
             })}
@@ -827,16 +969,26 @@ export default function Home() {
 
           {/* Lists */}
           {isLoading ? (
-            <div className="flex flex-col items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-8 text-center">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-              <p className="text-xs text-slate-500">Loading data…</p>
+            <div className="space-y-2">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="rounded-xl border border-white/[0.06] bg-white/5 p-3.5">
+                  <div className="flex items-start gap-3">
+                    <div className="skeleton h-14 w-14 flex-shrink-0 rounded-lg" />
+                    <div className="flex-1 space-y-2">
+                      <div className="skeleton h-3.5 w-3/4 rounded-md" />
+                      <div className="skeleton h-2.5 w-1/2 rounded-md" />
+                      <div className="skeleton h-2.5 w-2/3 rounded-md" />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : error ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
-              <p className="text-xs font-medium text-red-600">{error}</p>
+            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
+              <p className="text-xs font-medium text-red-400">{error}</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
 
               {/* ── Routes Tab ── */}
               {activeTab === 'routes' && (() => {
@@ -844,15 +996,16 @@ export default function Home() {
                   !searchQuery || r.name.toLowerCase().includes(searchQuery.toLowerCase())
                 );
                 if (list.length === 0) return (
-                  <div className="rounded-lg border border-dashed border-slate-200 px-4 py-8 text-center">
-                    <Search className="mx-auto h-5 w-5 text-slate-300" />
-                    <p className="mt-2 text-xs text-slate-400">No routes found</p>
+                  <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-white/10 px-4 py-10 text-center">
+                    <Search className="h-6 w-6 text-slate-600" />
+                    <p className="text-xs font-medium text-slate-500">No routes found</p>
+                    <p className="text-[10px] text-slate-600">Try adjusting your filters</p>
                   </div>
                 );
-                const difficultyStyle: Record<string, { pill: string; dot: string }> = {
-                  easy:     { pill: 'bg-emerald-50 text-emerald-700', dot: 'bg-emerald-400' },
-                  moderate: { pill: 'bg-amber-50 text-amber-700',     dot: 'bg-amber-400' },
-                  hard:     { pill: 'bg-red-50 text-red-700',         dot: 'bg-red-400' },
+                const difficultyStyle: Record<string, { pill: string; dot: string; bar: string }> = {
+                  easy:     { pill: 'bg-emerald-500/15 text-emerald-400 ring-emerald-500/20', dot: 'bg-emerald-400', bar: 'bg-emerald-500' },
+                  moderate: { pill: 'bg-amber-500/15 text-amber-400 ring-amber-500/20',       dot: 'bg-amber-400',   bar: 'bg-amber-500' },
+                  hard:     { pill: 'bg-red-500/15 text-red-400 ring-red-500/20',             dot: 'bg-red-400',     bar: 'bg-red-500' },
                 };
                 const activityIcons: Record<string, React.ReactNode> = {
                   bike: <Route className="h-3.5 w-3.5" />,
@@ -860,35 +1013,48 @@ export default function Home() {
                   tour: <Route className="h-3.5 w-3.5" />,
                   run:  <TrendingUp className="h-3.5 w-3.5" />,
                 };
-                return list.map(route => {
-                  const ds = difficultyStyle[route.difficulty] ?? { pill: 'bg-slate-50 text-slate-600', dot: 'bg-slate-400' };
+                return list.map((route, idx) => {
+                  const ds = difficultyStyle[route.difficulty] ?? { pill: 'bg-white/10 text-slate-400 ring-white/10', dot: 'bg-slate-400', bar: 'bg-slate-500' };
+                  const thumb = route.photos?.[0];
                   return (
                     <button
                       key={route.id}
                       type="button"
                       onClick={() => handleRouteClick(route)}
-                      className="group w-full rounded-lg border border-slate-200 bg-white px-3.5 py-3 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/30"
+                      className="card-enter group w-full rounded-xl border border-white/[0.07] bg-white/5 text-left transition-all hover:border-blue-500/30 hover:bg-blue-500/10 active:scale-[0.99]"
+                      style={{ animationDelay: `${idx * 30}ms` }}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="line-clamp-1 text-[13px] font-semibold text-slate-900 group-hover:text-blue-700">{route.name}</p>
-                        <span className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded ${ds.pill}`}>
-                          {activityIcons[route.activity_type] ?? <Mountain className="h-3.5 w-3.5" />}
-                        </span>
-                      </div>
-                      <div className="mt-2 flex items-center gap-1.5">
-                        <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${ds.pill}`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${ds.dot}`} />
-                          {route.difficulty}
-                        </span>
-                        <span className="text-[10px] uppercase tracking-wide text-slate-400">{route.activity_type}</span>
-                      </div>
-                      <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-500">
-                        <span className="font-tabular font-medium text-slate-700">{route.distance_km.toFixed(1)} km</span>
-                        <span className="text-slate-300">·</span>
-                        <span className="flex items-center gap-0.5">
-                          <ArrowUpDown className="h-3 w-3" />
-                          <span className="font-tabular">{route.elevation_gain_m} m</span>
-                        </span>
+                      <div className="flex items-stretch gap-0">
+                        {/* Thumbnail */}
+                        <div className="relative h-[72px] w-[72px] flex-shrink-0 overflow-hidden rounded-l-xl">
+                          {thumb ? (
+                            <Image src={thumb} alt={route.name} fill className="object-cover transition-transform group-hover:scale-105" sizes="72px" unoptimized />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-900/60 to-slate-800">
+                              {activityIcons[route.activity_type] ?? <Mountain className="h-5 w-5 text-blue-400/60" />}
+                            </div>
+                          )}
+                          <div className={`absolute bottom-0 left-0 h-1 w-full ${ds.bar} opacity-80`} />
+                        </div>
+                        {/* Content */}
+                        <div className="min-w-0 flex-1 px-3 py-2.5">
+                          <p className="line-clamp-1 text-[13px] font-semibold text-slate-100 group-hover:text-white">{route.name}</p>
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ring-1 ${ds.pill}`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${ds.dot}`} />
+                              {route.difficulty}
+                            </span>
+                            <span className="text-[9px] uppercase tracking-wider text-slate-500">{route.activity_type}</span>
+                          </div>
+                          <div className="mt-1.5 flex items-center gap-2.5 text-[11px]">
+                            <span className="font-tabular font-semibold text-slate-300">{route.distance_km.toFixed(1)} km</span>
+                            <span className="text-white/15">|</span>
+                            <span className="flex items-center gap-0.5 text-slate-400">
+                              <ArrowUpDown className="h-2.5 w-2.5" />
+                              <span className="font-tabular">{route.elevation_gain_m} m</span>
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </button>
                   );
@@ -901,34 +1067,35 @@ export default function Home() {
                   !searchQuery || m.name.toLowerCase().includes(searchQuery.toLowerCase())
                 );
                 if (list.length === 0) return (
-                  <div className="rounded-lg border border-dashed border-slate-200 px-4 py-8 text-center">
-                    <Mountain className="mx-auto h-5 w-5 text-slate-300" />
-                    <p className="mt-2 text-xs text-slate-400">No mountains found</p>
+                  <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-white/10 px-4 py-10 text-center">
+                    <Mountain className="h-6 w-6 text-slate-600" />
+                    <p className="text-xs font-medium text-slate-500">No mountains found</p>
                   </div>
                 );
-                return list.map(mountain => (
+                return list.map((mountain, idx) => (
                   <button
                     key={mountain.id}
                     type="button"
                     onClick={() => handleMountainClick(mountain)}
-                    className="group w-full rounded-lg border border-slate-200 bg-white px-3.5 py-3 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/30"
+                    className="card-enter group w-full rounded-xl border border-white/[0.07] bg-white/5 px-3.5 py-3 text-left transition-all hover:border-slate-500/40 hover:bg-white/[0.08] active:scale-[0.99]"
+                    style={{ animationDelay: `${idx * 30}ms` }}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <p className="line-clamp-1 text-[13px] font-semibold text-slate-900 group-hover:text-blue-700">{mountain.name}</p>
-                      <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-slate-100">
-                        <Mountain className="h-3.5 w-3.5 text-slate-500" />
+                      <p className="line-clamp-1 text-[13px] font-semibold text-slate-100 group-hover:text-white">{mountain.name}</p>
+                      <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-white/10">
+                        <Mountain className="h-3.5 w-3.5 text-slate-400" />
                       </span>
                     </div>
                     <div className="mt-2 flex items-center gap-1.5">
-                      <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide bg-slate-50 text-slate-600 capitalize">
+                      <span className="inline-flex items-center rounded-full bg-slate-700/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-300 ring-1 ring-white/10">
                         {mountain.mountain_type}
                       </span>
                     </div>
-                    <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-500">
-                      <span className="font-tabular font-medium text-slate-700">{mountain.elevation_m} m</span>
+                    <div className="mt-2 flex items-center gap-3 text-[11px]">
+                      <span className="font-tabular font-semibold text-slate-200">{mountain.elevation_m} m</span>
                       {mountain.prominence_m ? (
-                        <><span className="text-slate-300">·</span>
-                        <span className="font-tabular">{mountain.prominence_m} m prom</span></>
+                        <><span className="text-white/20">·</span>
+                        <span className="font-tabular text-slate-400">{mountain.prominence_m} m prom</span></>
                       ) : null}
                     </div>
                   </button>
@@ -941,36 +1108,92 @@ export default function Home() {
                   !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase())
                 );
                 if (list.length === 0) return (
-                  <div className="rounded-lg border border-dashed border-slate-200 px-4 py-8 text-center">
-                    <Tent className="mx-auto h-5 w-5 text-slate-300" />
-                    <p className="mt-2 text-xs text-slate-400">No campsites found</p>
+                  <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-white/10 px-4 py-10 text-center">
+                    <Tent className="h-6 w-6 text-slate-600" />
+                    <p className="text-xs font-medium text-slate-500">No campsites found</p>
                   </div>
                 );
-                return list.map(campsite => (
+                return list.map((campsite, idx) => (
                   <button
                     key={campsite.id}
                     type="button"
                     onClick={() => handleCampsiteClick(campsite)}
-                    className="group w-full rounded-lg border border-slate-200 bg-white px-3.5 py-3 text-left transition-colors hover:border-emerald-300 hover:bg-emerald-50/30"
+                    className="card-enter group w-full rounded-xl border border-white/[0.07] bg-white/5 px-3.5 py-3 text-left transition-all hover:border-emerald-500/30 hover:bg-emerald-500/[0.07] active:scale-[0.99]"
+                    style={{ animationDelay: `${idx * 30}ms` }}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <p className="line-clamp-1 text-[13px] font-semibold text-slate-900 group-hover:text-emerald-700">{campsite.name}</p>
-                      <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-emerald-50">
-                        <Tent className="h-3.5 w-3.5 text-emerald-600" />
+                      <p className="line-clamp-1 text-[13px] font-semibold text-slate-100 group-hover:text-emerald-300">{campsite.name}</p>
+                      <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-emerald-500/15">
+                        <Tent className="h-3.5 w-3.5 text-emerald-400" />
                       </span>
                     </div>
                     <div className="mt-2 flex items-center gap-1.5">
-                      <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide bg-emerald-50 text-emerald-700 capitalize">
+                      <span className="inline-flex items-center rounded-full bg-emerald-900/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-300 ring-1 ring-emerald-500/20">
                         {campsite.type}
                       </span>
                       {campsite.rating && (
-                        <span className="font-tabular text-[10px] text-slate-500">
-                          ★ {campsite.rating.toFixed(1)}
+                        <span className="font-tabular text-[10px] text-amber-400">
+                          * {campsite.rating.toFixed(1)}
                         </span>
                       )}
                     </div>
                   </button>
                 ));
+              })()}
+
+              {/* ── History Tab ── */}
+              {activeTab === 'history' && (() => {
+                const list = activities.filter(a =>
+                  !searchQuery || a.name.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+                if (list.length === 0) return (
+                  <div className="rounded-lg border border-dashed border-white/10 px-4 py-8 text-center">
+                    <Clock className="mx-auto h-5 w-5 text-slate-500" />
+                    <p className="mt-2 text-xs text-slate-400">No activities yet</p>
+                    <p className="mt-1 text-[10px] text-slate-500">Connect Strava or import GPX files</p>
+                    <button
+                      onClick={() => setIsDeviceModalOpen(true)}
+                      className="mt-3 rounded-md bg-violet-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-violet-700"
+                    >
+                      Connect Devices
+                    </button>
+                  </div>
+                );
+                return list.map(activity => {
+                  const sourceBadge: Record<string, string> = {
+                    strava: 'bg-orange-100 text-orange-700',
+                    coros: 'bg-blue-100 text-blue-700',
+                    garmin: 'bg-sky-100 text-sky-700',
+                    komoot: 'bg-green-100 text-green-700',
+                  };
+                  const sourceLabel: Record<string, string> = {
+                    strava: 'Strava', coros: 'COROS', garmin: 'Garmin', komoot: 'Komoot',
+                  };
+                  const h = Math.floor(activity.moving_time_s / 3600);
+                  const m = Math.floor((activity.moving_time_s % 3600) / 60);
+                  const duration = h > 0 ? `${h}h ${m}m` : `${m}m`;
+                  return (
+                    <button
+                      key={activity.id}
+                      type="button"
+                      onClick={() => setSelectedDetails({ type: 'activity', data: activity })}
+                      className="group w-full rounded-lg border border-white/[0.07] bg-white/5 px-3.5 py-3 text-left transition-colors hover:border-violet-500/40 hover:bg-violet-900/10"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="line-clamp-1 text-[13px] font-semibold text-slate-200 group-hover:text-violet-300">{activity.name}</p>
+                        <span className={`flex-shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${sourceBadge[activity.source] ?? 'bg-slate-700 text-slate-300'}`}>
+                          {sourceLabel[activity.source] ?? activity.source}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-[10px] capitalize text-slate-500">{activity.sport_type} · {new Date(activity.start_date).toLocaleDateString()}</p>
+                      <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-400">
+                        <span>{activity.distance_km.toFixed(1)} km</span>
+                        <span>↑ {activity.elevation_gain_m} m</span>
+                        <span>{duration}</span>
+                      </div>
+                    </button>
+                  );
+                });
               })()}
 
             </div>
@@ -984,10 +1207,15 @@ export default function Home() {
             mountains={mountains}
             campsites={campsites}
             userLocation={userLocation ? [userLocation.lng, userLocation.lat] : undefined}
+            isLoaded={isLoaded}
+            loadError={loadError}
             onRouteClick={handleRouteClick}
             onMountainClick={handleMountainClick}
             onCampsiteClick={handleCampsiteClick}
             onFocusUserLocation={(fn) => { focusUserLocationRef.current = fn; }}
+            activityPolylines={activities
+              .filter(a => a.polyline && a.polyline.length > 0)
+              .map(a => ({ id: a.id, coords: a.polyline!, source: a.source, name: a.name }))}
           />
         </div>
       </div>
@@ -1007,6 +1235,7 @@ export default function Home() {
                 difficulty: selectedDetails.data.difficulty,
                 activity_type: selectedDetails.data.activity_type,
                 photos: selectedDetails.data.photos,
+                place_id: selectedDetails.data.place_id,
                 jumpoff_elevation: selectedDetails.data.jumpoff_elevation,
                 summit_elevation: selectedDetails.data.summit_elevation,
                 strava_segment: selectedDetails.data.strava_segment,
@@ -1023,6 +1252,7 @@ export default function Home() {
                 jumpoff_elevation: selectedDetails.data.jumpoff_elevation,
                 summit_elevation: selectedDetails.data.summit_elevation,
                 photos: selectedDetails.data.photos,
+                place_id: selectedDetails.data.place_id,
                 strava_segment: selectedDetails.data.strava_segment,
               }
             : selectedDetails?.type === 'campsite'
@@ -1035,10 +1265,28 @@ export default function Home() {
                 rating: selectedDetails.data.rating,
                 amenities: selectedDetails.data.amenities || [],
                 photos: selectedDetails.data.photos,
+                place_id: selectedDetails.data.place_id,
+              }
+            : selectedDetails?.type === 'activity'
+            ? {
+                type: 'activity' as const,
+                id: selectedDetails.data.id,
+                name: selectedDetails.data.name,
+                source: selectedDetails.data.source,
+                sport_type: selectedDetails.data.sport_type,
+                start_date: selectedDetails.data.start_date,
+                distance_km: selectedDetails.data.distance_km,
+                elevation_gain_m: selectedDetails.data.elevation_gain_m,
+                moving_time_s: selectedDetails.data.moving_time_s,
+                avg_heartrate: selectedDetails.data.avg_heartrate,
+                max_heartrate: selectedDetails.data.max_heartrate,
+                external_id: selectedDetails.data.external_id,
+                coordinates: selectedDetails.data.start_latlng,
               }
             : null
         }
       />
+      <ChatBot />
     </main>
   );
 }

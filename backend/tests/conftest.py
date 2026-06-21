@@ -2,37 +2,32 @@
 
 import os
 
-# Override settings BEFORE importing the app to avoid DB connection at module load
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost/test")
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-testing-only")
+# Point the backend at the Firebase emulator before any app imports.
+# These must be set before firebase_admin is imported.
 os.environ.setdefault("ENVIRONMENT", "test")
+os.environ.setdefault("FIREBASE_PROJECT_ID", "fit-ready-iq-test")
+os.environ.setdefault("FIREBASE_USE_EMULATOR", "true")
+os.environ.setdefault("FIREBASE_EMULATOR_HOST", "localhost")
+os.environ.setdefault("FIRESTORE_EMULATOR_HOST", "localhost:8080")
+os.environ.setdefault("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
+os.environ.setdefault("FIREBASE_STORAGE_EMULATOR_HOST", "localhost:9199")
+
+# Stub required API keys so Settings validation passes in tests
+os.environ.setdefault("STRAVA_CLIENT_ID", "test-strava-id")
+os.environ.setdefault("STRAVA_CLIENT_SECRET", "test-strava-secret")
+os.environ.setdefault("STRAVA_REDIRECT_URI", "http://localhost:8000/auth/strava/callback")
+os.environ.setdefault("MAPBOX_ACCESS_TOKEN", "test-mapbox-token")
+os.environ.setdefault("OPENWEATHER_API_KEY", "test-weather-key")
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
 
-from src.infrastructure.database.models import Base
 from src.main import app
 
 
 @pytest.fixture(scope="module")
 def client():
-    """Create a TestClient for the FastAPI app, bypassing DB lifespan."""
+    """Create a TestClient for the FastAPI app backed by the Firebase emulator."""
     with TestClient(app, raise_server_exceptions=True) as c:
         yield c
 
-
-@pytest.fixture
-async def db_session():
-    """Create test database session."""
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    async with async_session() as session:
-        yield session
-
-    await engine.dispose()

@@ -24,7 +24,11 @@
       "logToFile": true,
       "showReturnValue": true,
       "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
-      "preLaunchTask": "Backend Pre-Launch"
+      "preLaunchTask": "Backend Pre-Launch",
+      "presentation": {
+        "group": "Quick Start",
+        "order": 1
+      }
     },
     {
       "name": "Frontend: Next.js Server",
@@ -44,7 +48,11 @@
         "webpack://_N_E/./*": "${webRoot}/*",
         "webpack:///./*": "${webRoot}/*"
       },
-      "preLaunchTask": "npm: dev - frontend"
+      "preLaunchTask": "npm: dev - frontend",
+      "presentation": {
+        "group": "Quick Start",
+        "order": 2
+      }
     },
     {
       "name": "Frontend: Next.js Server (Node)",
@@ -55,6 +63,10 @@
       "env": {
         "NODE_ENV": "development",
         "DEBUG": "*"
+      },
+      "presentation": {
+        "group": "Quick Start",
+        "order": 3
       }
     },
 
@@ -92,7 +104,11 @@
       "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
       "preLaunchTask": "Backend Pre-Launch",
       "logToFile": true,
-      "showReturnValue": true
+      "showReturnValue": true,
+      "presentation": {
+        "group": "Backend (Python)",
+        "order": 1
+      }
     },
 
     // ========================================================================
@@ -113,7 +129,11 @@
       "justMyCode": false,
       "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
       "logToFile": true,
-      "showReturnValue": true
+      "showReturnValue": true,
+      "presentation": {
+        "group": "Tests (Backend)",
+        "order": 1
+      }
     },
     {
       "name": "Test: Current Test File",
@@ -130,7 +150,11 @@
       "justMyCode": false,
       "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
       "logToFile": true,
-      "showReturnValue": true
+      "showReturnValue": true,
+      "presentation": {
+        "group": "Tests (Backend)",
+        "order": 2
+      }
     },
     {
       "name": "Test: Coverage Report",
@@ -152,7 +176,11 @@
       "console": "integratedTerminal",
       "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
       "logToFile": true,
-      "showReturnValue": true
+      "showReturnValue": true,
+      "presentation": {
+        "group": "Tests (Backend)",
+        "order": 3
+      }
     },
     {
       "name": "Kill All Ports (Task Only)",
@@ -160,7 +188,11 @@
       "request": "launch",
       "program": "${workspaceFolder}/.vscode/kill_ports_dummy.js",
       "skipFiles": ["<node_internals>/**"],
-      "preLaunchTask": "Kill Frontend Port"
+      "preLaunchTask": "Kill Frontend Port",
+      "presentation": {
+        "group": "Setup and Ops",
+        "order": 1
+      }
     },
     {
       "name": "Kill Backend Port (Task Only)",
@@ -168,28 +200,44 @@
       "request": "launch",
       "program": "${workspaceFolder}/.vscode/kill_ports_dummy.js",
       "skipFiles": ["<node_internals>/**"],
-      "preLaunchTask": "Kill Backend Port"
+      "preLaunchTask": "Kill Backend Port",
+      "presentation": {
+        "group": "Setup and Ops",
+        "order": 2
+      }
     },
     {
       "name": "Test: Frontend Tests",
       "type": "node-terminal",
       "request": "launch",
       "command": "npm test",
-      "cwd": "${workspaceFolder}/frontend"
+      "cwd": "${workspaceFolder}/frontend",
+      "presentation": {
+        "group": "Tests (Frontend)",
+        "order": 1
+      }
     },
     {
       "name": "Test: Frontend - Watch Mode",
       "type": "node-terminal",
       "request": "launch",
       "command": "npm run test:watch",
-      "cwd": "${workspaceFolder}/frontend"
+      "cwd": "${workspaceFolder}/frontend",
+      "presentation": {
+        "group": "Tests (Frontend)",
+        "order": 2
+      }
     },
     {
       "name": "Test: Frontend - With Coverage",
       "type": "node-terminal",
       "request": "launch",
       "command": "npm run test:coverage",
-      "cwd": "${workspaceFolder}/frontend"
+      "cwd": "${workspaceFolder}/frontend",
+      "presentation": {
+        "group": "Tests (Frontend)",
+        "order": 3
+      }
     },
 
     // ========================================================================
@@ -209,7 +257,11 @@
       "justMyCode": false,
       "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
       "logToFile": true,
-      "showReturnValue": true
+      "showReturnValue": true,
+      "presentation": {
+        "group": "Backend (Python)",
+        "order": 2
+      }
     },
 
     // ========================================================================
@@ -221,7 +273,11 @@
       "request": "launch",
       "program": "${workspaceFolder}/.vscode/kill_ports_dummy.js",
       "skipFiles": ["<node_internals>/**"],
-      "preLaunchTask": "Install All Dependencies"
+      "preLaunchTask": "Install All Dependencies",
+      "presentation": {
+        "group": "Setup and Ops",
+        "order": 3
+      }
     },
     {
       "name": "Setup: Install Backend Dependencies",
@@ -229,7 +285,11 @@
       "request": "launch",
       "program": "${workspaceFolder}/.vscode/kill_ports_dummy.js",
       "skipFiles": ["<node_internals>/**"],
-      "preLaunchTask": "Install Backend Dependencies"
+      "preLaunchTask": "Install Backend Dependencies",
+      "presentation": {
+        "group": "Setup and Ops",
+        "order": 4
+      }
     },
     {
       "name": "Setup: Install Frontend Dependencies",
@@ -237,15 +297,11 @@
       "request": "launch",
       "program": "${workspaceFolder}/.vscode/kill_ports_dummy.js",
       "skipFiles": ["<node_internals>/**"],
-      "preLaunchTask": "Install Frontend Dependencies"
-    },
-    {
-      "name": "Setup: Install All Dependencies",
-      "type": "node",
-      "request": "launch",
-      "program": "${workspaceFolder}/.vscode/kill_ports_dummy.js",
-      "skipFiles": ["<node_internals>/**"],
-      "preLaunchTask": "Install All Dependencies"
+      "preLaunchTask": "Install Frontend Dependencies",
+      "presentation": {
+        "group": "Setup and Ops",
+        "order": 5
+      }
     }
   ],
 

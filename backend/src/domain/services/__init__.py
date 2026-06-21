@@ -1,7 +1,6 @@
 """Domain services: Business logic that operates across multiple entities."""
 
 from datetime import datetime, timedelta
-from typing import Optional
 
 from ..entities import Activity, Route
 from ..value_objects import (
@@ -27,8 +26,8 @@ class FitnessScoreCalculator:
     def calculate_fitness_score(
         self,
         activities: list[Activity],
-        user_age: Optional[int] = None,
-        user_max_hr: Optional[int] = None,
+        user_age: int | None = None,
+        user_max_hr: int | None = None,
     ) -> FitnessScore:
         """
         Calculate comprehensive fitness score from recent activities.
@@ -73,8 +72,8 @@ class FitnessScoreCalculator:
     def _calculate_vo2max_score(
         self,
         activities: list[Activity],
-        user_age: Optional[int],
-        user_max_hr: Optional[int],
+        user_age: int | None,
+        user_max_hr: int | None,
     ) -> float:
         """Estimate VO2max score from activity data."""
         # Filter to running/hiking activities with HR data
@@ -163,7 +162,7 @@ class FitnessScoreCalculator:
         return frequency_score * 0.6 + consistency_ratio * 100 * 0.4
 
     def _calculate_intensity_score(
-        self, activities: list[Activity], user_max_hr: Optional[int]
+        self, activities: list[Activity], user_max_hr: int | None
     ) -> float:
         """Calculate training intensity score."""
         # Filter activities with heart rate data
@@ -252,6 +251,13 @@ class RouteDifficultyCalculator:
                 + elevation_factor * 0.35
                 + grade_factor * 0.25
                 + technical_factor * 0.20
+            )
+        elif route.activity_type == "rock_climb":
+            score = (
+                distance_factor * 0.10
+                + elevation_factor * 0.30
+                + grade_factor * 0.25
+                + technical_factor * 0.35
             )
         else:  # biking
             score = (

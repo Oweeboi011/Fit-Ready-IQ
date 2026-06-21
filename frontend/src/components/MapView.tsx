@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { GoogleMap, Marker, Polyline, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, Marker, Polyline, OverlayView } from "@react-google-maps/api";
+import { type ActivityPolyline } from "@/lib/activityTypes";
 
 interface Route {
   id: string;
@@ -38,7 +39,10 @@ interface MapViewProps {
   routes?: Route[];
   mountains?: Mountain[];
   campsites?: Campsite[];
+  activityPolylines?: ActivityPolyline[];
   userLocation?: [number, number];
+  isLoaded: boolean;
+  loadError: Error | undefined;
   onRouteClick?: (route: Route) => void;
   onMountainClick?: (mountain: Mountain) => void;
   onCampsiteClick?: (campsite: Campsite) => void;
@@ -50,7 +54,12 @@ const mapContainerStyle = {
   height: "100%",
 };
 
-const libraries: ("places" | "geometry")[] = ["places", "geometry"];
+const SOURCE_POLYLINE_COLOR: Record<string, string> = {
+  strava: "#fc4c02",
+  coros: "#2563eb",
+  garmin: "#0ea5e9",
+  komoot: "#16a34a",
+};
 
 export default function MapView({
   initialCenter = [-122.4194, 37.7749],
@@ -58,23 +67,22 @@ export default function MapView({
   routes = [],
   mountains = [],
   campsites = [],
+  activityPolylines = [],
   userLocation: userLocationProp,
+  isLoaded,
+  loadError,
   onRouteClick,
   onMountainClick,
   onCampsiteClick,
   onFocusUserLocation,
 }: MapViewProps) {
+  const currentOrigin = typeof window !== "undefined" ? window.location.origin : "";
   const [userLocation, setUserLocation] = useState<[number, number] | null>(userLocationProp || null);
   const [mapCenter, setMapCenter] = useState({
     lat: initialCenter[1],
     lng: initialCenter[0],
   });
   const [map, setMap] = useState<google.maps.Map | null>(null);
-
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-    libraries,
-  });
 
   const onLoad = useCallback((map: google.maps.Map) => {
     setMap(map);
@@ -210,23 +218,41 @@ export default function MapView({
   const getActivityIcon = (activityType: string): string => {
     switch (activityType.toLowerCase()) {
       case "hike":
-        return "🥾";
+        return "HIKE";
       case "bike":
       case "ride":
-        return "🚴";
+        return "BIKE";
       case "run":
-        return "🏃";
+        return "RUN";
+      case "rock_climb":
+        return "CLIMB";
       default:
-        return "📍";
+        return "PIN";
     }
   };
 
   if (loadError) {
     return (
       <div className="relative h-full w-full flex items-center justify-center bg-slate-100">
-        <div className="text-center">
-          <p className="text-red-600">Error loading Google Maps</p>
-          <p className="text-sm text-slate-500 mt-2">Check your API key configuration</p>
+        <div className="max-w-lg text-center px-6">
+          <p className="text-red-600 font-semibold">Error loading Google Maps</p>
+          <p className="text-sm text-slate-600 mt-2">
+            Verify your Maps API key, HTTP referrer allowlist, and enabled APIs.
+          </p>
+          {currentOrigin && (
+            <p className="mt-3 text-xs text-slate-500">
+              Current site origin: <span className="font-mono">{currentOrigin}</span>
+            </p>
+          )}
+          <div className="mt-4 rounded-md border border-slate-200 bg-white p-3 text-left text-xs text-slate-600">
+            <p className="font-semibold text-slate-700">Quick checks</p>
+            <ul className="mt-2 list-disc pl-5 space-y-1">
+              <li>Enable Maps JavaScript API, Places API, and Elevation API.</li>
+              <li>Add allowed referrers, including localhost dev ports (for example: http://localhost:4790/*).</li>
+              <li>Ensure billing is enabled for the Google Cloud project.</li>
+              <li>Set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in .env.local and restart Next.js.</li>
+            </ul>
+          </div>
         </div>
       </div>
     );
@@ -259,20 +285,44 @@ export default function MapView({
           fullscreenControl: true,
         }}
       >
-        {/* User Location Marker */}
+        {/* User Location — animated GPS pulse overlay */}
         {userLocation && (
-          <Marker
+          <OverlayView
             position={{ lat: userLocation[1], lng: userLocation[0] }}
-            icon={{
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 8,
-              fillColor: "#3b82f6",
-              fillOpacity: 1,
-              strokeColor: "#ffffff",
-              strokeWeight: 2,
-            }}
-            title="Your Location"
-          />
+            mapPaneName="overlayMouseTarget"
+            getPixelPositionOffset={() => ({ x: -14, y: -14 })}
+          >
+            <div style={{ position: 'relative', width: 28, height: 28, pointerEvents: 'none' }}>
+              <div
+                className="loc-ring"
+                style={{
+                  position: 'absolute', inset: 0,
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(59,130,246,0.45)',
+                  transformOrigin: 'center',
+                }}
+              />
+              <div
+                className="loc-ring-2"
+                style={{
+                  position: 'absolute', inset: 0,
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(59,130,246,0.3)',
+                  transformOrigin: 'center',
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 5,
+                  borderRadius: '50%',
+                  backgroundColor: '#3b82f6',
+                  border: '2.5px solid white',
+                  boxShadow: '0 0 14px rgba(59,130,246,0.8), 0 2px 6px rgba(0,0,0,0.3)',
+                }}
+              />
+            </div>
+          </OverlayView>
         )}
 
         {/* Route Polylines */}
@@ -286,6 +336,22 @@ export default function MapView({
                 strokeColor: getDifficultyColor(route.difficulty),
                 strokeOpacity: 0.8,
                 strokeWeight: 4,
+              }}
+            />
+          ))}
+
+        {/* Activity Polylines (from Strava / COROS / Garmin / Komoot) */}
+        {activityPolylines
+          .filter((ap) => ap.coords.length > 0)
+          .map((ap) => (
+            <Polyline
+              key={`activity-${ap.id}`}
+              path={ap.coords.map(([lng, lat]) => ({ lat, lng }))}
+              options={{
+                strokeColor: SOURCE_POLYLINE_COLOR[ap.source] ?? "#8b5cf6",
+                strokeOpacity: 0.75,
+                strokeWeight: 3,
+                geodesic: true,
               }}
             />
           ))}
@@ -343,7 +409,7 @@ export default function MapView({
                   <svg width="36" height="36" xmlns="http://www.w3.org/2000/svg">
                     <path d="M18 4 L10 20 L26 20 Z" fill="#8b4513" stroke="white" stroke-width="2"/>
                     <circle cx="18" cy="8" r="3" fill="white"/>
-                    <text x="18" y="31" text-anchor="middle" font-size="14" fill="#333">⛰️</text>
+                    <text x="18" y="31" text-anchor="middle" font-size="14" fill="#333">MTN</text>
                   </svg>
                 `)}`,
                 scaledSize: new google.maps.Size(36, 36),
@@ -375,12 +441,12 @@ export default function MapView({
                   <svg width="36" height="36" xmlns="http://www.w3.org/2000/svg">
                     <path d="M18 8 L8 24 L28 24 Z" fill="#228b22" stroke="white" stroke-width="2"/>
                     <rect x="17" y="24" width="2" height="8" fill="#8b4513"/>
-                    <text x="18" y="35" text-anchor="middle" font-size="12">⛺</text>
+                    <text x="18" y="35" text-anchor="middle" font-size="12">CAMP</text>
                   </svg>
                 `)}`,
                 scaledSize: new google.maps.Size(36, 36),
               }}
-              title={`${campsite.name}${campsite.rating ? ` (★${campsite.rating})` : ''}`}
+              title={`${campsite.name}${campsite.rating ? ` (*${campsite.rating})` : ''}`}
               onClick={() => {
                 if (onCampsiteClick) {
                   onCampsiteClick(campsite);
@@ -417,13 +483,13 @@ export default function MapView({
               <div className="space-y-1 text-xs">
                 {mountains.length > 0 && (
                   <div className="flex items-center gap-2">
-                    <span>⛰️</span>
+                    <span>MTN</span>
                     <span className="text-slate-600">Mountain/Peak</span>
                   </div>
                 )}
                 {campsites.length > 0 && (
                   <div className="flex items-center gap-2">
-                    <span>⛺</span>
+                    <span>CAMP</span>
                     <span className="text-slate-600">Campsite</span>
                   </div>
                 )}

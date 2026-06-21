@@ -1,7 +1,8 @@
 """Strava API client implementation."""
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
+from urllib.parse import urlencode
 
 import httpx
 import structlog
@@ -58,8 +59,7 @@ class StravaAPIClient(IFitnessPlatformClient):
             "state": state,
         }
 
-        query_string = "&".join(f"{k}={v}" for k, v in params.items())
-        return f"{self.AUTH_URL}?{query_string}"
+        return f"{self.AUTH_URL}?{urlencode(params)}"
 
     async def exchange_token(self, code: str) -> dict[str, Any]:
         """
@@ -148,7 +148,7 @@ class StravaAPIClient(IFitnessPlatformClient):
             raise
 
     async def get_athlete_stats(
-        self, access_token: str, athlete_id: Optional[str] = None
+        self, access_token: str, athlete_id: str | None = None
     ) -> dict[str, Any]:
         """
         Get athlete statistics (totals and recent activity).
@@ -181,8 +181,8 @@ class StravaAPIClient(IFitnessPlatformClient):
     async def get_activities(
         self,
         access_token: str,
-        after: Optional[datetime] = None,
-        before: Optional[datetime] = None,
+        after: datetime | None = None,
+        before: datetime | None = None,
         page: int = 1,
         per_page: int = 30,
     ) -> list[dict[str, Any]]:

@@ -1,62 +1,85 @@
-"""Database connection and session management."""
+"""Firebase Admin SDK initialization and Firestore/Auth/Storage client access."""
 
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+import json
+import os
+from typing import Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
+import firebase_admin
+from firebase_admin import auth, credentials, firestore_async, storage
 
 from ...config.settings import get_settings
 
-settings = get_settings()
-
-# Create async engine
-engine = create_async_engine(
-    str(settings.database_url).replace("postgresql://", "postgresql+asyncpg://"),
-    echo=settings.environment == "development",
-    poolclass=NullPool if settings.environment == "test" else None,
-    pool_pre_ping=True,
-)
-
-# Create async session factory
-AsyncSessionLocal = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autocommit=False,
-    autoflush=False,
-)
+_app: Optional[firebase_admin.App] = None
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+def initialize_firebase() -> firebase_admin.App:
     """
-    Dependency for FastAPI endpoints to get database session.
+    Initialize Firebase Admin SDK.
 
-    Usage:
-        @app.get("/items")
-        async def read_items(db: AsyncSession = Depends(get_db)):
-            ...
+    Credentials are resolved in this order:
+    1. FIREBASE_SERVICE_ACCOUNT_KEY_JSON env var (JSON string – ideal for production)
+    2. FIREBASE_SERVICE_ACCOUNT_KEY_PATH env var (path to JSON file – local dev)
+    3. Application Default Credentials (Google Cloud / CI environments)
     """
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+    global _app
+    if _app is not None:
+        return _app
+
+    settings = get_settings()
+
+    # Configure emulators before initializing the app
+    if settings.firebase_use_emulator:
+        os.environ.setdefault(
+            "FIRESTORE_EMULATOR_HOST",
+            f"{settings.firebase_emulator_host}:{settings.firebase_firestore_emulator_port}",
+        )
+        os.environ.setdefault(
+            "FIREBASE_AUTH_EMULATOR_HOST",
+            f"{settings.firebase_emulator_host}:{settings.firebase_auth_emulator_port}",
+        )
+        os.environ.setdefault(
+            "FIREBASE_STORAGE_EMULATOR_HOST",
+            f"{settings.firebase_emulator_host}:{settings.firebase_storage_emulator_port}",
+        )
+
+    # Resolve credentials
+    cred: credentials.Base
+    if settings.firebase_service_account_key_json:
+        key_dict = json.loads(settings.firebase_service_account_key_json)
+        cred = credentials.Certificate(key_dict)
+    elif settings.firebase_service_account_key_path:
+        cred = credentials.Certificate(settings.firebase_service_account_key_path)
+    else:
+        cred = credentials.ApplicationDefault()
+
+    options: dict = {"projectId": settings.firebase_project_id}
+    if settings.firebase_storage_bucket:
+        options["storageBucket"] = settings.firebase_storage_bucket
+
+    _app = firebase_admin.initialize_app(cred, options)
+    return _app
 
 
-@asynccontextmanager
-async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
-    """Context manager for database sessions outside of FastAPI."""
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+def get_firestore() -> firestore_async.AsyncClient:
+    """Return the async Firestore client. Requires initialize_firebase() first."""
+    return firestore_async.client()
+
+
+def get_auth() -> auth.Client:
+    """Return the Firebase Auth client. Requires initialize_firebase() first."""
+    return auth.Client(_app)
+
+
+def get_storage_bucket():
+    """Return the Firebase Storage bucket. Requires initialize_firebase() first."""
+    return storage.bucket()
+
+
+async def verify_firebase_token(id_token: str) -> dict:
+    """
+    Verify a Firebase ID token and return the decoded claims.
+
+    Raises firebase_admin.auth.InvalidIdTokenError on failure.
+    """
+    decoded = auth.verify_id_token(id_token)
+    return decoded

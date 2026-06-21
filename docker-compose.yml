@@ -1,38 +1,35 @@
 version: '3.8'
 
 services:
-  # PostgreSQL with PostGIS for geospatial queries
-  postgres:
-    image: postgis/postgis:15-3.3
-    container_name: fit-ready-iq-db
+  # Firebase Local Emulator Suite
+  firebase-emulator:
+    image: andreysenov/firebase-tools:latest
+    container_name: fit-ready-iq-firebase
+    ports:
+      - "4000:4000"   # Emulator UI
+      - "8080:8080"   # Firestore
+      - "9099:9099"   # Auth
+      - "9199:9199"   # Storage
+    volumes:
+      - ./firebase.json:/home/node/firebase/firebase.json:ro
+      - ./firestore.rules:/home/node/firebase/firestore.rules:ro
+      - ./firestore.indexes.json:/home/node/firebase/firestore.indexes.json:ro
+      - firebase_emulator_data:/home/node/firebase/.firebase-emulator
+    working_dir: /home/node/firebase
+    command: >
+      firebase emulators:start
+      --only firestore,auth,storage
+      --project ${FIREBASE_PROJECT_ID:-fit-ready-iq-dev}
+      --import=.firebase-emulator/data
+      --export-on-exit=.firebase-emulator/data
     environment:
-      POSTGRES_DB: ${DB_NAME:-fitreadyiq}
-      POSTGRES_USER: ${DB_USER:-fitreadyiq_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-dev_password_change_in_production}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./backend/infrastructure/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - FIREBASE_TOKEN=${FIREBASE_TOKEN:-}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-fitreadyiq_user}"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000 || exit 1"]
+      interval: 15s
+      timeout: 10s
       retries: 5
-
-  # Redis for caching and rate limiting
-  redis:
-    image: redis:7-alpine
-    container_name: fit-ready-iq-cache
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
+      start_period: 30s
 
   # FastAPI Backend
   backend:
@@ -41,12 +38,16 @@ services:
       dockerfile: Dockerfile
     container_name: fit-ready-iq-api
     environment:
-      - DATABASE_URL=postgresql://${DB_USER:-fitreadyiq_user}:${DB_PASSWORD:-dev_password_change_in_production}@postgres:5432/${DB_NAME:-fitreadyiq}
-      - REDIS_URL=redis://redis:6379
       - ENVIRONMENT=development
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID:-fit-ready-iq-dev}
+      - FIREBASE_USE_EMULATOR=true
+      - FIREBASE_EMULATOR_HOST=firebase-emulator
+      - FIREBASE_SERVICE_ACCOUNT_KEY_PATH=${FIREBASE_SERVICE_ACCOUNT_KEY_PATH:-}
+      - FIREBASE_SERVICE_ACCOUNT_KEY_JSON=${FIREBASE_SERVICE_ACCOUNT_KEY_JSON:-}
+      - FIREBASE_STORAGE_BUCKET=${FIREBASE_STORAGE_BUCKET:-}
       - STRAVA_CLIENT_ID=${STRAVA_CLIENT_ID}
       - STRAVA_CLIENT_SECRET=${STRAVA_CLIENT_SECRET}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev_secret_key_change_in_production}
+      - STRAVA_REDIRECT_URI=${STRAVA_REDIRECT_URI}
       - MAPBOX_ACCESS_TOKEN=${MAPBOX_ACCESS_TOKEN}
       - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
       - CORS_ORIGINS=http://localhost:3000,http://localhost:3001
@@ -56,9 +57,7 @@ services:
       - ./backend:/app
       - /app/__pycache__
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
+      firebase-emulator:
         condition: service_healthy
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 
@@ -71,6 +70,8 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
       - NEXT_PUBLIC_MAPBOX_TOKEN=${MAPBOX_ACCESS_TOKEN}
+      - NEXT_PUBLIC_FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID:-fit-ready-iq-dev}
+      - NEXT_PUBLIC_FIREBASE_USE_EMULATOR=true
     ports:
       - "3000:3000"
     volumes:
@@ -82,5 +83,5 @@ services:
     command: npm run dev
 
 volumes:
-  postgres_data:
-  redis_data:
+  firebase_emulator_data:
+

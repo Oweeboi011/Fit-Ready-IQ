@@ -1,0 +1,461 @@
+# Fit-Ready-IQ Testing Guide
+
+## 1. Overview
+
+This document describes the complete testing strategy for Fit-Ready-IQ, covering all testing layers from unit tests to production validation. The project uses a multi-layer testing approach to ensure code quality, integration reliability, and performance under load before any change reaches production.
+
+Testing is a mandatory quality gate -- all tests must pass before merging to `main` and triggering a Vercel deployment.
+
+### Testing Philosophy
+
+- **Test at the right level** -- Unit tests for logic, E2E for user flows, load tests for capacity.
+- **Fast feedback** -- Unit tests run in < 2 seconds. Developers get immediate signal.
+- **Production-like validation** -- E2E tests run against a real browser. Post-deploy checks verify live endpoints.
+- **No flaky tests** -- Tests must be deterministic. External API calls are mocked in unit tests.
+
+---
+
+## 2. Test Architecture
+
+### 2.1 Testing Layers
+
+```mermaid
+graph TB
+    subgraph Layers["Testing Pyramid"]
+        direction TB
+        Unit["Unit Tests<br/>(Vitest + pytest)<br/>Fast, isolated, many"]
+        Integration["Integration Tests<br/>(pytest)<br/>API route + DB validation"]
+        E2E["End-to-End Tests<br/>(Playwright)<br/>Full browser flows"]
+        Load["Performance Tests<br/>(Autocannon + Locust)<br/>Throughput + latency"]
+    end
+
+    subgraph Gates["Quality Gates"]
+        Lint["Lint (ESLint)"]
+        Build["Build (Next.js)"]
+        Audit["Security (npm audit)"]
+    end
+
+    Unit --> Integration
+    Integration --> E2E
+    E2E --> Load
+
+    Gates --> Unit
+
+    style Unit fill:#d1fae5
+    style Integration fill:#dbeafe
+    style E2E fill:#fef3c7
+    style Load fill:#fee2e2
+```
+
+### 2.2 Test Stack
+
+| Layer | Frontend | Backend |
+| --- | --- | --- |
+| **Unit** | Vitest | pytest (with `@pytest.mark.unit`) |
+| **Integration** | (via E2E) | pytest (with `@pytest.mark.integration`) |
+| **E2E** | Playwright (Chromium) | -- |
+| **Load** | Autocannon | Locust |
+| **Mocking** | Vitest mocks | pytest fixtures |
+| **Coverage** | Vitest coverage (v8) | pytest-cov |
+
+---
+
+## 3. Frontend Unit Tests (Vitest)
+
+### 3.1 Running Tests
+
+```bash
+cd frontend
+
+# Run all unit tests
+npm run test:unit
+
+# Run with coverage report
+npm run test:unit -- --coverage
+
+# Run specific test file
+npm run test:unit -- src/lib/gpxParser.test.ts
+
+# Run in watch mode (during development)
+npx vitest --watch
+```
+
+### 3.2 Current Test Coverage
+
+| Test File | Tests | What It Validates |
+| --- | --- | --- |
+| `src/lib/activityTypes.test.ts` | 4 | Activity type definitions, persistence helpers, type guards |
+| `src/lib/decodePolyline.test.ts` | 2 | Google polyline encoding/decoding accuracy |
+| `src/lib/gpxParser.test.ts` | 1 | GPX XML parsing, track point extraction, elevation data |
+
+**Total: 7 tests passing** (target: 20+ by Phase 1, 50+ by Phase 6)
+
+### 3.3 Test File Conventions
+
+```mermaid
+flowchart LR
+    Source["src/lib/gpxParser.ts"] --> Test["src/lib/gpxParser.test.ts"]
+    Source2["src/lib/activityTypes.ts"] --> Test2["src/lib/activityTypes.test.ts"]
+    Source3["src/lib/polylineDecoder.ts"] --> Test3["src/lib/decodePolyline.test.ts"]
+```
+
+- Test files live adjacent to source files with `.test.ts` suffix.
+- Use `describe()` blocks to group related tests.
+- Use `it()` or `test()` with descriptive names.
+- Mock external dependencies (Google APIs, Firebase) -- never call real APIs in unit tests.
+
+### 3.4 Writing New Unit Tests
+
+When adding a new utility or library function:
+
+```typescript
+// src/lib/example.test.ts
+import { describe, it, expect } from 'vitest';
+import { myFunction } from './example';
+
+describe('myFunction', () => {
+  it('should handle normal input', () => {
+    expect(myFunction('input')).toBe('expected');
+  });
+
+  it('should handle edge case', () => {
+    expect(myFunction('')).toBe('fallback');
+  });
+
+  it('should throw on invalid input', () => {
+    expect(() => myFunction(null)).toThrow();
+  });
+});
+```
+
+---
+
+## 4. Backend Unit Tests (pytest)
+
+### 4.1 Running Tests
+
+```bash
+cd backend
+
+# Run unit tests only
+poetry run pytest -m unit -v --tb=short
+
+# Run all tests
+poetry run pytest tests/ -v --tb=short
+
+# Run with coverage
+poetry run pytest tests/ --cov=src --cov-report=term-missing
+```
+
+### 4.2 Current Test Coverage
+
+| Test File | Tests | What It Validates |
+| --- | --- | --- |
+| `tests/unit/test_settings.py` | 1 | Settings loading, env var parsing, defaults |
+| `tests/unit/test_connection.py` | 1 | Database connection string construction |
+
+### 4.3 Test Configuration
+
+The backend test suite uses `tests/conftest.py` which sets environment variables **before** importing application modules to prevent real database connections during test collection:
+
+```python
+import os
+
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost/test")
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-testing-only")
+os.environ.setdefault("ENVIRONMENT", "test")
+```
+
+**Critical:** These must be set before `from src.main import app` to prevent the app from attempting a real DB connection at import time.
+
+---
+
+## 5. Integration Tests (Backend)
+
+### 5.1 Running Tests
+
+```bash
+cd backend
+
+# Integration tests only
+poetry run pytest -m integration -v --tb=short
+```
+
+### 5.2 Current Coverage
+
+| Test File | What It Validates |
+| --- | --- |
+| `tests/integration/test_app_endpoints.py` | API health endpoint, CORS headers |
+| `tests/test_main.py` | FastAPI app startup, root route response |
+
+### 5.3 Integration Test Pattern
+
+```mermaid
+sequenceDiagram
+    participant Test as Test Function
+    participant Client as TestClient
+    participant App as FastAPI App
+    participant Mock as Mocked Dependencies
+
+    Test->>Client: GET /health
+    Client->>App: HTTP request
+    App->>Mock: (DB/API calls mocked)
+    Mock-->>App: Mocked response
+    App-->>Client: HTTP response
+    Client-->>Test: Assert status + body
+```
+
+Integration tests use `httpx.AsyncClient` or `TestClient` with a `scope="module"` fixture (required for compatibility with httpx 0.27.x).
+
+---
+
+## 6. End-to-End Tests (Playwright)
+
+### 6.1 Setup
+
+```bash
+cd frontend
+
+# Install Playwright browsers (first time only)
+npx playwright install chromium
+```
+
+### 6.2 Running Tests
+
+```bash
+cd frontend
+
+# Run E2E tests
+npm run test:e2e
+
+# Run with UI (headed mode for debugging)
+npx playwright test --headed
+
+# Run specific test
+npx playwright test e2e/home.spec.ts
+```
+
+### 6.3 Current E2E Coverage
+
+| Spec File | What It Validates |
+| --- | --- |
+| `e2e/home.spec.ts` | Homepage loads, map container renders, key UI elements visible |
+
+### 6.4 E2E Test Flow
+
+```mermaid
+flowchart TD
+    A["Playwright launches Chromium"] --> B["Navigate to localhost:4790"]
+    B --> C["Wait for page hydration"]
+    C --> D["Assert map container visible"]
+    D --> E["Assert key UI elements present"]
+    E --> F{"All assertions pass?"}
+    F -->|Yes| G["Test PASS"]
+    F -->|No| H["Test FAIL + screenshot captured"]
+```
+
+### 6.5 Writing New E2E Tests
+
+```typescript
+// e2e/feature.spec.ts
+import { test, expect } from '@playwright/test';
+
+test('user can open route details', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForSelector('[data-testid="map-container"]');
+  await page.click('[data-testid="marker-mountain"]');
+  await expect(page.locator('[data-testid="details-modal"]')).toBeVisible();
+});
+```
+
+---
+
+## 7. Performance and Load Tests
+
+### 7.1 Frontend Load Test (Autocannon)
+
+```bash
+cd frontend
+
+# Run with defaults
+npm run test:load
+
+# Custom configuration
+LOAD_TEST_URL=http://localhost:4790 \
+LOAD_TEST_CONNECTIONS=10 \
+LOAD_TEST_DURATION=30 \
+npm run test:load
+```
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LOAD_TEST_URL` | `http://localhost:4790` | Target URL |
+| `LOAD_TEST_CONNECTIONS` | `10` | Concurrent connections |
+| `LOAD_TEST_DURATION` | `30` | Test duration in seconds |
+
+**Script:** `frontend/tests/performance/load-test.js`
+
+### 7.2 Backend Load Test (Locust)
+
+```bash
+cd backend
+
+# Headless mode (CI-friendly)
+poetry run locust -f tests/performance/locustfile.py \
+  --host http://localhost:8000 \
+  --users 25 \
+  --spawn-rate 5 \
+  --run-time 1m \
+  --headless
+
+# Web UI mode (interactive)
+poetry run locust -f tests/performance/locustfile.py \
+  --host http://localhost:8000
+# Open http://localhost:8089
+```
+
+**Script:** `backend/tests/performance/locustfile.py`
+
+### 7.3 Performance Baselines
+
+| Metric | Current | Phase 1 Target | Phase 6 Target |
+| --- | --- | --- | --- |
+| Homepage load (p95) | ~3s | < 2s | < 1.5s |
+| Chat response (p95) | ~2s | < 1.5s | < 1s |
+| API health endpoint (p95) | < 100ms | < 50ms | < 50ms |
+| Concurrent users supported | ~25 | ~50 | ~100 |
+
+---
+
+## 8. Pre-Push Validation Sequence
+
+### 8.1 Recommended Order
+
+Run these commands in order before pushing any changes:
+
+```mermaid
+flowchart TD
+    A["1. npm run lint"] --> B["2. npm run build"]
+    B --> C["3. npm run test:unit"]
+    C --> D["4. npm run test:e2e"]
+    D --> E["5. npm audit --audit-level=high"]
+    E --> F{"All pass?"}
+    F -->|Yes| G["Push to GitHub"]
+    F -->|No| H["Fix and re-run"]
+    H --> A
+```
+
+### 8.2 Full Command Reference
+
+```bash
+# Frontend validation (required)
+cd frontend
+npm run lint              # ESLint -- zero errors
+npm run build             # TypeScript + Next.js -- zero errors
+npm run test:unit         # Vitest -- all tests pass
+npm run test:e2e          # Playwright -- all specs pass
+npm audit --audit-level=high  # No high/critical vulnerabilities
+
+# Backend validation (if backend/ files changed)
+cd ../backend
+poetry run ruff check .   # Linting -- zero errors
+poetry run ruff format --check .  # Formatting -- zero violations
+poetry run pytest tests/ -v --tb=short  # All tests pass
+```
+
+### 8.3 Quick Validation (Minimum)
+
+For documentation-only or config-only changes:
+
+```bash
+cd frontend
+npm run lint && npm run build
+```
+
+---
+
+## 9. Post-Deployment Validation
+
+After every production deployment to Vercel, manually verify these critical paths:
+
+```mermaid
+flowchart TD
+    A["Deployment complete"] --> B["1. Homepage map loads"]
+    B --> C["2. Markers appear on map"]
+    C --> D["3. Detail modal opens on click"]
+    D --> E["4. Chat returns AI response"]
+    E --> F["5. Firebase health: connected=true"]
+    F --> G["6. Strava OAuth flow completes"]
+    G --> H{"All pass?"}
+    H -->|Yes| I["Deployment validated"]
+    H -->|No| J["Rollback via Vercel dashboard"]
+```
+
+| Check | Endpoint/Action | Expected Result |
+| --- | --- | --- |
+| Map renders | Open homepage | Google Maps tiles + markers visible |
+| Chat works | Send message | AI response returned |
+| Firebase connected | GET `/api/integrations/firebase` | `{ "connected": true, "firestoreWrite": true }` |
+| Strava OAuth | Click "Connect Strava" | Redirect to Strava + callback success |
+| Weather (Phase 1) | GET `/api/weather?lat=14.5&lng=121.0` | Forecast JSON returned |
+
+---
+
+## 10. Test Environment Variables
+
+### 10.1 Frontend Test Environment
+
+Unit tests (Vitest) run without external dependencies. Mocks are used for Google Maps and Firebase.
+
+E2E tests (Playwright) require a running dev server with these variables in `.env.local`:
+
+| Variable | Required for E2E | Notes |
+| --- | --- | --- |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Yes | Real key needed for map rendering |
+| `GEMINI_API_KEY` | Optional | Chat tests need this; skip chat tests if missing |
+| `FIREBASE_PROJECT_ID` | Optional | Can use emulator if Docker running |
+
+### 10.2 Backend Test Environment
+
+Backend tests set their own environment via `conftest.py`:
+
+| Variable | Test Value | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | `postgresql+asyncpg://test:test@localhost/test` | Prevents real DB connection |
+| `JWT_SECRET_KEY` | `test-secret-key-for-testing-only` | Test token signing |
+| `ENVIRONMENT` | `test` | Activates test-safe code paths |
+
+---
+
+## 11. Adding Tests for New Features
+
+### 11.1 Decision Matrix
+
+```mermaid
+flowchart TD
+    A["New code written"] --> B{What type?}
+    B -->|Utility function| C["Unit test (Vitest)"]
+    B -->|API route| D["Integration test (pytest) +<br/>E2E validation"]
+    B -->|UI component| E["E2E test (Playwright)"]
+    B -->|Data transformation| C
+    B -->|External API integration| F["Unit test with mock +<br/>E2E smoke test"]
+```
+
+### 11.2 Test Naming Conventions
+
+| Layer | Pattern | Example |
+| --- | --- | --- |
+| Unit (frontend) | `<module>.test.ts` | `gpxParser.test.ts` |
+| Unit (backend) | `test_<module>.py` | `test_settings.py` |
+| Integration | `test_<feature>_endpoints.py` | `test_app_endpoints.py` |
+| E2E | `<feature>.spec.ts` | `home.spec.ts` |
+| Load | `load-test.js` / `locustfile.py` | -- |
+
+### 11.3 Coverage Goals
+
+| Phase | Unit Tests | E2E Specs | Coverage Target |
+| --- | --- | --- | --- |
+| Current | 7 | 1 | Baseline |
+| Phase 1 | 20+ | 3+ | > 60% statements |
+| Phase 4 | 35+ | 5+ | > 75% statements |
+| Phase 6 | 50+ | 8+ | > 85% statements |
