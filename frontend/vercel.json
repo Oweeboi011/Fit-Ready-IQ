@@ -7,6 +7,18 @@
     },
     "src/app/api/integrations/firebase/route.ts": {
       "maxDuration": 15
+    },
+    "src/app/api/places/cache/route.ts": {
+      "maxDuration": 15
+    },
+    "src/app/api/strava/sync/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/admin/cache/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/admin/strava-sync/route.ts": {
+      "maxDuration": 15
     }
   }
 }
