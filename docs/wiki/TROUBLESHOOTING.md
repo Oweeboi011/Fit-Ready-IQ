@@ -234,9 +234,65 @@ flowchart TD
 
 ---
 
-## 7. Strava Integration Issues
+## 7. Authentication and Saved Places Issues
 
-### 7.1 OAuth Callback Not Completing
+### 7.1 Google Sign-In Popup Closes Without Signing In
+
+**Cause:** The authorized domains list in Firebase Auth does not include the current domain.
+
+**Diagnostic Flow:**
+```
+Browser console shows:
+  "auth/unauthorized-domain" or
+  "auth/popup-closed-by-user"
+```
+
+**Fix:**
+1. Go to Firebase Console > Authentication > Settings > Authorized Domains
+2. Add your domain (e.g., `localhost`, `fit-ready-iq.vercel.app`)
+3. For local dev, ensure `localhost` is in the list (added by default when Auth is enabled)
+
+### 7.2 Google Sign-In Shows "operation-not-allowed" Error
+
+**Cause:** Google sign-in provider is disabled in Firebase Auth.
+
+**Fix:**
+1. Go to Firebase Console > Authentication > Sign-in method
+2. Enable the Google provider and set a project support email
+
+### 7.3 Saved Places Bookmark Has No Effect
+
+**Causes:**
+- User is not signed in (Saved tab only appears when authenticated)
+- Firestore rules are blocking writes
+- Firebase client SDK not initialized (missing `NEXT_PUBLIC_FIREBASE_*` env vars)
+
+**Fix:**
+1. Verify all `NEXT_PUBLIC_FIREBASE_*` environment variables are set in `.env.local`
+2. Confirm user is signed in (the user avatar appears in the top-right header)
+3. Check Firestore rules allow authenticated writes: `allow write: if request.auth.uid == userId;`
+4. Open browser DevTools > Network tab, look for failed Firestore requests
+
+### 7.4 Saved Places Are Lost After Refresh
+
+**Cause:** Firestore listener not attaching, or uid is null on mount.
+
+**Fix:**
+1. Ensure `NEXT_PUBLIC_FIREBASE_APP_ID` and `NEXT_PUBLIC_FIREBASE_PROJECT_ID` match the Firebase project exactly
+2. Check the browser console for `FirebaseError: Missing or insufficient permissions`
+3. Redeploy Firestore rules: `firebase deploy --only firestore:rules`
+
+### 7.5 "Sign In" Button Not Visible on the Map Page
+
+**Cause:** ChatBot FAB used invalid Tailwind classes (`h-13`, `w-13`) or `relative` overriding `fixed` position.
+This was fixed in the current version -- `h-12 w-12` and `right-5` are now set correctly on the FAB.
+If the button is missing, clear the Next.js build cache: `rm -rf frontend/.next && npm run build`
+
+---
+
+## 8. Strava Integration Issues
+
+### 8.1 OAuth Callback Not Completing
 
 **Diagnostic Flow:**
 

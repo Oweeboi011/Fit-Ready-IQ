@@ -235,10 +235,10 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="modal-enter relative w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-xl bg-white shadow-2xl ring-1 ring-black/10">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="modal-enter relative w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-2xl border border-white/[0.08] bg-slate-900 shadow-2xl">
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/95 backdrop-blur-xl px-6 py-4 rounded-t-xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/[0.06] bg-slate-900/95 backdrop-blur-xl px-6 py-4 rounded-t-2xl">
           <div className="flex items-start gap-3 flex-1 min-w-0 pr-4">
             <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${
               data.type === 'mountain' ? 'bg-slate-100' : data.type === 'campsite' ? 'bg-emerald-50' : 'bg-blue-50'
@@ -252,7 +252,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
               )}
             </div>
             <div className="min-w-0">
-              <h2 className="truncate text-lg font-semibold text-slate-900 leading-tight">{data.name}</h2>
+              <h2 className="truncate text-lg font-semibold text-white leading-tight">{data.name}</h2>
               <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400 mt-0.5">
                 {data.type === 'mountain' ? 'Mountain / Peak' : data.type === 'campsite' ? 'Campsite' : (
                   data.type === 'route' ? `${data.activity_type} · ${data.difficulty}` : ''
@@ -262,7 +262,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
           </div>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 transition-all hover:border-white/20 hover:bg-white/10 hover:text-white"
           >
             <X className="h-4 w-4" />
           </button>
@@ -290,10 +290,10 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                 <div className="space-y-6">
                   {/* Profile type label */}
                   <div className={`flex items-center gap-3 rounded-lg border px-4 py-3 ${
-                    isCycling ? 'border-blue-200 bg-blue-50/50' : 'border-emerald-200 bg-emerald-50/50'
+                    isCycling ? 'border-blue-500/30 bg-blue-500/10' : 'border-emerald-500/30 bg-emerald-500/10'
                   }`}>
                     <div className={`flex h-8 w-8 items-center justify-center rounded-md ${
-                      isCycling ? 'bg-blue-100' : 'bg-emerald-100'
+                      isCycling ? 'bg-blue-500/20' : 'bg-emerald-500/20'
                     }`}>
                       {isCycling
                         ? <Route className="h-4 w-4 text-blue-600" />
@@ -301,37 +301,37 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                     </div>
                     <div>
                       <p className={`text-sm font-semibold ${
-                        isCycling ? 'text-blue-900' : 'text-emerald-900'
+                        isCycling ? 'text-blue-300' : 'text-emerald-300'
                       }`}>
                         {isCycling ? 'Cycling Profile' : 'Mountaineering Profile'}
                       </p>
-                      <p className="text-xs text-slate-500">{profileDescription}</p>
+                      <p className="text-xs text-slate-400">{profileDescription}</p>
                     </div>
                   </div>
 
                   {/* Quick Stats */}
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                    <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Distance</p>
-                      <p className="font-tabular mt-1.5 text-xl font-bold text-slate-900">{data.distance_km.toFixed(1)} km</p>
+                      <p className="font-tabular mt-1.5 text-xl font-bold text-white">{data.distance_km.toFixed(1)} km</p>
                     </div>
-                    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                    <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Elev Gain</p>
-                      <p className="font-tabular mt-1.5 text-xl font-bold text-slate-900">{data.elevation_gain_m} m</p>
+                      <p className="font-tabular mt-1.5 text-xl font-bold text-white">{data.elevation_gain_m} m</p>
                     </div>
-                    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                    <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Difficulty</p>
-                      <p className="mt-1.5 text-xl font-bold capitalize text-slate-900">{data.difficulty}</p>
+                      <p className="mt-1.5 text-xl font-bold capitalize text-white">{data.difficulty}</p>
                     </div>
-                    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                    <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Activity</p>
-                      <p className="mt-1.5 text-xl font-bold capitalize text-slate-900">{data.activity_type}</p>
+                      <p className="mt-1.5 text-xl font-bold capitalize text-white">{data.activity_type}</p>
                     </div>
                   </div>
 
                   {/* Photos Gallery */}
                   <div>
-                    <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-500">
+                    <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-400">
                       <Camera className="h-3.5 w-3.5" />
                       Photos
                     </h3>
@@ -369,13 +369,13 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                   {/* Strava Segment Records */}
                   {data.strava_segment && (
                     <div>
-                      <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-500">
+                      <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-400">
                         <Award className="h-3.5 w-3.5" />
                         Strava Segment
                       </h3>
-                      <div className="rounded-lg border border-slate-200 bg-white p-4">
+                      <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-4">
                         <div className="flex items-center justify-between mb-3">
-                          <p className="text-sm font-semibold text-slate-900">{data.strava_segment.name}</p>
+                          <p className="text-sm font-semibold text-white">{data.strava_segment.name}</p>
                           <span className="rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-slate-100 text-slate-500">
                             {data.strava_segment.total_efforts || 0} efforts
                           </span>
@@ -445,7 +445,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                     return (
                       <div>
                         <div className="flex items-center justify-between mb-3">
-                          <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500">
+                          <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-400">
                             <TrendingUp className="h-3.5 w-3.5" />
                             Elevation Profile
                           </h3>
@@ -458,7 +458,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                             ))}
                           </div>
                         </div>
-                        <div className="rounded-xl overflow-hidden border border-slate-200 bg-white">
+                        <div className="rounded-xl overflow-hidden border border-white/[0.08] bg-slate-800/60">
                           <div className="relative">
                             <div className="absolute left-0 top-0 bottom-8 w-12 flex flex-col justify-between py-3 pointer-events-none z-10">
                               {[1, 0.75, 0.5, 0.25, 0].map(f => (
@@ -482,10 +482,10 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                                 preserveAspectRatio="none"
                                 style={{ height: '200px' }}
                               >
-                                <rect width={W} height={CH + GS + 4} fill="#f8fafc" />
+                                <rect width={W} height={CH + GS + 4} fill="#0f172a" />
                                 {[0.25, 0.5, 0.75].map(f => (
                                   <line key={f} x1="0" y1={ty(mn + rng * f)} x2={W} y2={ty(mn + rng * f)}
-                                    stroke="#e2e8f0" strokeWidth="1" />
+                                    stroke="#1e293b" strokeWidth="1" />
                                 ))}
                                 {pts.slice(0, -1).map((pt, i) => (
                                   <polygon key={i}
@@ -521,13 +521,13 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                               </svg>
                               {hPt && elevHoverIdx !== null && (
                                 <div
-                                  className="pointer-events-none absolute top-2 z-20 min-w-[88px] px-3 py-2 rounded-xl bg-white/95 backdrop-blur border border-slate-200 shadow-lg"
+                                  className="pointer-events-none absolute top-2 z-20 min-w-[88px] px-3 py-2 rounded-xl bg-slate-900/95 backdrop-blur border border-white/10 shadow-lg"
                                   style={{
                                     left: `${(elevHoverIdx / (N - 1)) * 100}%`,
                                     transform: elevHoverIdx / (N - 1) > 0.7 ? 'translateX(calc(-100% - 8px))' : 'translateX(8px)',
                                   }}
                                 >
-                                  <p className="text-sm font-bold text-slate-900 leading-tight">{Math.round(hPt.elevation)} m</p>
+                                  <p className="text-sm font-bold text-white leading-tight">{Math.round(hPt.elevation)} m</p>
                                   <p className="text-[11px] text-slate-400 mt-0.5">{hPt.distance.toFixed(2)} km</p>
                                   <p className="text-xs font-semibold mt-1" style={{ color: gc(hG) }}>
                                     {hG.toFixed(1)}% · {gl(hG)}
@@ -535,15 +535,15 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                                 </div>
                               )}
                             </div>
-                            <div className="ml-12 flex justify-between px-1 pb-3 pt-1 bg-white">
+                            <div className="ml-12 flex justify-between px-1 pb-3 pt-1 bg-slate-900">
                               {[0, 0.25, 0.5, 0.75, 1].map(f => (
-                                <span key={f} className="text-[10px] font-mono text-slate-400">
+                                <span key={f} className="text-[10px] font-mono text-slate-500">
                                   {(data.distance_km * f).toFixed(1)} km
                                 </span>
                               ))}
                             </div>
                           </div>
-                          <div className="grid grid-cols-3 sm:grid-cols-6 border-t border-slate-200 bg-slate-50">
+                          <div className="grid grid-cols-3 sm:grid-cols-6 border-t border-white/[0.06] bg-slate-800/80">
                             {stats.map(({ label, value, color }) => (
                               <div key={label} className="text-center py-3 border-r border-slate-200 last:border-r-0">
                                 <p className="text-[9px] uppercase tracking-wider text-slate-400">{label}</p>
@@ -560,16 +560,16 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                   {/* Route Summary — hike only */}
                   {!isCycling && (
                     <div>
-                      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-500">Route Summary</h3>
-                      <div className="rounded-lg border border-slate-200 bg-white p-5">
+                      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Route Summary</h3>
+                      <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-5">
                         <div className="space-y-4">
                           <div className="flex items-start">
                             <div className="mr-4 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-green-100">
                               <span className="font-bold text-green-700">1</span>
                             </div>
                             <div className="flex-1">
-                              <h4 className="mb-1 font-semibold text-slate-900">Starting Point (Jumpoff)</h4>
-                              <p className="text-sm text-slate-600">Begin your hike at {metrics.startElevation}m. Check weather and register at the trailhead before starting.</p>
+                              <h4 className="mb-1 font-semibold text-white">Starting Point (Jumpoff)</h4>
+                              <p className="text-sm text-slate-300">Begin your hike at {metrics.startElevation}m. Check weather and register at the trailhead before starting.</p>
                             </div>
                           </div>
                           <div className="flex items-start">
@@ -577,8 +577,8 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                               <span className="font-bold text-blue-700">2</span>
                             </div>
                             <div className="flex-1">
-                              <h4 className="mb-1 font-semibold text-slate-900">The Ascent</h4>
-                              <p className="text-sm text-slate-600">Gain {metrics.elevationGain}m of elevation through varied terrain. Pace yourself and stay hydrated.</p>
+                              <h4 className="mb-1 font-semibold text-white">The Ascent</h4>
+                              <p className="text-sm text-slate-300">Gain {metrics.elevationGain}m of elevation through varied terrain. Pace yourself and stay hydrated.</p>
                             </div>
                           </div>
                           <div className="flex items-start">
@@ -586,8 +586,8 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                               <span className="font-bold text-red-700">3</span>
                             </div>
                             <div className="flex-1">
-                              <h4 className="mb-1 font-semibold text-slate-900">Summit / Endpoint ({metrics.summitElevation}m)</h4>
-                              <p className="text-sm text-slate-600">Reach the highest point and enjoy the views. Rest before descending.</p>
+                              <h4 className="mb-1 font-semibold text-white">Summit / Endpoint ({metrics.summitElevation}m)</h4>
+                              <p className="text-sm text-slate-300">Reach the highest point and enjoy the views. Rest before descending.</p>
                             </div>
                           </div>
                         </div>
@@ -598,34 +598,34 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                   {/* Elevation Details — hike only */}
                   {!isCycling && (
                     <div>
-                      <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-500">
+                      <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-400">
                         <MapPin className="h-3.5 w-3.5" />
                         Elevation Details
                       </h3>
-                      <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                      <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-4 space-y-3">
+                        <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
                           <div className="flex items-center">
                             <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-3"></div>
                             <div>
                               <p className="text-sm font-medium text-slate-900">Jumpoff Point</p>
-                              <p className="text-xs text-slate-500">Starting elevation</p>
+                              <p className="text-xs text-slate-400">Starting elevation</p>
                             </div>
                           </div>
                           <p className="font-tabular text-base font-bold text-slate-900">{metrics.startElevation}m</p>
                         </div>
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                        <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
                           <div className="flex items-center">
                             <div className="w-2.5 h-2.5 rounded-full bg-red-500 mr-3"></div>
                             <div>
                               <p className="text-sm font-medium text-slate-900">Summit / Endpoint</p>
-                              <p className="text-xs text-slate-500">Peak elevation</p>
+                              <p className="text-xs text-slate-400">Peak elevation</p>
                             </div>
                           </div>
                           <p className="font-tabular text-base font-bold text-slate-900">{metrics.summitElevation}m</p>
                         </div>
                         <div className="pt-1">
                           <div className="flex items-center justify-between">
-                            <p className="text-sm text-slate-600">Total Elevation Gain</p>
+                            <p className="text-sm text-slate-300">Total Elevation Gain</p>
                             <p className="font-tabular text-base font-bold text-blue-600">+{metrics.elevationGain}m</p>
                           </div>
                         </div>
@@ -636,16 +636,16 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                   {/* Location — cycling only */}
                   {isCycling && (
                     <div>
-                      <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-slate-500">Location</h3>
-                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                      <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-slate-400">Location</h3>
+                      <div className="rounded-lg border border-white/[0.06] bg-slate-800/40 p-4">
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <p className="text-xs text-slate-500">Latitude</p>
-                            <p className="font-mono text-sm font-medium text-slate-900">{data.coordinates[1].toFixed(6)}°</p>
+                            <p className="text-xs text-slate-400">Latitude</p>
+                            <p className="font-mono text-sm font-medium text-white">{data.coordinates[1].toFixed(6)}°</p>
                           </div>
                           <div>
-                            <p className="text-xs text-slate-500">Longitude</p>
-                            <p className="font-mono text-sm font-medium text-slate-900">{data.coordinates[0].toFixed(6)}°</p>
+                            <p className="text-xs text-slate-400">Longitude</p>
+                            <p className="font-mono text-sm font-medium text-white">{data.coordinates[0].toFixed(6)}°</p>
                           </div>
                         </div>
                       </div>
@@ -655,10 +655,10 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                   {/* Estimated Time — cycling only */}
                   {isCycling && (
                     <div>
-                      <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-slate-500">Estimated Time</h3>
-                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-xs text-slate-500">Based on distance and elevation gain</p>
-                        <p className="mt-1 text-lg font-semibold text-slate-900">
+                      <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-slate-400">Estimated Time</h3>
+                      <div className="rounded-lg border border-white/[0.06] bg-slate-800/40 p-4">
+                        <p className="text-xs text-slate-400">Based on distance and elevation gain</p>
+                        <p className="mt-1 text-lg font-semibold text-white">
                           {(() => {
                             const totalMinutes = Math.round(data.distance_km * 3.5 + data.elevation_gain_m * 0.3);
                             return `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`;
@@ -671,37 +671,37 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
               {/* Activity-Specific Profile Details */}
               {isCycling ? (
                 <div>
-                  <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-500">Cycling Details</h3>
+                  <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Cycling Details</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                    <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Avg Speed Zone</p>
                       <p className="mt-1.5 text-base font-bold text-slate-900">
                         {metrics.averageGrade < 3 ? '25–30 km/h' : metrics.averageGrade < 6 ? '18–25 km/h' : '12–18 km/h'}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-slate-400">
                         {metrics.averageGrade < 3 ? 'Fast rolling terrain' : metrics.averageGrade < 6 ? 'Moderate climbing' : 'Steep climbs'}
                       </p>
                     </div>
-                    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                    <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Bike Type</p>
                       <p className="mt-1.5 text-base font-bold text-slate-900">
                         {data.difficulty === 'easy' ? 'Road / Hybrid' : data.difficulty === 'moderate' ? 'Gravel / MTB' : 'Mountain Bike'}
                       </p>
-                      <p className="text-xs text-slate-500">Recommended category</p>
+                      <p className="text-xs text-slate-400">Recommended category</p>
                     </div>
-                    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                    <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Power Output</p>
                       <p className="mt-1.5 text-base font-bold text-slate-900">
                         {metrics.averageGrade < 4 ? '180–220W' : metrics.averageGrade < 8 ? '220–280W' : '280–350W'}
                       </p>
-                      <p className="text-xs text-slate-500">Estimated avg watts</p>
+                      <p className="text-xs text-slate-400">Estimated avg watts</p>
                     </div>
-                    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                    <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Technical Level</p>
                       <p className="mt-1.5 text-base font-bold text-slate-900">
                         {data.difficulty === 'easy' ? 'Basic' : data.difficulty === 'moderate' ? 'Intermediate' : 'Advanced'}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-slate-400">
                         {data.difficulty === 'easy' ? 'Smooth surfaces' : data.difficulty === 'moderate' ? 'Mixed terrain' : 'Technical sections'}
                       </p>
                     </div>
@@ -758,24 +758,24 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                     <>
                       {/* Stats */}
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-center">
+                        <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3 text-center">
                           <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Climb Time</p>
                           <p className="font-tabular mt-1.5 text-xl font-bold text-slate-900">{lo}–{hi}h</p>
                           <p className="text-[11px] text-slate-400">Naismith&apos;s rule</p>
                         </div>
-                        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-center">
+                        <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3 text-center">
                           <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Fitness</p>
                           <p className="mt-1.5 text-sm font-bold text-slate-900">
                             {data.difficulty === 'hard' ? 'Advanced' : data.difficulty === 'moderate' ? 'Intermediate' : 'Beginner'}
                           </p>
                           <p className="text-[11px] text-slate-400">required level</p>
                         </div>
-                        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-center">
+                        <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3 text-center">
                           <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Best Season</p>
                           <p className="mt-1.5 text-sm font-bold text-slate-900 leading-tight">{weatherNotes.best}</p>
                           <p className="text-[11px] text-slate-400">dry season</p>
                         </div>
-                        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-center">
+                        <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3 text-center">
                           <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Summit Temp</p>
                           <p className="mt-1.5 text-sm font-bold text-slate-900">{weatherNotes.temp}</p>
                           <p className="text-[11px] text-slate-400">at peak</p>
@@ -784,38 +784,38 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
 
                       {/* Pre-Climb Briefing */}
                       <div className="space-y-3">
-                        <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500">
+                        <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-400">
                           <span className="flex h-5 w-5 items-center justify-center rounded bg-slate-100 text-xs">LIST</span>
                           Pre-Climb Briefing
                         </h3>
 
-                        <div className="rounded-lg border border-slate-200 bg-white p-4">
+                        <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-4">
                           <div className="flex items-start gap-3">
-                            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-blue-50 text-sm">🅿️</span>
+                            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-blue-500/10 text-sm">🅿️</span>
                             <div>
-                              <p className="text-sm font-semibold text-slate-900">Where to Park</p>
+                              <p className="text-sm font-semibold text-white">Where to Park</p>
                               <p className="mt-1 text-sm text-slate-600">{parkingInfo}</p>
                               <a href={`https://www.google.com/maps/search/parking+near+${data.coordinates[1]},${data.coordinates[0]}`} target="_blank" rel="noopener noreferrer" className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800">Find parking on Maps →</a>
                             </div>
                           </div>
                         </div>
 
-                        <div className="rounded-lg border border-slate-200 bg-white p-4">
+                        <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-4">
                           <div className="flex items-start gap-3">
-                            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-emerald-50 text-sm">FLAG</span>
+                            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-emerald-500/10 text-sm">FLAG</span>
                             <div>
-                              <p className="text-sm font-semibold text-slate-900">Jumpoff Point</p>
+                              <p className="text-sm font-semibold text-white">Jumpoff Point</p>
                               <p className="mt-1 text-sm text-slate-600">{jumpoffInfo}</p>
                               <p className="mt-1 font-mono text-xs text-slate-400">{data.coordinates[1].toFixed(5)}°, {data.coordinates[0].toFixed(5)}°</p>
                             </div>
                           </div>
                         </div>
 
-                        <div className="rounded-lg border border-slate-200 bg-white p-4">
+                        <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-4">
                           <div className="flex items-start gap-3">
-                            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-cyan-50 text-sm">WATER</span>
+                            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-cyan-500/10 text-sm">WATER</span>
                             <div className="flex-1">
-                              <p className="text-sm font-semibold text-slate-900">Water Sources</p>
+                              <p className="text-sm font-semibold text-white">Water Sources</p>
                               <ul className="mt-1.5 space-y-1">
                                 {waterSources.map((s, i) => (
                                   <li key={i} className="flex items-start gap-1.5 text-sm text-slate-600">
@@ -823,27 +823,27 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                                   </li>
                                 ))}
                               </ul>
-                              <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">WARNING: Always filter or treat water from natural sources</p>
+                              <p className="mt-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-2 py-1 text-xs font-medium text-amber-300">WARNING: Always filter or treat water from natural sources</p>
                             </div>
                           </div>
                         </div>
 
-                        <div className="rounded-lg border border-slate-200 bg-white p-4">
+                        <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-4">
                           <div className="flex items-start gap-3">
-                            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-sky-50 text-sm">WEATHER</span>
+                            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-sky-500/10 text-sm">WEATHER</span>
                             <div className="flex-1">
-                              <p className="text-sm font-semibold text-slate-900">Weather Conditions</p>
+                              <p className="text-sm font-semibold text-white">Weather Conditions</p>
                               <div className="mt-2 grid grid-cols-2 gap-2">
-                                <div className="rounded-md bg-emerald-50 px-3 py-2">
+                                <div className="rounded-md bg-emerald-500/10 px-3 py-2">
                                   <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Best time</p>
-                                  <p className="text-sm font-bold text-emerald-900">{weatherNotes.best}</p>
+                                  <p className="text-sm font-bold text-emerald-300">{weatherNotes.best}</p>
                                 </div>
-                                <div className="rounded-md bg-red-50 px-3 py-2">
+                                <div className="rounded-md bg-red-500/10 px-3 py-2">
                                   <p className="text-[10px] font-semibold uppercase tracking-wide text-red-700">Avoid</p>
-                                  <p className="text-sm font-bold text-red-900">{weatherNotes.avoid}</p>
+                                  <p className="text-sm font-bold text-red-300">{weatherNotes.avoid}</p>
                                 </div>
                               </div>
-                              <p className="mt-2 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">RISK: {weatherNotes.risk}</p>
+                              <p className="mt-2 rounded-md bg-white/5 px-3 py-2 text-xs text-slate-300">RISK: {weatherNotes.risk}</p>
                             </div>
                           </div>
                         </div>
@@ -851,11 +851,11 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
 
                       {/* Gear */}
                       <div>
-                        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500">
+                        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-400">
                           <span className="flex h-5 w-5 items-center justify-center rounded bg-slate-100 text-xs">GEAR</span>
                           Recommended Gear
                         </h3>
-                        <div className="rounded-lg border border-slate-200 bg-white p-4">
+                        <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-4">
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
                             {gearList.map((item, i) => (
                               <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
@@ -868,20 +868,20 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
 
                       {/* Reviews */}
                       <div>
-                        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500">
+                        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-400">
                           <span className="flex h-5 w-5 items-center justify-center rounded bg-amber-50 text-xs">⭐</span>
                           Hiker Reviews
                         </h3>
                         <div className="space-y-3">
                           {reviews.map((review, i) => (
-                            <div key={i} className="rounded-lg border border-slate-200 bg-white p-4">
+                            <div key={i} className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-4">
                               <div className="mb-2 flex items-start justify-between gap-2">
                                 <div className="flex items-center gap-2">
                                   <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-xs font-bold text-white">
                                     {review.name.charAt(0)}
                                   </div>
                                   <div>
-                                    <p className="text-sm font-semibold text-slate-900">{review.name}</p>
+                                    <p className="text-sm font-semibold text-white">{review.name}</p>
                                     <p className="text-xs text-slate-400">{review.date}</p>
                                   </div>
                                 </div>
@@ -891,7 +891,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                                   ))}
                                 </div>
                               </div>
-                              <p className="text-sm text-slate-600 leading-relaxed">{review.text}</p>
+                              <p className="text-sm text-slate-300 leading-relaxed">{review.text}</p>
                             </div>
                           ))}
                         </div>
@@ -899,15 +899,15 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
 
                       {/* Coordinates */}
                       <div>
-                        <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-slate-500">Coordinates</h3>
-                        <div className="grid grid-cols-2 gap-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                        <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-slate-400">Coordinates</h3>
+                        <div className="grid grid-cols-2 gap-4 rounded-lg border border-white/[0.06] bg-slate-800/40 px-4 py-3">
                           <div>
-                            <p className="text-xs text-slate-500">Latitude</p>
-                            <p className="font-mono text-sm font-medium text-slate-900">{data.coordinates[1].toFixed(6)}°</p>
+                            <p className="text-xs text-slate-400">Latitude</p>
+                            <p className="font-mono text-sm font-medium text-white">{data.coordinates[1].toFixed(6)}°</p>
                           </div>
                           <div>
-                            <p className="text-xs text-slate-500">Longitude</p>
-                            <p className="font-mono text-sm font-medium text-slate-900">{data.coordinates[0].toFixed(6)}°</p>
+                            <p className="text-xs text-slate-400">Longitude</p>
+                            <p className="font-mono text-sm font-medium text-white">{data.coordinates[0].toFixed(6)}°</p>
                           </div>
                         </div>
                       </div>
@@ -917,19 +917,19 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
               )}
 
               {/* Actions */}
-              <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-5">
-                <button className="flex-1 rounded-md bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700">
+              <div className="flex flex-wrap gap-2 border-t border-white/[0.06] pt-5">
+                <button className="flex-1 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-500">
                   Add to Training Plan
                 </button>
                 <a
                   href={`https://www.google.com/maps/dir/?api=1&destination=${data.coordinates[1]},${data.coordinates[0]}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 rounded-md border border-slate-300 bg-white px-5 py-2.5 text-center text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                  className="flex-1 rounded-lg border border-white/10 bg-white/5 px-5 py-2.5 text-center text-sm font-semibold text-slate-300 transition-all hover:bg-white/10 hover:text-white"
                 >
                   Get Directions
                 </a>
-                <button className="rounded-md border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">
+                <button className="rounded-lg border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-semibold text-slate-300 transition-all hover:bg-white/10 hover:text-white">
                   Share
                 </button>
               </div>
@@ -939,35 +939,35 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
           ) : data.type === 'mountain' ? (
             <div className="space-y-6">
               {/* Mountaineer Profile type label */}
-              <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100">
-                  <Mountain className="h-4 w-4 text-slate-600" />
+              <div className="flex items-center gap-3 rounded-lg border border-white/[0.06] bg-slate-800/40 px-4 py-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-700">
+                  <Mountain className="h-4 w-4 text-slate-300" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">Mountaineer Profile</p>
-                  <p className="text-xs text-slate-500">Complete mountain climbing analysis with elevation, grade, and route planning</p>
+                  <p className="text-sm font-semibold text-white">Mountaineer Profile</p>
+                  <p className="text-xs text-slate-400">Complete mountain climbing analysis with elevation, grade, and route planning</p>
                 </div>
               </div>
 
               {/* Quick Stats */}
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Elevation</p>
-                  <p className="font-tabular mt-1.5 text-xl font-bold text-slate-900">{data.elevation_m} m</p>
+                  <p className="font-tabular mt-1.5 text-xl font-bold text-white">{data.elevation_m} m</p>
                 </div>
-                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Prominence</p>
-                  <p className="font-tabular mt-1.5 text-xl font-bold text-slate-900">{data.prominence_m} m</p>
+                  <p className="font-tabular mt-1.5 text-xl font-bold text-white">{data.prominence_m} m</p>
                 </div>
-                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Type</p>
-                  <p className="mt-1.5 text-xl font-bold capitalize text-slate-900">{data.mountain_type}</p>
+                  <p className="mt-1.5 text-xl font-bold capitalize text-white">{data.mountain_type}</p>
                 </div>
               </div>
 
               {/* Photos Gallery */}
               <div>
-                <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-500">
+                <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-400">
                   <Camera className="h-3.5 w-3.5" />
                   Photos
                 </h3>
@@ -1005,13 +1005,13 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
               {/* Strava Segment Records */}
               {data.strava_segment && (
                 <div>
-                  <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-500">
+                  <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-400">
                     <Award className="h-3.5 w-3.5" />
                     Strava Segment
                   </h3>
-                  <div className="rounded-lg border border-slate-200 bg-white p-4">
+                  <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <p className="text-sm font-semibold text-slate-900">{data.strava_segment.name}</p>
+                      <p className="text-sm font-semibold text-white">{data.strava_segment.name}</p>
                       <span className="rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-slate-100 text-slate-500">
                         {data.strava_segment.total_efforts || 0} efforts
                       </span>
@@ -1104,7 +1104,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                 return (
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500">
+                      <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-400">
                         <TrendingUp className="h-3.5 w-3.5" />
                         Elevation Profile
                       </h3>
@@ -1117,7 +1117,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                         ))}
                       </div>
                     </div>
-                    <div className="rounded-xl overflow-hidden border border-slate-200 bg-white">
+                    <div className="rounded-xl overflow-hidden border border-white/[0.08] bg-slate-800/60">
                       <div className="relative">
                         <div className="absolute left-0 top-0 bottom-8 w-12 flex flex-col justify-between py-3 pointer-events-none z-10">
                           {[1, 0.75, 0.5, 0.25, 0].map(f => (
@@ -1141,10 +1141,10 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                             preserveAspectRatio="none"
                             style={{ height: '200px' }}
                           >
-                            <rect width={W} height={CH + GS + 4} fill="#f8fafc" />
+                            <rect width={W} height={CH + GS + 4} fill="#0f172a" />
                             {[0.25, 0.5, 0.75].map(f => (
                               <line key={f} x1="0" y1={ty(mn + rng * f)} x2={W} y2={ty(mn + rng * f)}
-                                stroke="#e2e8f0" strokeWidth="1" />
+                                stroke="#1e293b" strokeWidth="1" />
                             ))}
                             {pts.slice(0, -1).map((pt, i) => (
                               <polygon key={i}
@@ -1180,13 +1180,13 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                           </svg>
                           {hPt && elevHoverIdx !== null && (
                             <div
-                              className="pointer-events-none absolute top-2 z-20 min-w-[88px] px-3 py-2 rounded-xl bg-white/95 backdrop-blur border border-slate-200 shadow-lg"
+                              className="pointer-events-none absolute top-2 z-20 min-w-[88px] px-3 py-2 rounded-xl bg-slate-900/95 backdrop-blur border border-white/10 shadow-lg"
                               style={{
                                 left: `${(elevHoverIdx / (N - 1)) * 100}%`,
                                 transform: elevHoverIdx / (N - 1) > 0.7 ? 'translateX(calc(-100% - 8px))' : 'translateX(8px)',
                               }}
                             >
-                              <p className="text-sm font-bold text-slate-900 leading-tight">{Math.round(hPt.elevation)} m</p>
+                              <p className="text-sm font-bold text-white leading-tight">{Math.round(hPt.elevation)} m</p>
                               <p className="text-[11px] text-slate-400 mt-0.5">{hPt.distance.toFixed(2)} km</p>
                               <p className="text-xs font-semibold mt-1" style={{ color: gc(hG) }}>
                                 {hG.toFixed(1)}% · {gl(hG)}
@@ -1194,18 +1194,18 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                             </div>
                           )}
                         </div>
-                        <div className="ml-12 flex justify-between px-1 pb-3 pt-1 bg-white">
+                        <div className="ml-12 flex justify-between px-1 pb-3 pt-1 bg-slate-900">
                           {[0, 0.25, 0.5, 0.75, 1].map(f => (
-                            <span key={f} className="text-[10px] font-mono text-slate-400">
+                            <span key={f} className="text-[10px] font-mono text-slate-500">
                               {(estDist * f).toFixed(1)} km
                             </span>
                           ))}
                         </div>
                       </div>
-                      <div className="grid grid-cols-3 sm:grid-cols-6 border-t border-slate-200 bg-slate-50">
+                      <div className="grid grid-cols-3 sm:grid-cols-6 border-t border-white/[0.06] bg-slate-800/80">
                         {stats.map(({ label, value, color }) => (
-                          <div key={label} className="text-center py-3 border-r border-slate-200 last:border-r-0">
-                            <p className="text-[9px] uppercase tracking-wider text-slate-400">{label}</p>
+                          <div key={label} className="text-center py-3 border-r border-white/[0.06] last:border-r-0">
+                            <p className="text-[9px] uppercase tracking-wider text-slate-500">{label}</p>
                             <p className="text-sm font-bold mt-0.5 leading-none" style={{ color }}>{value}</p>
                           </div>
                         ))}
@@ -1217,16 +1217,16 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
 
               {/* Route Summary - For Mountains */}
               <div>
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-500">Route Summary</h3>
-                <div className="rounded-lg border border-slate-200 bg-white p-5">
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Route Summary</h3>
+                <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-5">
                   <div className="space-y-4">
                     <div className="flex items-start">
                       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-4">
                         <span className="text-green-700 font-bold">1</span>
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-semibold text-slate-900 mb-1">Starting Point (Jumpoff)</h4>
-                        <p className="text-sm text-slate-600">
+                        <h4 className="font-semibold text-white mb-1">Starting Point (Jumpoff)</h4>
+                        <p className="text-sm text-slate-300">
                           Begin your climb at {data.jumpoff_elevation || 'the base elevation'}m. Prepare proper gear and check weather conditions before starting.
                         </p>
                       </div>
@@ -1236,8 +1236,8 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                         <span className="text-blue-700 font-bold">2</span>
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-semibold text-slate-900 mb-1">The Ascent</h4>
-                        <p className="text-sm text-slate-600">
+                        <h4 className="font-semibold text-white mb-1">The Ascent</h4>
+                        <p className="text-sm text-slate-300">
                           Gain {(data.summit_elevation || data.elevation_m) - (data.jumpoff_elevation || 0)}m of elevation through varied terrain. Pace yourself and stay hydrated.
                         </p>
                       </div>
@@ -1247,8 +1247,8 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                         <span className="text-red-700 font-bold">3</span>
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-semibold text-slate-900 mb-1">Summit ({data.summit_elevation || data.elevation_m}m)</h4>
-                        <p className="text-sm text-slate-600">
+                        <h4 className="font-semibold text-white mb-1">Summit ({data.summit_elevation || data.elevation_m}m)</h4>
+                        <p className="text-sm text-slate-300">
                           Reach the peak and enjoy panoramic views. Take time to rest and capture the moment before descending.
                         </p>
                       </div>
@@ -1260,29 +1260,29 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
               {/* Jumpoff to Summit - For Mountains */}
               {(data.jumpoff_elevation || data.summit_elevation) && (
                 <div>
-                  <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-500">
+                  <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-400">
                     <MapPin className="h-3.5 w-3.5" />
                     Elevation Details
                   </h3>
-                  <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
+                  <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-4 space-y-3">
                     {data.jumpoff_elevation && (
-                      <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                      <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
                         <div className="flex items-center">
                           <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-3"></div>
                           <div>
                             <p className="text-sm font-medium text-slate-900">Jumpoff Point</p>
-                            <p className="text-xs text-slate-500">Starting elevation</p>
+                            <p className="text-xs text-slate-400">Starting elevation</p>
                           </div>
                         </div>
                         <p className="font-tabular text-base font-bold text-slate-900">{data.jumpoff_elevation}m</p>
                       </div>
                     )}
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                    <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
                       <div className="flex items-center">
                         <div className="w-2.5 h-2.5 rounded-full bg-red-500 mr-3"></div>
                         <div>
                           <p className="text-sm font-medium text-slate-900">Summit</p>
-                          <p className="text-xs text-slate-500">Peak elevation</p>
+                          <p className="text-xs text-slate-400">Peak elevation</p>
                         </div>
                       </div>
                       <p className="font-tabular text-base font-bold text-slate-900">{data.summit_elevation || data.elevation_m}m</p>
@@ -1290,7 +1290,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                     {data.jumpoff_elevation && (
                       <div className="pt-1">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm text-slate-600">Total Elevation Gain</p>
+                          <p className="text-sm text-slate-300">Total Elevation Gain</p>
                           <p className="font-tabular text-base font-bold text-blue-600">
                             +{(data.summit_elevation || data.elevation_m) - data.jumpoff_elevation}m
                           </p>
@@ -1349,24 +1349,24 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                   <>
                     {/* Stats row */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-center">
+                      <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3 text-center">
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Climb Time</p>
                         <p className="font-tabular mt-1.5 text-xl font-bold text-slate-900">{lo}–{hi}h</p>
                         <p className="text-[11px] text-slate-400">ascent (Naismith)</p>
                       </div>
-                      <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-center">
+                      <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3 text-center">
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Fitness</p>
                         <p className="mt-1.5 text-sm font-bold text-slate-900">
                           {data.elevation_m > 3000 ? 'Elite' : data.elevation_m > 2000 ? 'Advanced' : data.elevation_m > 1000 ? 'Intermediate' : 'Beginner'}
                         </p>
                         <p className="text-[11px] text-slate-400">required level</p>
                       </div>
-                      <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-center">
+                      <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3 text-center">
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Best Season</p>
                         <p className="mt-1.5 text-sm font-bold text-slate-900 leading-tight">{weatherNotes.best}</p>
                         <p className="text-[11px] text-slate-400">dry season</p>
                       </div>
-                      <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-center">
+                      <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3 text-center">
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Summit Temp</p>
                         <p className="mt-1.5 text-sm font-bold text-slate-900">{weatherNotes.temp}</p>
                         <p className="text-[11px] text-slate-400">at peak</p>
@@ -1375,15 +1375,15 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
 
                     {/* Logistics cards */}
                     <div className="space-y-3">
-                      <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500">
+                      <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-400">
                         <span className="flex h-5 w-5 items-center justify-center rounded bg-slate-100 text-xs">LIST</span>
                         Pre-Climb Briefing
                       </h3>
 
                       {/* Parking */}
-                      <div className="rounded-lg border border-slate-200 bg-white p-4">
+                      <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-4">
                         <div className="flex items-start gap-3">
-                          <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-blue-50 text-sm">🅿️</span>
+                          <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-blue-500/10 text-sm">🅿️</span>
                           <div>
                             <p className="text-sm font-bold text-slate-900">Where to Park</p>
                             <p className="mt-1 text-sm text-slate-600">{parkingInfo}</p>
@@ -1400,9 +1400,9 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                       </div>
 
                       {/* Jumpoff */}
-                      <div className="rounded-lg border border-slate-200 bg-white p-4">
+                      <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-4">
                         <div className="flex items-start gap-3">
-                          <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-emerald-50 text-sm">FLAG</span>
+                          <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-emerald-500/10 text-sm">FLAG</span>
                           <div>
                             <p className="text-sm font-bold text-slate-900">Jumpoff Point</p>
                             <p className="mt-1 text-sm text-slate-600">{jumpoffInfo}</p>
@@ -1412,9 +1412,9 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                       </div>
 
                       {/* Water sources */}
-                      <div className="rounded-lg border border-slate-200 bg-white p-4">
+                      <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-4">
                         <div className="flex items-start gap-3">
-                          <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-cyan-50 text-sm">WATER</span>
+                          <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-cyan-500/10 text-sm">WATER</span>
                           <div className="flex-1">
                             <p className="text-sm font-bold text-slate-900">Water Sources</p>
                             <ul className="mt-2 space-y-1">
@@ -1431,19 +1431,19 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                       </div>
 
                       {/* Weather */}
-                      <div className="rounded-lg border border-slate-200 bg-white p-4">
+                      <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-4">
                         <div className="flex items-start gap-3">
-                          <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-sky-50 text-sm">WEATHER</span>
+                          <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-sky-500/10 text-sm">WEATHER</span>
                           <div className="flex-1">
-                            <p className="text-sm font-semibold text-slate-900">Weather Conditions</p>
+                            <p className="text-sm font-semibold text-white">Weather Conditions</p>
                             <div className="mt-2 grid grid-cols-2 gap-2">
-                              <div className="rounded-md bg-emerald-50 px-3 py-2">
+                              <div className="rounded-md bg-emerald-500/10 px-3 py-2">
                                 <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Best time</p>
-                                <p className="text-sm font-bold text-emerald-900">{weatherNotes.best}</p>
+                                <p className="text-sm font-bold text-emerald-300">{weatherNotes.best}</p>
                               </div>
                               <div className="rounded-lg bg-red-50 px-3 py-2">
                                 <p className="text-[11px] font-semibold text-red-700 uppercase tracking-wide">Avoid</p>
-                                <p className="text-sm font-bold text-red-900">{weatherNotes.avoid}</p>
+                                <p className="text-sm font-bold text-red-300">{weatherNotes.avoid}</p>
                               </div>
                             </div>
                             <p className="mt-2 text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2">
@@ -1456,11 +1456,11 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
 
                     {/* Recommended Gear */}
                     <div>
-                      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500">
+                      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-400">
                         <span className="flex h-5 w-5 items-center justify-center rounded bg-slate-100 text-xs">GEAR</span>
                         Recommended Gear
                       </h3>
-                      <div className="rounded-lg border border-slate-200 bg-white p-4">
+                      <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
                           {gearList.map((item, i) => (
                             <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
@@ -1474,20 +1474,20 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
 
                     {/* Top 5 Reviews */}
                     <div>
-                      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500">
+                      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-400">
                         <span className="flex h-5 w-5 items-center justify-center rounded bg-amber-50 text-xs">⭐</span>
                         Climber Reviews
                       </h3>
                       <div className="space-y-3">
                         {reviews.map((review, i) => (
-                          <div key={i} className="rounded-lg border border-slate-200 bg-white p-4">
+                          <div key={i} className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-4">
                             <div className="flex items-start justify-between gap-2 mb-2">
                               <div className="flex items-center gap-2">
                                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-xs font-bold text-white">
                                   {review.name.charAt(0)}
                                 </div>
                                 <div>
-                                  <p className="text-sm font-semibold text-slate-900">{review.name}</p>
+                                  <p className="text-sm font-semibold text-white">{review.name}</p>
                                   <p className="text-xs text-slate-400">{review.date}</p>
                                 </div>
                               </div>
@@ -1497,7 +1497,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                                 ))}
                               </div>
                             </div>
-                            <p className="text-sm text-slate-600 leading-relaxed">{review.text}</p>
+                            <p className="text-sm text-slate-300 leading-relaxed">{review.text}</p>
                           </div>
                         ))}
                       </div>
@@ -1508,12 +1508,12 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                       <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Coordinates</h3>
                       <div className="rounded-lg bg-slate-50 px-4 py-3 grid grid-cols-2 gap-4">
                         <div>
-                          <p className="text-xs text-slate-500">Latitude</p>
-                          <p className="font-mono text-sm font-medium text-slate-900">{data.coordinates[1].toFixed(6)}°</p>
+                          <p className="text-xs text-slate-400">Latitude</p>
+                          <p className="font-mono text-sm font-medium text-white">{data.coordinates[1].toFixed(6)}°</p>
                         </div>
                         <div>
-                          <p className="text-xs text-slate-500">Longitude</p>
-                          <p className="font-mono text-sm font-medium text-slate-900">{data.coordinates[0].toFixed(6)}°</p>
+                          <p className="text-xs text-slate-400">Longitude</p>
+                          <p className="font-mono text-sm font-medium text-white">{data.coordinates[0].toFixed(6)}°</p>
                         </div>
                       </div>
                     </div>
@@ -1548,18 +1548,18 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-emerald-900">Campsite Profile</p>
-                  <p className="text-xs text-slate-500">Complete campsite details with amenities, ratings, and location information</p>
+                  <p className="text-xs text-slate-400">Complete campsite details with amenities, ratings, and location information</p>
                 </div>
               </div>
 
               {/* Quick Stats */}
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Type</p>
                   <p className="mt-1.5 text-xl font-bold capitalize text-slate-900">{data.campsite_type}</p>
                 </div>
                 {data.rating && (
-                  <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                  <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Rating</p>
                     <div className="mt-1.5 flex items-center gap-1.5">
                       <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
@@ -1567,7 +1567,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                     </div>
                   </div>
                 )}
-                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Coordinates</p>
                   <p className="font-tabular mt-1.5 text-xs font-medium text-slate-700">
                     {data.coordinates[1].toFixed(4)}, {data.coordinates[0].toFixed(4)}
@@ -1577,7 +1577,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
 
               {/* Photos Gallery */}
               <div>
-                <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-500">
+                <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-400">
                   <Camera className="h-3.5 w-3.5" />
                   Photos
                 </h3>
@@ -1616,7 +1616,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
               {/* Amenities */}
               {data.amenities && data.amenities.length > 0 && (
                 <div>
-                  <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-500">Amenities</h3>
+                  <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Amenities</h3>
                   <div className="flex flex-wrap gap-1.5">
                     {data.amenities.map((amenity, index) => (
                       <span
@@ -1632,47 +1632,47 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
 
               {/* Camper Profile Details */}
               <div>
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-500">Camping Details</h3>
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Camping Details</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                  <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Site Type</p>
                     <p className="mt-1.5 text-base font-bold capitalize text-slate-900">{data.campsite_type}</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-slate-400">
                       {data.campsite_type === 'developed' ? 'Full facilities' :
                        data.campsite_type === 'primitive' ? 'Basic setup' :
                        'Backcountry camping'}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                  <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Accessibility</p>
                     <p className="mt-1.5 text-base font-bold text-slate-900">
                       {data.campsite_type === 'developed' ? 'Drive-In' :
                        data.campsite_type === 'primitive' ? 'Hike-In' :
                        'Remote'}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-slate-400">
                       {data.campsite_type === 'developed' ? 'Vehicle access' :
                        data.campsite_type === 'primitive' ? '1–5 km hike' :
                        'Remote location'}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                  <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Experience Level</p>
                     <p className="mt-1.5 text-base font-bold text-slate-900">
                       {data.campsite_type === 'developed' ? 'Beginner' :
                        data.campsite_type === 'primitive' ? 'Intermediate' :
                        'Advanced'}
                     </p>
-                    <p className="text-xs text-slate-500">Recommended skill level</p>
+                    <p className="text-xs text-slate-400">Recommended skill level</p>
                   </div>
-                  <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                  <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Best Season</p>
                     <p className="mt-1.5 text-base font-bold text-slate-900">
                       {data.campsite_type === 'developed' ? 'Year-Round' :
                        data.campsite_type === 'primitive' ? 'Apr–Oct' :
                        'Jun–Sep'}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-slate-400">
                       {data.campsite_type === 'developed' ? 'All seasons' :
                        data.campsite_type === 'primitive' ? 'Spring to fall' :
                        'Summer only'}
@@ -1683,8 +1683,8 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
 
               {/* Gear Recommendations */}
               <div>
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-500">Recommended Gear</h3>
-                <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Recommended Gear</h3>
+                <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Shelter</h4>
@@ -1724,20 +1724,20 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
 
               {/* Location Info */}
               <div>
-                <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-slate-500">About This Campsite</h3>
+                <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-slate-400">About This Campsite</h3>
                 <div className="space-y-2">
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm text-slate-600">
-                      <span className="font-semibold text-slate-900">{data.name}</span> is a{' '}
+                  <div className="rounded-lg border border-white/[0.06] bg-slate-800/40 p-4">
+                    <p className="text-sm text-slate-300">
+                      <span className="font-semibold text-white">{data.name}</span> is a{' '}
                       {data.campsite_type} located at coordinates{' '}
                       {data.coordinates[0].toFixed(4)}, {data.coordinates[1].toFixed(4)}.
                       {data.rating && ` Rated ${data.rating.toFixed(1)} stars.`}
                       {' '}Perfect for outdoor enthusiasts looking for a comfortable base to explore the surrounding trails and mountains.
                     </p>
                   </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div className="rounded-lg border border-white/[0.06] bg-slate-800/40 p-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Nearby Activities</p>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-slate-300">
                       Hiking, mountain climbing, nature photography, stargazing, and wildlife observation
                     </p>
                   </div>
@@ -1783,7 +1783,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                     </div>
                     <div>
                       <p className={`text-sm font-semibold ${meta.text}`}>{meta.label} Activity</p>
-                      <p className="text-xs text-slate-500">{activityDate}</p>
+                      <p className="text-xs text-slate-400">{activityDate}</p>
                     </div>
                   </div>
                 );
@@ -1791,21 +1791,21 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
 
               {/* Stats */}
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Distance</p>
                   <p className="font-tabular mt-1.5 text-xl font-bold text-slate-900">
                     {data.distance_km.toFixed(2)}{' '}
                     <span className="text-sm font-normal text-slate-500">km</span>
                   </p>
                 </div>
-                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Elevation Gain</p>
                   <p className="font-tabular mt-1.5 text-xl font-bold text-slate-900">
                     {data.elevation_gain_m}{' '}
                     <span className="text-sm font-normal text-slate-500">m</span>
                   </p>
                 </div>
-                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Moving Time</p>
                   <p className="font-tabular mt-1.5 text-xl font-bold text-slate-900">
                     {(() => {
@@ -1815,12 +1815,12 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                     })()}
                   </p>
                 </div>
-                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Sport</p>
                   <p className="mt-1.5 text-base font-bold capitalize text-slate-900">{data.sport_type}</p>
                 </div>
                 {data.avg_heartrate && (
-                  <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                  <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Avg Heart Rate</p>
                     <p className="font-tabular mt-1.5 text-xl font-bold text-slate-900">
                       {Math.round(data.avg_heartrate)}{' '}
@@ -1829,7 +1829,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                   </div>
                 )}
                 {data.max_heartrate && (
-                  <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                  <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 px-4 py-3">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Max Heart Rate</p>
                     <p className="font-tabular mt-1.5 text-xl font-bold text-slate-900">
                       {Math.round(data.max_heartrate)}{' '}
@@ -1841,8 +1841,8 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
 
               {/* Pace / Speed */}
               {data.moving_time_s > 0 && data.distance_km > 0 && (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-500">Performance</h3>
+                <div className="rounded-lg border border-white/[0.06] bg-slate-800/40 p-4">
+                  <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Performance</h3>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
                       <p className="text-[10px] font-semibold uppercase text-slate-400">Avg Speed</p>

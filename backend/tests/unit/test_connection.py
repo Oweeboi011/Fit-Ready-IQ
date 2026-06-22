@@ -16,7 +16,9 @@ def reset_firebase_app_state() -> None:
 
 
 @pytest.mark.unit
-def test_initialize_firebase_uses_json_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_initialize_firebase_uses_json_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """When JSON credentials are provided, Certificate should be constructed from dict."""
     creds = {"type": "service_account", "project_id": "fit-ready-iq-test"}
     fake_settings = type(
@@ -38,11 +40,15 @@ def test_initialize_firebase_uses_json_credentials(monkeypatch: pytest.MonkeyPat
     calls: dict[str, object] = {}
 
     monkeypatch.setattr(connection, "get_settings", lambda: fake_settings)
-    monkeypatch.setattr(connection.credentials, "Certificate", lambda payload: ("cert", payload))
+    monkeypatch.setattr(
+        connection.credentials, "Certificate", lambda payload: ("cert", payload)
+    )
     monkeypatch.setattr(
         connection.firebase_admin,
         "initialize_app",
-        lambda cred, options: calls.update({"cred": cred, "options": options}) or object(),
+        lambda cred, options: (
+            calls.update({"cred": cred, "options": options}) or object()
+        ),
     )
 
     app = connection.initialize_firebase()
@@ -74,8 +80,14 @@ def test_initialize_firebase_uses_application_default_when_no_explicit_credentia
     )()
 
     monkeypatch.setattr(connection, "get_settings", lambda: fake_settings)
-    monkeypatch.setattr(connection.credentials, "ApplicationDefault", lambda: "app-default")
-    monkeypatch.setattr(connection.firebase_admin, "initialize_app", lambda cred, options: {"cred": cred, "options": options})
+    monkeypatch.setattr(
+        connection.credentials, "ApplicationDefault", lambda: "app-default"
+    )
+    monkeypatch.setattr(
+        connection.firebase_admin,
+        "initialize_app",
+        lambda cred, options: {"cred": cred, "options": options},
+    )
 
     app = connection.initialize_firebase()
 

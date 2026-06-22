@@ -1,15 +1,17 @@
 "use client";
 
 // Fit Ready IQ - Main Page
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useJsApiLoader } from "@react-google-maps/api";
 import { type User as FirebaseUser } from "firebase/auth";
-import { Mountain, Tent, Route, Search, X, Watch, User as UserIcon, ChevronRight, MapPin, TrendingUp, ArrowUpDown, Clock, Menu } from 'lucide-react';
+import { Mountain, Tent, Route, Search, X, Watch, User as UserIcon, ChevronRight, MapPin, TrendingUp, ArrowUpDown, Clock, Menu, Bookmark, Shield } from 'lucide-react';
+import Link from 'next/link';
 import RouteFilter, { FilterState } from "@/components/RouteFilter";
 import ConnectDevicesModal from "@/components/ConnectDevicesModal";
 import DetailsModal from "@/components/DetailsModal";
+import ProfileModal from "@/components/ProfileModal";
 import { type Activity, type ActivityPolyline, loadActivities, saveActivities, mergeActivities, SOURCE_BG, SOURCE_LABELS, formatDuration } from "@/lib/activityTypes";
 import { decodePolyline } from "@/lib/polylineDecoder";
 import {
@@ -19,6 +21,7 @@ import {
   signOutFirebaseUser,
 } from "@/lib/firebaseClient";
 import ChatBot from "@/components/ChatBot";
+import { useSavedPlaces, type SavedPlace } from "@/lib/useSavedPlaces";
 
 const libraries: ("places" | "geometry")[] = ["places", "geometry"];
 
@@ -63,12 +66,22 @@ interface Route {
   };
 }
 
+// Yosemite Decimal System trail class derived from summit elevation
+function trailClassFromElevation(elevationM: number): string {
+  if (elevationM >= 3000) return 'Class 4-5';
+  if (elevationM >= 2000) return 'Class 3-4';
+  if (elevationM >= 1000) return 'Class 2-3';
+  if (elevationM >= 500)  return 'Class 2';
+  return 'Class 1';
+}
+
 interface Mountain {
   id: string;
   name: string;
   coordinates: [number, number];
   elevation_m: number;
   prominence_m?: number;
+  trail_class?: string;
   mountain_type: string;
   photos?: string[];
   place_id?: string;
@@ -105,7 +118,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'routes' | 'mountains' | 'campsites' | 'history'>('routes');
+  const [activeTab, setActiveTab] = useState<'routes' | 'mountains' | 'campsites' | 'history' | 'saved'>('routes');
   const focusUserLocationRef = useRef<() => void>(() => {});
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedDetails, setSelectedDetails] = useState<
@@ -123,11 +136,18 @@ export default function Home() {
   } | null>(null);
   const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const { savedPlaces, isSaved, toggleSave } = useSavedPlaces(authUser?.uid ?? null);
 
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-    libraries,
-  });
+  const googleMapsLoaderOptions = useMemo(
+    () => ({
+      googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+      libraries,
+    }),
+    []
+  );
+
+  const { isLoaded, loadError } = useJsApiLoader(googleMapsLoaderOptions);
 
   useEffect(() => {
     if (!isFirebaseAuthConfigured()) {
@@ -143,9 +163,26 @@ export default function Home() {
     setAuthBusy(true);
     try {
       await signInWithGoogle();
-    } catch (err) {
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code ?? "";
+      // User closed the popup or clicked away — not an error worth surfacing
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+        return;
+      }
       console.error("Google sign-in failed:", err);
-      alert("Google sign-in failed. Verify Firebase Auth settings and try again.");
+      let message = "Google sign-in failed. Please try again.";
+      if (code === "auth/unauthorized-domain") {
+        message = `This domain (${window.location.hostname}) is not authorised in Firebase Auth.\nAdd it under Authentication > Settings > Authorised domains in the Firebase console.`;
+      } else if (code === "auth/operation-not-allowed") {
+        message = "Google sign-in is not enabled. Enable it under Authentication > Sign-in method in the Firebase console.";
+      } else if (code === "auth/popup-blocked") {
+        message = "Sign-in popup was blocked by your browser. Allow popups for this site and try again.";
+      } else if (code === "auth/network-request-failed") {
+        message = "Network error during sign-in. Check your connection and try again.";
+      } else if (!code && !navigator.onLine) {
+        message = "You appear to be offline. Connect to the internet and try again.";
+      }
+      alert(message);
     } finally {
       setAuthBusy(false);
     }
@@ -263,6 +300,68 @@ export default function Home() {
     });
   };
 
+  const haversineKm = (a: [number, number], b: [number, number]): number => {
+    const toRad = (v: number) => (v * Math.PI) / 180;
+    const R = 6371;
+    const dLat = toRad(b[1] - a[1]);
+    const dLng = toRad(b[0] - a[0]);
+    const lat1 = toRad(a[1]);
+    const lat2 = toRad(b[1]);
+    const h =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 2 * R * Math.asin(Math.sqrt(h));
+  };
+
+  const fetchTravelDistances = (
+    origin: google.maps.LatLngLiteral,
+    destinations: google.maps.LatLngLiteral[]
+  ): Promise<(number | null)[]> => {
+    return new Promise((resolve) => {
+      if (!destinations.length) {
+        resolve([]);
+        return;
+      }
+
+      const service = new google.maps.DistanceMatrixService();
+      const CHUNK = 25;
+      const chunks: google.maps.LatLngLiteral[][] = [];
+      for (let i = 0; i < destinations.length; i += CHUNK) {
+        chunks.push(destinations.slice(i, i + CHUNK));
+      }
+
+      Promise.all(
+        chunks.map(
+          (chunk) =>
+            new Promise<(number | null)[]>((res) => {
+              service.getDistanceMatrix(
+                {
+                  origins: [origin],
+                  destinations: chunk,
+                  travelMode: google.maps.TravelMode.WALKING,
+                  unitSystem: google.maps.UnitSystem.METRIC,
+                },
+                (result, status) => {
+                  if (
+                    status === google.maps.DistanceMatrixStatus.OK &&
+                    result?.rows?.[0]?.elements
+                  ) {
+                    res(
+                      result.rows[0].elements.map((el) =>
+                        el.status === "OK" ? el.distance?.value ?? null : null
+                      )
+                    );
+                    return;
+                  }
+                  res(chunk.map(() => null));
+                }
+              );
+            })
+        )
+      ).then((all) => resolve(all.flat()));
+    });
+  };
+
   // Load activities from localStorage and refresh Strava on mount
   useEffect(() => {
     const stored = loadActivities();
@@ -273,6 +372,13 @@ export default function Home() {
     try {
       const token = JSON.parse(tokenRaw) as { access_token: string; expires_at: number };
       if (token.expires_at * 1000 < Date.now()) return;
+
+      // Throttle Strava refresh — skip if fetched within last 5 minutes
+      const STRAVA_REFRESH_KEY = 'fri_strava_last_fetch';
+      const STRAVA_TTL_MS = 5 * 60 * 1000;
+      const lastFetch = parseInt(localStorage.getItem(STRAVA_REFRESH_KEY) ?? '0', 10);
+      if (Date.now() - lastFetch < STRAVA_TTL_MS) return;
+
       fetch(`/api/strava/activities?token=${encodeURIComponent(token.access_token)}`)
         .then(r => r.ok ? r.json() : Promise.reject())
         .then((items: Array<{
@@ -300,6 +406,29 @@ export default function Home() {
           const merged = mergeActivities(stored, incoming);
           saveActivities(merged);
           setActivities(merged);
+          localStorage.setItem(STRAVA_REFRESH_KEY, String(Date.now()));
+
+          // Background-sync all historical Strava activities to Firestore
+          // Only runs when the user is authenticated (uid required for Firestore path)
+          const uid = authUser?.uid;
+          if (uid) {
+            const SYNC_KEY = 'fri_strava_last_firestore_sync';
+            const SYNC_TTL_MS = 60 * 60 * 1000; // re-sync at most once per hour
+            const lastSync = parseInt(localStorage.getItem(SYNC_KEY) ?? '0', 10);
+            if (Date.now() - lastSync > SYNC_TTL_MS) {
+              fetch('/api/strava/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: token.access_token, uid }),
+              })
+                .then(r => r.ok ? r.json() : Promise.reject())
+                .then((result: { synced: number }) => {
+                  localStorage.setItem(SYNC_KEY, String(Date.now()));
+                  console.info(`Strava → Firestore sync complete: ${result.synced} activities`);
+                })
+                .catch(() => { /* non-critical, will retry next hour */ });
+            }
+          }
         })
         .catch(() => { /* Strava fetch failed silently */ });
     } catch {
@@ -311,6 +440,38 @@ export default function Home() {
   useEffect(() => {
     if (!isLoaded) return;
     if (typeof window === 'undefined' || !window.google) return;
+
+    // --- 3-tier cache strategy ---
+    // L1: sessionStorage (30-min TTL, instant, per-tab)
+    // L2: Firestore via /api/places/cache (24-h TTL, shared across users in same region)
+    // L3: Live Google Maps API calls (expensive, only on full miss)
+    const SESSION_CACHE_KEY = 'fri_places_cache';
+    const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+    const applyCache = (data: {
+      routes: Route[]; mountains: Mountain[]; campsites: Campsite[]; location?: { lat: number; lng: number; address?: string };
+    }) => {
+      setRoutes(data.routes);
+      setFilteredRoutes(data.routes);
+      setMountains(data.mountains);
+      setCampsites(data.campsites);
+      if (data.location) setUserLocation(data.location);
+      setIsLoading(false);
+    };
+
+    // L1: sessionStorage check
+    try {
+      const cached = sessionStorage.getItem(SESSION_CACHE_KEY);
+      if (cached) {
+        const { ts, routes: r, mountains: m, campsites: c, location } = JSON.parse(cached) as {
+          ts: number; routes: Route[]; mountains: Mountain[]; campsites: Campsite[]; location?: { lat: number; lng: number; address?: string };
+        };
+        if (Date.now() - ts < SESSION_TTL_MS && r && m && c) {
+          applyCache({ routes: r, mountains: m, campsites: c, location });
+          return;
+        }
+      }
+    } catch { /* ignore corrupt cache */ }
 
     const fetchRoutes = async () => {
       try {
@@ -324,7 +485,7 @@ export default function Home() {
                 resolve([position.coords.longitude, position.coords.latitude]);
               },
               (error) => {
-                console.error("Geolocation error:", error);
+                console.warn("Geolocation unavailable, using fallback coordinates.", error);
                 // Fallback to San Francisco
                 resolve([-122.4194, 37.7749]);
               }
@@ -351,14 +512,47 @@ export default function Home() {
             );
           });
         } catch (err) {
-          console.error('Geocoding error:', err);
+          console.warn('Reverse geocoding unavailable, using Unknown Location.', err);
         }
 
-        setUserLocation({
+        const resolvedLocation: { lat: number; lng: number; address?: string } = {
           lat: userCoords[1],
           lng: userCoords[0],
           address: addressResult,
-        });
+        };
+
+        setUserLocation(resolvedLocation);
+
+        // L2: Firestore shared cache check
+        try {
+          const cacheRes = await fetch(
+            `/api/places/cache?lat=${userCoords[1]}&lng=${userCoords[0]}`
+          );
+          if (cacheRes.ok) {
+            const cacheData = await cacheRes.json() as {
+              hit: boolean; routes?: Route[]; mountains?: Mountain[]; campsites?: Campsite[];
+            };
+            if (cacheData.hit && cacheData.routes && cacheData.mountains && cacheData.campsites) {
+              // Write to sessionStorage so next visit in this tab is instant
+              try {
+                sessionStorage.setItem(SESSION_CACHE_KEY, JSON.stringify({
+                  ts: Date.now(),
+                  routes: cacheData.routes,
+                  mountains: cacheData.mountains,
+                  campsites: cacheData.campsites,
+                  location: resolvedLocation,
+                }));
+              } catch { /* storage quota */ }
+              applyCache({
+                routes: cacheData.routes,
+                mountains: cacheData.mountains,
+                campsites: cacheData.campsites,
+                location: resolvedLocation,
+              });
+              return;
+            }
+          }
+        } catch { /* Firestore cache unavailable, continue to live fetch */ }
 
         // TODO: Replace with actual backend API calls
         // Fetch routes from backend
@@ -445,29 +639,31 @@ export default function Home() {
             }));
             const mountainElevations = await fetchElevations(mountainLocations);
 
-            const mountainData = filteredMountainPlaces.map((place, index) => {
-                  const elevation = mountainElevations[index] ?? (Math.floor(Math.random() * 3000) + 500);
-                  const prominence = Math.floor(elevation * (0.2 + Math.random() * 0.4));
-                  const jumpoff = Math.floor(elevation * (0.40 + Math.random() * 0.15));
-                  const distance = Math.random() * 8 + 2;
-
-                  return {
-                    id: `m${index + 1}`,
-                    name: place.name || 'Unknown Mountain',
-                    coordinates: [
-                      place.geometry!.location!.lng(),
-                      place.geometry!.location!.lat(),
-                    ] as [number, number],
-                    elevation_m: elevation,
-                    prominence_m: prominence,
-                    mountain_type: 'peak',
-                    place_id: place.place_id,
-                    photos: [],
-                    jumpoff_elevation: jumpoff,
-                    summit_elevation: elevation,
-                    strava_segment: generateStravaSegment(place.name || 'Mountain', distance, elevation - jumpoff),
-                  };
-                });
+            const mountainData = filteredMountainPlaces
+              .map((place, index) => {
+                const elevation = mountainElevations[index] ?? 0;
+                const prominence = Math.round(elevation * 0.28);
+                const jumpoff = Math.round(elevation * 0.55);
+                const distance = Math.max(2, Math.round((elevation / 450) * 10) / 10);
+                return {
+                  id: `m${index + 1}`,
+                  name: place.name || 'Unknown Mountain',
+                  coordinates: [
+                    place.geometry!.location!.lng(),
+                    place.geometry!.location!.lat(),
+                  ] as [number, number],
+                  elevation_m: elevation,
+                  prominence_m: prominence,
+                  trail_class: trailClassFromElevation(elevation),
+                  mountain_type: 'peak',
+                  place_id: place.place_id,
+                  photos: [],
+                  jumpoff_elevation: jumpoff,
+                  summit_elevation: elevation,
+                  strava_segment: generateStravaSegment(place.name || 'Mountain', distance, elevation - jumpoff),
+                };
+              })
+              .filter(m => m.elevation_m >= 100);
             resolve(mountainData);
           });
         } catch (err) {
@@ -593,6 +789,20 @@ export default function Home() {
             }));
             const routeBaseElevations = await fetchElevations(routeLocations);
 
+            const travelDistancesM = await fetchTravelDistances(
+              { lat: userCoords[1], lng: userCoords[0] },
+              routeLocations
+            );
+
+            const terrainProbeLocations = routeLocations.flatMap((loc) => [
+              loc,
+              { lat: loc.lat + 0.008, lng: loc.lng },
+              { lat: loc.lat - 0.008, lng: loc.lng },
+              { lat: loc.lat, lng: loc.lng + 0.008 },
+              { lat: loc.lat, lng: loc.lng - 0.008 },
+            ]);
+            const terrainProbeElevations = await fetchElevations(terrainProbeLocations);
+
             const routeData = filteredRoutePlaces.map((place, index) => {
                 const name = place.name!.toLowerCase();
                 let activityType = 'hike';
@@ -604,9 +814,26 @@ export default function Home() {
                 if (place.rating && place.rating >= 4.5) difficulty = 'easy';
                 else if (place.rating && place.rating < 3.5) difficulty = 'hard';
 
-                const distance = Math.random() * 15 + 2;
-                const elevationGain = Math.floor(Math.random() * 800 + 50);
-                const jumpoff = routeBaseElevations[index] ?? Math.floor(Math.random() * 300 + 100);
+                const fallbackKm = Math.max(
+                  1,
+                  Math.round(
+                    haversineKm(userCoords, [
+                      place.geometry!.location!.lng(),
+                      place.geometry!.location!.lat(),
+                    ]) * 1.15 * 10
+                  ) / 10
+                );
+                const distance = travelDistancesM[index]
+                  ? Math.max(0.5, Math.round((travelDistancesM[index]! / 1000) * 10) / 10)
+                  : fallbackKm;
+
+                const probeStart = index * 5;
+                const probeSamples = terrainProbeElevations
+                  .slice(probeStart, probeStart + 5)
+                  .filter((v): v is number => v !== null);
+                const jumpoff = routeBaseElevations[index] ?? probeSamples[0] ?? 0;
+                const localMaxElevation = probeSamples.length > 0 ? Math.max(...probeSamples) : jumpoff;
+                const elevationGain = Math.max(50, Math.round(localMaxElevation - jumpoff));
 
                 return {
                   id: `r${index + 1}`,
@@ -728,6 +955,27 @@ export default function Home() {
         setMountains(mountains);
         setCampsites(campsites);
         setIsLoading(false);
+
+        // Write live results to both caches so future visitors skip the API calls
+        const cachePayload = {
+          routes, mountains, campsites, location: resolvedLocation,
+          ts: Date.now(),
+        };
+        try {
+          sessionStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(cachePayload));
+        } catch { /* storage quota */ }
+        fetch('/api/places/cache', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lat: userCoords[1],
+            lng: userCoords[0],
+            routes,
+            mountains,
+            campsites,
+            location: resolvedLocation,
+          }),
+        }).catch(() => { /* non-critical */ });
       } catch (err) {
         setError("Failed to load routes");
         setIsLoading(false);
@@ -791,8 +1039,8 @@ export default function Home() {
       <header className="relative z-20 flex h-14 flex-shrink-0 items-center justify-between border-b border-white/[0.06] bg-slate-950/95 backdrop-blur px-5">
         {/* Brand */}
         <div className="flex items-center gap-2.5">
-          <div className="glow-pulse flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-900/40">
-            <Mountain className="h-4 w-4 text-white" strokeWidth={2.5} />
+          <div className="glow-pulse flex h-8 w-8 items-center justify-center rounded-xl overflow-hidden shadow-lg shadow-blue-900/40">
+            <img src="/icon.svg" alt="Fit Ready IQ" className="h-8 w-8" />
           </div>
           <div className="flex items-baseline gap-2">
             <span className="brand-shimmer text-[15px] font-bold tracking-tight">Fit Ready IQ</span>
@@ -818,13 +1066,21 @@ export default function Home() {
             <Watch className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Connect Devices</span>
           </button>
+          <Link
+            href="/admin/settings"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 transition-all hover:border-white/20 hover:bg-white/10 hover:text-white"
+            title="Admin settings"
+          >
+            <Shield className="h-4 w-4" />
+          </Link>
+
           {isFirebaseAuthConfigured() ? (
             authUser ? (
               <button
-                onClick={handleGoogleSignOut}
+                onClick={() => setIsProfileModalOpen(true)}
                 disabled={authBusy}
                 className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-slate-300 transition-all hover:border-white/20 hover:bg-white/10 hover:text-white disabled:opacity-50"
-                title="Sign out"
+                title="View profile"
               >
                 {authUser.photoURL ? (
                   <Image
@@ -839,7 +1095,6 @@ export default function Home() {
                   <UserIcon className="h-4 w-4" />
                 )}
                 <span className="hidden sm:inline">{authUser.displayName ?? "Signed in"}</span>
-                <span className="hidden md:inline">Sign out</span>
               </button>
             ) : (
               <button
@@ -870,6 +1125,18 @@ export default function Home() {
           const merged = mergeActivities(activities, acts);
           saveActivities(merged);
           setActivities(merged);
+        }}
+      />
+
+      {/* Profile Modal */}
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        user={authUser}
+        activities={activities}
+        onSignOut={() => {
+          setIsProfileModalOpen(false);
+          handleGoogleSignOut();
         }}
       />
 
@@ -928,12 +1195,13 @@ export default function Home() {
           </div>
 
           {/* Tabs */}
-          <div className="flex rounded-xl border border-white/[0.08] bg-white/5 p-1 gap-0.5">
+          <div className="flex rounded-xl border border-white/[0.08] bg-white/5 p-1 gap-0.5 flex-wrap">
             {([
-              { id: 'routes',     label: 'Routes',    Icon: Route,    activeClass: 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' },
-              { id: 'mountains',  label: 'Peaks',     Icon: Mountain, activeClass: 'bg-slate-600 text-white shadow-lg shadow-slate-900/50' },
-              { id: 'campsites',  label: 'Camps',     Icon: Tent,     activeClass: 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/50' },
-              { id: 'history',    label: 'History',   Icon: Clock,    activeClass: 'bg-violet-600 text-white shadow-lg shadow-violet-900/50' },
+              { id: 'routes',     label: 'Routes',    Icon: Route,     activeClass: 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' },
+              { id: 'mountains',  label: 'Peaks',     Icon: Mountain,  activeClass: 'bg-slate-600 text-white shadow-lg shadow-slate-900/50' },
+              { id: 'campsites',  label: 'Camps',     Icon: Tent,      activeClass: 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/50' },
+              { id: 'history',    label: 'History',   Icon: Clock,     activeClass: 'bg-violet-600 text-white shadow-lg shadow-violet-900/50' },
+              ...(authUser ? [{ id: 'saved' as const, label: 'Saved', Icon: Bookmark, activeClass: 'bg-amber-600 text-white shadow-lg shadow-amber-900/50' }] : []),
             ] as const).map(tab => {
               const count = tab.id === 'routes'
                 ? filteredRoutes.filter(r => !searchQuery || r.name.toLowerCase().includes(searchQuery.toLowerCase())).length
@@ -941,6 +1209,8 @@ export default function Home() {
                 ? mountains.filter(m => !searchQuery || m.name.toLowerCase().includes(searchQuery.toLowerCase())).length
                 : tab.id === 'campsites'
                 ? campsites.filter(c => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase())).length
+                : tab.id === 'saved'
+                ? savedPlaces.filter(p => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase())).length
                 : activities.filter(a => !searchQuery || a.name.toLowerCase().includes(searchQuery.toLowerCase())).length;
               return (
                 <button
@@ -1038,7 +1308,19 @@ export default function Home() {
                         </div>
                         {/* Content */}
                         <div className="min-w-0 flex-1 px-3 py-2.5">
-                          <p className="line-clamp-1 text-[13px] font-semibold text-slate-100 group-hover:text-white">{route.name}</p>
+                          <div className="flex items-start justify-between gap-1">
+                            <p className="line-clamp-1 text-[13px] font-semibold text-slate-100 group-hover:text-white">{route.name}</p>
+                            {authUser && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); toggleSave({ id: route.id, type: 'route', name: route.name, coordinates: route.coordinates, difficulty: route.difficulty, activity_type: route.activity_type, distance_km: route.distance_km, elevation_gain_m: route.elevation_gain_m, photos: route.photos, place_id: route.place_id }); }}
+                                className="flex-shrink-0 rounded p-0.5 text-slate-500 transition-colors hover:text-amber-400"
+                                aria-label={isSaved(route.id) ? 'Unsave route' : 'Save route'}
+                              >
+                                <Bookmark className={`h-3.5 w-3.5 ${isSaved(route.id) ? 'fill-amber-400 text-amber-400' : ''}`} />
+                              </button>
+                            )}
+                          </div>
                           <div className="mt-1 flex items-center gap-1.5">
                             <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ring-1 ${ds.pill}`}>
                               <span className={`h-1.5 w-1.5 rounded-full ${ds.dot}`} />
@@ -1082,14 +1364,31 @@ export default function Home() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className="line-clamp-1 text-[13px] font-semibold text-slate-100 group-hover:text-white">{mountain.name}</p>
-                      <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-white/10">
-                        <Mountain className="h-3.5 w-3.5 text-slate-400" />
-                      </span>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {authUser && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); toggleSave({ id: mountain.id, type: 'mountain', name: mountain.name, coordinates: mountain.coordinates, elevation_m: mountain.elevation_m, prominence_m: mountain.prominence_m, mountain_type: mountain.mountain_type, photos: mountain.photos, place_id: mountain.place_id }); }}
+                            className="rounded p-0.5 text-slate-500 transition-colors hover:text-amber-400"
+                            aria-label={isSaved(mountain.id) ? 'Unsave peak' : 'Save peak'}
+                          >
+                            <Bookmark className={`h-3.5 w-3.5 ${isSaved(mountain.id) ? 'fill-amber-400 text-amber-400' : ''}`} />
+                          </button>
+                        )}
+                        <span className="flex h-5 w-5 items-center justify-center rounded bg-white/10">
+                          <Mountain className="h-3.5 w-3.5 text-slate-400" />
+                        </span>
+                      </div>
                     </div>
-                    <div className="mt-2 flex items-center gap-1.5">
+                    <div className="mt-2 flex items-center gap-1.5 flex-wrap">
                       <span className="inline-flex items-center rounded-full bg-slate-700/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-300 ring-1 ring-white/10">
                         {mountain.mountain_type}
                       </span>
+                      {mountain.trail_class && (
+                        <span className="inline-flex items-center rounded-full bg-amber-900/40 px-2 py-0.5 text-[10px] font-medium text-amber-300 ring-1 ring-amber-500/30">
+                          {mountain.trail_class}
+                        </span>
+                      )}
                     </div>
                     <div className="mt-2 flex items-center gap-3 text-[11px]">
                       <span className="font-tabular font-semibold text-slate-200">{mountain.elevation_m} m</span>
@@ -1123,9 +1422,21 @@ export default function Home() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className="line-clamp-1 text-[13px] font-semibold text-slate-100 group-hover:text-emerald-300">{campsite.name}</p>
-                      <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-emerald-500/15">
-                        <Tent className="h-3.5 w-3.5 text-emerald-400" />
-                      </span>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {authUser && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); toggleSave({ id: campsite.id, type: 'campsite', name: campsite.name, coordinates: campsite.coordinates, rating: campsite.rating, photos: campsite.photos, place_id: campsite.place_id }); }}
+                            className="rounded p-0.5 text-slate-500 transition-colors hover:text-amber-400"
+                            aria-label={isSaved(campsite.id) ? 'Unsave campsite' : 'Save campsite'}
+                          >
+                            <Bookmark className={`h-3.5 w-3.5 ${isSaved(campsite.id) ? 'fill-amber-400 text-amber-400' : ''}`} />
+                          </button>
+                        )}
+                        <span className="flex h-5 w-5 items-center justify-center rounded bg-emerald-500/15">
+                          <Tent className="h-3.5 w-3.5 text-emerald-400" />
+                        </span>
+                      </div>
                     </div>
                     <div className="mt-2 flex items-center gap-1.5">
                       <span className="inline-flex items-center rounded-full bg-emerald-900/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-300 ring-1 ring-emerald-500/20">
@@ -1196,6 +1507,74 @@ export default function Home() {
                 });
               })()}
 
+              {/* ── Saved Tab ── */}
+              {activeTab === 'saved' && (() => {
+                const list = savedPlaces.filter(p =>
+                  !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+                if (!authUser) return null;
+                if (list.length === 0) return (
+                  <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-white/10 px-4 py-10 text-center">
+                    <Bookmark className="h-6 w-6 text-slate-600" />
+                    <p className="text-xs font-medium text-slate-500">No saved places yet</p>
+                    <p className="text-[10px] text-slate-600">Tap the bookmark icon on any route, peak, or campsite</p>
+                  </div>
+                );
+                const typeIcon: Record<string, React.ReactNode> = {
+                  route:    <Route className="h-3.5 w-3.5 text-blue-400" />,
+                  mountain: <Mountain className="h-3.5 w-3.5 text-slate-300" />,
+                  campsite: <Tent className="h-3.5 w-3.5 text-emerald-400" />,
+                };
+                const typeColor: Record<string, string> = {
+                  route:    'border-blue-500/30 hover:bg-blue-500/10',
+                  mountain: 'border-slate-500/30 hover:bg-white/[0.08]',
+                  campsite: 'border-emerald-500/30 hover:bg-emerald-500/[0.07]',
+                };
+                return list.map((place, idx) => (
+                  <button
+                    key={place.id}
+                    type="button"
+                    onClick={() => {
+                      if (place.type === 'route') {
+                        const r = routes.find(x => x.id === place.id);
+                        if (r) handleRouteClick(r);
+                      } else if (place.type === 'mountain') {
+                        const m = mountains.find(x => x.id === place.id);
+                        if (m) handleMountainClick(m);
+                      } else {
+                        const c = campsites.find(x => x.id === place.id);
+                        if (c) handleCampsiteClick(c);
+                      }
+                    }}
+                    className={`card-enter group w-full rounded-xl border border-white/[0.07] bg-white/5 px-3.5 py-3 text-left transition-all active:scale-[0.99] ${typeColor[place.type] ?? ''}`}
+                    style={{ animationDelay: `${idx * 30}ms` }}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="line-clamp-1 text-[13px] font-semibold text-slate-100 group-hover:text-white">{place.name}</p>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); toggleSave(place); }}
+                          className="rounded p-0.5 text-amber-400 transition-colors hover:text-slate-400"
+                          aria-label="Unsave"
+                        >
+                          <Bookmark className="h-3.5 w-3.5 fill-amber-400" />
+                        </button>
+                        <span className="flex h-5 w-5 items-center justify-center rounded bg-white/10">
+                          {typeIcon[place.type]}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-2 text-[11px] text-slate-400">
+                      <span className="capitalize">{place.type}</span>
+                      {place.elevation_m ? <><span className="text-white/20">·</span><span className="font-tabular">{place.elevation_m} m</span></> : null}
+                      {place.distance_km ? <><span className="text-white/20">·</span><span className="font-tabular">{place.distance_km.toFixed(1)} km</span></> : null}
+                      {place.difficulty  ? <><span className="text-white/20">·</span><span className="capitalize">{place.difficulty}</span></> : null}
+                    </div>
+                  </button>
+                ));
+              })()}
+
             </div>
           )}
         </aside>
@@ -1206,6 +1585,7 @@ export default function Home() {
             routes={filteredRoutes} 
             mountains={mountains}
             campsites={campsites}
+            savedPlaces={savedPlaces}
             userLocation={userLocation ? [userLocation.lng, userLocation.lat] : undefined}
             isLoaded={isLoaded}
             loadError={loadError}
@@ -1290,4 +1670,7 @@ export default function Home() {
     </main>
   );
 }
+
+
+
 

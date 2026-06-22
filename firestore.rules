@@ -16,6 +16,13 @@ service cloud.firestore {
     // Users collection
     match /users/{userId} {
       allow read, write: if isOwner(userId);
+
+      // Strava historical activities synced server-side via Admin SDK
+      // Users can read their own activities; writes are via Admin SDK only (write: false)
+      match /strava_activities/{activityId} {
+        allow read: if isOwner(userId);
+        allow write: if false; // Admin SDK only
+      }
     }
 
     // Activities collection — scoped to the owning user
@@ -30,6 +37,14 @@ service cloud.firestore {
     match /routes/{routeId} {
       allow read: if isAuthenticated();
       allow write: if false; // backend service account only
+    }
+
+    // Places cache — shared regional cache for Google Maps results
+    // Public read so unauthenticated users benefit from cached data
+    // Writes are restricted to the backend service account (via Admin SDK)
+    match /places_cache/{gridKey} {
+      allow read: if true;
+      allow write: if false; // backend Admin SDK only
     }
 
     // Training programs — scoped to the owning user

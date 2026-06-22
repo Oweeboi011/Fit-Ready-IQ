@@ -126,13 +126,19 @@ Set these in **Vercel Project Settings > Environment Variables**. Apply to both 
 | --- | --- | --- | --- |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Yes | Client + Server | Google Maps JS API key. Bundled into client JS at build time. Restrict to your domain in Google Cloud Console. |
 | `GEMINI_API_KEY` | Yes | Server only | Gemini 1.5 Flash API key for AI chat functionality. |
-| `FIREBASE_PROJECT_ID` | Yes | Server only | GCP/Firebase project identifier (e.g., `fit-ready-iq-prod`). |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Yes | Client | Firebase web API key (public -- safe to expose). |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Yes | Client | Firebase Auth domain (e.g., `fit-ready-iq.firebaseapp.com`). |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Yes | Client + Server | Firebase project ID (e.g., `fit-ready-iq`). |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Yes | Client | Firebase Storage bucket URL. |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Yes | Client | Firebase Cloud Messaging sender ID. |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | Yes | Client | Firebase web app ID. |
+| `NEXT_PUBLIC_APP_URL` | Yes | Client | Full URL of the deployment (e.g., `https://fit-ready-iq.vercel.app`). Used for OAuth redirects. |
 | `FIREBASE_SERVICE_ACCOUNT_KEY_JSON` | Recommended | Server only | Complete service account JSON string. Preferred method for Firebase Admin authentication. |
 | `FIREBASE_CLIENT_EMAIL` | Alternative | Server only | Service account email (use if not providing full JSON). |
 | `FIREBASE_PRIVATE_KEY` | Alternative | Server only | Service account private key (preserve `\n` characters). |
 | `STRAVA_CLIENT_ID` | Yes | Server only | Strava OAuth application client ID. |
 | `STRAVA_CLIENT_SECRET` | Yes | Server only | Strava OAuth application client secret. |
-| `GOOGLE_WEATHER_API_KEY` | Phase 1 | Server only | Google Weather API key for forecast integration. |
+| `GOOGLE_WEATHER_API_KEY` | Phase 1 | Server only | OpenWeather API key for forecast integration. Also accepted as `OPENWEATHER_API_KEY`.
 
 ### 4.2 Environment Scoping
 

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Dark rounded square background -->
+  <rect width="200" height="200" rx="38" fill="#0d1520"/>
+
+  <!-- Mountain body -->
+  <polygon points="100,22 178,158 22,158" fill="#1e3a62"/>
+
+  <!-- Snow cap -->
+  <polygon points="100,22 124,75 76,75" fill="#d8e4f0"/>
+
+  <!-- ECG / heartbeat line -->
+  <polyline
+    points="18,102 52,102 64,124 78,54 90,132 104,102 148,102 182,102"
+    stroke="#22c55e"
+    stroke-width="8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+  />
+</svg>

@@ -269,9 +269,7 @@ class ICacheService(ABC):
         pass
 
     @abstractmethod
-    async def set(
-        self, key: str, value: Any, ttl_seconds: int | None = None
-    ) -> bool:
+    async def set(self, key: str, value: Any, ttl_seconds: int | None = None) -> bool:
         """Store value in cache with optional TTL."""
         pass
 

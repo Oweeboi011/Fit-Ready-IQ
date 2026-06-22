@@ -232,43 +232,47 @@ class GoogleMapsClient(IMapClient, IRoutingClient):
     ) -> list[float]:
         """Get elevation data for a series of coordinates.
 
+        Automatically chunks requests when coordinate count exceeds the API
+        limit of 512 per request and merges results in order.
+
         Args:
-            coordinates: List of coordinates (max 512 points)
+            coordinates: List of coordinates
 
         Returns:
-            List of elevation values in meters
+            List of elevation values in meters, same length as input
         """
-        try:
-            # Google Maps Elevation API limits to 512 locations per request
-            if len(coordinates) > 512:
-                logger.warning(
-                    "elevation_request_truncated",
-                    requested=len(coordinates),
-                    limit=512,
+        _CHUNK_SIZE = 512
+        all_elevations: list[float] = []
+
+        chunks = [
+            coordinates[i : i + _CHUNK_SIZE]
+            for i in range(0, len(coordinates), _CHUNK_SIZE)
+        ]
+
+        for chunk in chunks:
+            try:
+                locations = "|".join([f"{c.latitude},{c.longitude}" for c in chunk])
+                response = await self.client.get(
+                    self.ELEVATION_URL,
+                    params={"locations": locations, "key": self.api_key},
                 )
-                coordinates = coordinates[:512]
+                response.raise_for_status()
+                data = response.json()
 
-            # Format coordinates for API request
-            locations = "|".join([f"{c.latitude},{c.longitude}" for c in coordinates])
+                if data["status"] == "OK":
+                    all_elevations.extend(
+                        [result["elevation"] for result in data["results"]]
+                    )
+                else:
+                    logger.warning("elevation_chunk_failed", status=data["status"])
+                    all_elevations.extend([0.0] * len(chunk))
 
-            response = await self.client.get(
-                self.ELEVATION_URL,
-                params={"locations": locations, "key": self.api_key},
-            )
-            response.raise_for_status()
-            data = response.json()
+            except Exception as e:
+                logger.error("elevation_chunk_error", error=str(e))
+                all_elevations.extend([0.0] * len(chunk))
 
-            if data["status"] == "OK":
-                elevations = [result["elevation"] for result in data["results"]]
-                logger.info("elevation_profile_retrieved", point_count=len(elevations))
-                return elevations
-
-            logger.warning("elevation_request_failed", status=data["status"])
-            return []
-
-        except Exception as e:
-            logger.error("elevation_profile_error", error=str(e))
-            return []
+        logger.info("elevation_profile_retrieved", point_count=len(all_elevations))
+        return all_elevations
 
     async def close(self):
         """Close the HTTP client."""

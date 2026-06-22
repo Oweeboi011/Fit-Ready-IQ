@@ -15,10 +15,11 @@ export const metadata: Metadata = {
   keywords: 'hiking, trail finder, adventure, fitness, route planning, mountains, camping',
   icons: {
     icon: [
-      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icon.svg', type: 'image/svg+xml', sizes: 'any' },
     ],
+    shortcut: '/icon.svg',
     apple: [
-      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icon.svg', type: 'image/svg+xml', sizes: 'any' },
     ],
   },
 };

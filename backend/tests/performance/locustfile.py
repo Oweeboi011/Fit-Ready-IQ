@@ -10,7 +10,9 @@ class ApiUser(HttpUser):
 
     @task(3)
     def health(self) -> None:
-        with self.client.get("/health", name="GET /health", catch_response=True) as response:
+        with self.client.get(
+            "/health", name="GET /health", catch_response=True
+        ) as response:
             if response.status_code != 200:
                 response.failure(f"unexpected status: {response.status_code}")
 
