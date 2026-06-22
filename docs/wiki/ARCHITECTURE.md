@@ -36,8 +36,8 @@ graph TB
 
     subgraph Firebase["Firebase Platform"]
         direction TB
-        Firestore["Cloud Firestore<br/>(Document Database)"]
-        FireAuth["Firebase Auth<br/>(Identity - Phase 3)"]
+        Firestore["Cloud Firestore<br/>(Document Database + Saved Places)"]
+        FireAuth["Firebase Auth<br/>(Google Sign-In - Active)"]
         FireStorage["Cloud Storage<br/>(File Uploads - Phase 3)"]
     end
 

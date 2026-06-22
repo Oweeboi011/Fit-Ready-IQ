@@ -23,7 +23,7 @@
       "console": "integratedTerminal",
       "logToFile": true,
       "showReturnValue": true,
-      "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+      "python": "${command:python.interpreterPath}",
       "preLaunchTask": "Backend Pre-Launch",
       "presentation": {
         "group": "Quick Start",
@@ -60,6 +60,7 @@
       "request": "launch",
       "command": "npm run dev",
       "cwd": "${workspaceFolder}/frontend",
+      "preLaunchTask": "Kill Frontend Port",
       "env": {
         "NODE_ENV": "development",
         "DEBUG": "*"
@@ -101,7 +102,7 @@
       },
       "console": "integratedTerminal",
       "justMyCode": false,
-      "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+      "python": "${command:python.interpreterPath}",
       "preLaunchTask": "Backend Pre-Launch",
       "logToFile": true,
       "showReturnValue": true,
@@ -127,7 +128,7 @@
       },
       "console": "integratedTerminal",
       "justMyCode": false,
-      "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+      "python": "${command:python.interpreterPath}",
       "logToFile": true,
       "showReturnValue": true,
       "presentation": {
@@ -148,7 +149,7 @@
       },
       "console": "integratedTerminal",
       "justMyCode": false,
-      "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+      "python": "${command:python.interpreterPath}",
       "logToFile": true,
       "showReturnValue": true,
       "presentation": {
@@ -174,7 +175,7 @@
         "ENVIRONMENT": "test"
       },
       "console": "integratedTerminal",
-      "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+      "python": "${command:python.interpreterPath}",
       "logToFile": true,
       "showReturnValue": true,
       "presentation": {
@@ -315,7 +316,7 @@
         "Backend: Start API Server",
         "Frontend: Next.js Server (Node)"
       ],
-      "stopAll": true,
+      "stopAll": false,
       "presentation": {
         "order": 1
       }

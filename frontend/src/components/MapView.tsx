@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { GoogleMap, Marker, Polyline, OverlayView } from "@react-google-maps/api";
+import React, { useEffect, useState, useCallback } from "react";
+import { GoogleMap, Polyline, OverlayView } from "@react-google-maps/api";
+import { Mountain as MountainIcon, Tent, Footprints, Bike, Map as MapIcon, MapPin, Bookmark, type LucideIcon } from "lucide-react";
 import { type ActivityPolyline } from "@/lib/activityTypes";
+import { type SavedPlace } from "@/lib/useSavedPlaces";
 
 interface Route {
   id: string;
@@ -21,6 +23,7 @@ interface Mountain {
   coordinates: [number, number];
   elevation_m: number;
   prominence_m?: number;
+  trail_class?: string;
   mountain_type: string; // peak, summit, mountain
 }
 
@@ -39,6 +42,7 @@ interface MapViewProps {
   routes?: Route[];
   mountains?: Mountain[];
   campsites?: Campsite[];
+  savedPlaces?: SavedPlace[];
   activityPolylines?: ActivityPolyline[];
   userLocation?: [number, number];
   isLoaded: boolean;
@@ -61,12 +65,38 @@ const SOURCE_POLYLINE_COLOR: Record<string, string> = {
   komoot: "#16a34a",
 };
 
+class MapRenderErrorBoundary extends React.Component<
+  { onError: (error: Error) => void; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { onError: (error: Error) => void; children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error): void {
+    this.props.onError(error);
+  }
+
+  render(): React.ReactNode {
+    if (this.state.hasError) {
+      return null;
+    }
+    return this.props.children;
+  }
+}
+
 export default function MapView({
   initialCenter = [-122.4194, 37.7749],
   initialZoom = 12,
   routes = [],
   mountains = [],
   campsites = [],
+  savedPlaces = [],
   activityPolylines = [],
   userLocation: userLocationProp,
   isLoaded,
@@ -77,12 +107,85 @@ export default function MapView({
   onFocusUserLocation,
 }: MapViewProps) {
   const currentOrigin = typeof window !== "undefined" ? window.location.origin : "";
+  const [runtimeMapError, setRuntimeMapError] = useState<string | null>(null);
+  const loadErrorMessage = loadError?.message ?? "";
+  const effectiveMapErrorMessage = runtimeMapError ?? loadErrorMessage;
+  const isMapAuthError = /RefererNotAllowedMapError|gm_authFailure|authentication failed/i.test(effectiveMapErrorMessage);
+  const allowedReferrers = (() => {
+    if (!currentOrigin) {
+      return ["http://localhost:4790/*", "http://127.0.0.1:4790/*", "http://localhost/*", "http://127.0.0.1/*"];
+    }
+
+    try {
+      const url = new URL(currentOrigin);
+      return Array.from(
+        new Set([
+          `${url.protocol}//${url.host}/*`,
+          `http://localhost${url.port ? `:${url.port}` : ""}/*`,
+          `http://127.0.0.1${url.port ? `:${url.port}` : ""}/*`,
+          "http://localhost/*",
+          "http://127.0.0.1/*",
+        ])
+      );
+    } catch {
+      return ["http://localhost:4790/*", "http://127.0.0.1:4790/*", "http://localhost/*", "http://127.0.0.1/*"];
+    }
+  })();
   const [userLocation, setUserLocation] = useState<[number, number] | null>(userLocationProp || null);
   const [mapCenter, setMapCenter] = useState({
     lat: initialCenter[1],
     lng: initialCenter[0],
   });
   const [map, setMap] = useState<google.maps.Map | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onWindowError = (event: ErrorEvent) => {
+      const text = `${event.message ?? ""} ${event.error?.message ?? ""} ${event.error?.stack ?? ""}`;
+      if (
+        /Google Maps JavaScript API error/i.test(text) ||
+        /RefererNotAllowedMapError/i.test(text) ||
+        (/IntersectionObserver/i.test(text) && /maps\.googleapis\.com/i.test(text))
+      ) {
+        setRuntimeMapError(text);
+      }
+    };
+
+    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      const text = typeof reason === "string"
+        ? reason
+        : `${reason?.message ?? ""} ${reason?.stack ?? ""}`;
+
+      if (
+        /maps\.googleapis\.com/i.test(text) ||
+        /Google Maps/i.test(text) ||
+        /RefererNotAllowedMapError/i.test(text) ||
+        /IntersectionObserver/i.test(text)
+      ) {
+        setRuntimeMapError(text || "Google Maps initialization failed.");
+      }
+    };
+
+    const windowWithMapsAuth = window as Window & { gm_authFailure?: () => void };
+    const previousAuthFailure = windowWithMapsAuth.gm_authFailure;
+
+    windowWithMapsAuth.gm_authFailure = () => {
+      setRuntimeMapError("Google Maps authentication failed (gm_authFailure)");
+      if (typeof previousAuthFailure === "function") {
+        previousAuthFailure();
+      }
+    };
+
+    window.addEventListener("error", onWindowError);
+    window.addEventListener("unhandledrejection", onUnhandledRejection);
+    return () => {
+      window.removeEventListener("error", onWindowError);
+      window.removeEventListener("unhandledrejection", onUnhandledRejection);
+      windowWithMapsAuth.gm_authFailure = previousAuthFailure;
+    };
+  }, []);
 
   const onLoad = useCallback((map: google.maps.Map) => {
     setMap(map);
@@ -167,6 +270,15 @@ export default function MapView({
 
   // Get user's current location
   useEffect(() => {
+    if (userLocationProp) {
+      setUserLocation(userLocationProp);
+      setMapCenter({
+        lat: userLocationProp[1],
+        lng: userLocationProp[0],
+      });
+      return;
+    }
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -181,7 +293,7 @@ export default function MapView({
           });
         },
         (error) => {
-          console.error("Error getting location:", error);
+          console.debug("Location unavailable, using fallback coordinates.", error);
           // Fallback to default location (San Francisco)
           const fallback: [number, number] = [-122.4194, 37.7749];
           setUserLocation(fallback);
@@ -200,7 +312,7 @@ export default function MapView({
         lng: fallback[0],
       });
     }
-  }, []);
+  }, [userLocationProp]);
 
   const getDifficultyColor = (difficulty: string): string => {
     switch (difficulty.toLowerCase()) {
@@ -215,30 +327,46 @@ export default function MapView({
     }
   };
 
-  const getActivityIcon = (activityType: string): string => {
+  const getActivityIconComponent = (activityType: string): LucideIcon => {
     switch (activityType.toLowerCase()) {
-      case "hike":
-        return "HIKE";
       case "bike":
       case "ride":
-        return "BIKE";
-      case "run":
-        return "RUN";
+        return Bike;
       case "rock_climb":
-        return "CLIMB";
+        return MountainIcon;
+      case "tour":
+        return MapIcon;
       default:
-        return "PIN";
+        return Footprints;
     }
   };
 
-  if (loadError) {
+  if (loadError || runtimeMapError) {
     return (
       <div className="relative h-full w-full flex items-center justify-center bg-slate-100">
-        <div className="max-w-lg text-center px-6">
+        <div className="max-w-xl text-center px-6">
           <p className="text-red-600 font-semibold">Error loading Google Maps</p>
           <p className="text-sm text-slate-600 mt-2">
             Verify your Maps API key, HTTP referrer allowlist, and enabled APIs.
           </p>
+          {isMapAuthError && (
+            <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-left text-xs text-red-900">
+              <p className="font-semibold">Detected: Google Maps auth/referrer restriction</p>
+              <p className="mt-1">
+                Your current origin is not authorized for this Google Maps key. Add these HTTP referrers in Google Cloud Console.
+              </p>
+              <ul className="mt-2 space-y-1">
+                {allowedReferrers.map((ref) => (
+                  <li key={ref} className="font-mono text-[11px]">{ref}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {effectiveMapErrorMessage && (
+            <p className="mt-3 text-xs text-slate-500">
+              Error detail: <span className="font-mono break-all">{effectiveMapErrorMessage}</span>
+            </p>
+          )}
           {currentOrigin && (
             <p className="mt-3 text-xs text-slate-500">
               Current site origin: <span className="font-mono">{currentOrigin}</span>
@@ -271,20 +399,25 @@ export default function MapView({
 
   return (
     <div className="relative h-full w-full">
-      <GoogleMap
-        mapContainerStyle={mapContainerStyle}
-        center={mapCenter}
-        zoom={initialZoom}
-        onLoad={onLoad}
-        onUnmount={onUnmount}
-        options={{
-          mapTypeId: "terrain",
-          zoomControl: true,
-          streetViewControl: false,
-          mapTypeControl: true,
-          fullscreenControl: true,
+      <MapRenderErrorBoundary
+        onError={(error) => {
+          setRuntimeMapError(`Google Maps render failed: ${error.message}`);
         }}
       >
+        <GoogleMap
+          mapContainerStyle={mapContainerStyle}
+          center={mapCenter}
+          zoom={initialZoom}
+          onLoad={onLoad}
+          onUnmount={onUnmount}
+          options={{
+            mapTypeId: "terrain",
+            zoomControl: true,
+            streetViewControl: false,
+            mapTypeControl: true,
+            fullscreenControl: true,
+          }}
+        >
         {/* User Location — animated GPS pulse overlay */}
         {userLocation && (
           <OverlayView
@@ -365,31 +498,39 @@ export default function MapView({
               typeof route.coordinates[0] === "number" &&
               typeof route.coordinates[1] === "number"
           )
-          .map((route) => (
-            <Marker
-              key={route.id}
-              position={{ lat: route.coordinates[1], lng: route.coordinates[0] }}
-              icon={{
-                url: `data:image/svg+xml,${encodeURIComponent(`
-                  <svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="20" cy="20" r="18" fill="${getDifficultyColor(
-                      route.difficulty
-                    )}" stroke="white" stroke-width="2"/>
-                    <text x="20" y="28" text-anchor="middle" font-size="20">${getActivityIcon(
-                      route.activity_type
-                    )}</text>
-                  </svg>
-                `)}`,
-                scaledSize: new google.maps.Size(40, 40),
-              }}
-              title={route.name}
-              onClick={() => {
-                if (onRouteClick) {
-                  onRouteClick(route);
-                }
-              }}
-            />
-          ))}
+          .map((route) => {
+            const color = getDifficultyColor(route.difficulty);
+            const ActivityIcon = getActivityIconComponent(route.activity_type);
+            return (
+              <OverlayView
+                key={route.id}
+                position={{ lat: route.coordinates[1], lng: route.coordinates[0] }}
+                mapPaneName="overlayMouseTarget"
+                getPixelPositionOffset={() => ({ x: -16, y: -44 })}
+              >
+                <div
+                  title={route.name}
+                  onClick={() => onRouteClick?.(route)}
+                  style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", cursor: "pointer", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.35))" }}
+                >
+                  <div style={{
+                    width: 32, height: 32, borderRadius: "50%",
+                    backgroundColor: color, border: "2.5px solid white",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <ActivityIcon size={15} color="white" />
+                  </div>
+                  <div style={{
+                    width: 0, height: 0,
+                    borderLeft: "5px solid transparent",
+                    borderRight: "5px solid transparent",
+                    borderTop: `7px solid ${color}`,
+                    marginTop: -1,
+                  }} />
+                </div>
+              </OverlayView>
+            );
+          })}
 
         {/* Mountain/Peak Markers */}
         {mountains
@@ -401,26 +542,33 @@ export default function MapView({
               typeof mountain.coordinates[1] === "number"
           )
           .map((mountain) => (
-            <Marker
+            <OverlayView
               key={mountain.id}
               position={{ lat: mountain.coordinates[1], lng: mountain.coordinates[0] }}
-              icon={{
-                url: `data:image/svg+xml,${encodeURIComponent(`
-                  <svg width="36" height="36" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M18 4 L10 20 L26 20 Z" fill="#8b4513" stroke="white" stroke-width="2"/>
-                    <circle cx="18" cy="8" r="3" fill="white"/>
-                    <text x="18" y="31" text-anchor="middle" font-size="14" fill="#333">MTN</text>
-                  </svg>
-                `)}`,
-                scaledSize: new google.maps.Size(36, 36),
-              }}
-              title={`${mountain.name} (${mountain.elevation_m}m)`}
-              onClick={() => {
-                if (onMountainClick) {
-                  onMountainClick(mountain);
-                }
-              }}
-            />
+              mapPaneName="overlayMouseTarget"
+              getPixelPositionOffset={() => ({ x: -16, y: -44 })}
+            >
+              <div
+                title={`${mountain.name} (${mountain.elevation_m}m)`}
+                onClick={() => onMountainClick?.(mountain)}
+                style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", cursor: "pointer", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.35))" }}
+              >
+                <div style={{
+                  width: 32, height: 32, borderRadius: "50%",
+                  backgroundColor: "#78350f", border: "2.5px solid white",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <MountainIcon size={15} color="white" />
+                </div>
+                <div style={{
+                  width: 0, height: 0,
+                  borderLeft: "5px solid transparent",
+                  borderRight: "5px solid transparent",
+                  borderTop: "7px solid #78350f",
+                  marginTop: -1,
+                }} />
+              </div>
+            </OverlayView>
           ))}
 
         {/* Campsite Markers */}
@@ -433,28 +581,75 @@ export default function MapView({
               typeof campsite.coordinates[1] === "number"
           )
           .map((campsite) => (
-            <Marker
+            <OverlayView
               key={campsite.id}
               position={{ lat: campsite.coordinates[1], lng: campsite.coordinates[0] }}
-              icon={{
-                url: `data:image/svg+xml,${encodeURIComponent(`
-                  <svg width="36" height="36" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M18 8 L8 24 L28 24 Z" fill="#228b22" stroke="white" stroke-width="2"/>
-                    <rect x="17" y="24" width="2" height="8" fill="#8b4513"/>
-                    <text x="18" y="35" text-anchor="middle" font-size="12">CAMP</text>
-                  </svg>
-                `)}`,
-                scaledSize: new google.maps.Size(36, 36),
-              }}
-              title={`${campsite.name}${campsite.rating ? ` (*${campsite.rating})` : ''}`}
-              onClick={() => {
-                if (onCampsiteClick) {
-                  onCampsiteClick(campsite);
-                }
-              }}
-            />
+              mapPaneName="overlayMouseTarget"
+              getPixelPositionOffset={() => ({ x: -16, y: -44 })}
+            >
+              <div
+                title={`${campsite.name}${campsite.rating ? ` (★${campsite.rating})` : ""}`}
+                onClick={() => onCampsiteClick?.(campsite)}
+                style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", cursor: "pointer", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.35))" }}
+              >
+                <div style={{
+                  width: 32, height: 32, borderRadius: "50%",
+                  backgroundColor: "#15803d", border: "2.5px solid white",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <Tent size={15} color="white" />
+                </div>
+                <div style={{
+                  width: 0, height: 0,
+                  borderLeft: "5px solid transparent",
+                  borderRight: "5px solid transparent",
+                  borderTop: "7px solid #15803d",
+                  marginTop: -1,
+                }} />
+              </div>
+            </OverlayView>
           ))}
-      </GoogleMap>
+
+        {/* Saved Place Star Markers */}
+        {savedPlaces
+          .filter(
+            (place) =>
+              place.coordinates &&
+              place.coordinates.length === 2 &&
+              typeof place.coordinates[0] === "number" &&
+              typeof place.coordinates[1] === "number"
+          )
+          .map((place) => (
+            <OverlayView
+              key={`saved-${place.id}`}
+              position={{ lat: place.coordinates[1], lng: place.coordinates[0] }}
+              mapPaneName="overlayMouseTarget"
+              getPixelPositionOffset={() => ({ x: -12, y: -38 })}
+            >
+              <div
+                title={`Saved: ${place.name}`}
+                style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", cursor: "pointer", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))" }}
+              >
+                <div style={{
+                  width: 26, height: 26, borderRadius: "50%",
+                  backgroundColor: "#d97706", border: "2.5px solid white",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <Bookmark size={12} color="white" fill="white" />
+                </div>
+                <div style={{
+                  width: 0, height: 0,
+                  borderLeft: "4px solid transparent",
+                  borderRight: "4px solid transparent",
+                  borderTop: "6px solid #d97706",
+                  marginTop: -1,
+                }} />
+              </div>
+            </OverlayView>
+          ))}
+
+        </GoogleMap>
+      </MapRenderErrorBoundary>
 
       {/* Legend */}
       <div className="absolute bottom-4 right-4 rounded-lg border border-slate-200 bg-white p-4 shadow-lg">
@@ -483,14 +678,26 @@ export default function MapView({
               <div className="space-y-1 text-xs">
                 {mountains.length > 0 && (
                   <div className="flex items-center gap-2">
-                    <span>MTN</span>
+                    <div className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-900">
+                      <MountainIcon size={10} color="white" />
+                    </div>
                     <span className="text-slate-600">Mountain/Peak</span>
                   </div>
                 )}
                 {campsites.length > 0 && (
                   <div className="flex items-center gap-2">
-                    <span>CAMP</span>
+                    <div className="flex h-4 w-4 items-center justify-center rounded-full bg-green-700">
+                      <Tent size={10} color="white" />
+                    </div>
                     <span className="text-slate-600">Campsite</span>
+                  </div>
+                )}
+                {savedPlaces.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-600">
+                      <Bookmark size={9} color="white" fill="white" />
+                    </div>
+                    <span className="text-slate-600">Saved</span>
                   </div>
                 )}
                 <div className="flex items-center gap-2">

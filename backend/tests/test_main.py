@@ -3,8 +3,6 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from src.main import app
-
 
 @pytest.mark.integration
 def test_health_endpoint(client: TestClient):

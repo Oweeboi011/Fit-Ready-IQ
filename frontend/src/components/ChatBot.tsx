@@ -92,7 +92,7 @@ export default function ChatBot() {
       {/* Floating toggle button */}
       <button
         onClick={() => setIsOpen((v) => !v)}
-        className={`fixed bottom-5 right-5 z-50 relative flex h-13 w-13 items-center justify-center rounded-2xl shadow-lg transition-all active:scale-95 ${
+        className={`fixed bottom-5 right-5 z-50 flex h-12 w-12 items-center justify-center rounded-2xl shadow-lg transition-all active:scale-95 ${
           isOpen
             ? "bg-slate-800 border border-white/10 hover:bg-slate-700 shadow-black/40"
             : "bg-gradient-to-br from-blue-500 to-blue-700 hover:scale-105 hover:shadow-xl shadow-blue-900/50 hover:shadow-blue-900/60"

@@ -17,6 +17,7 @@ Fit-Ready-IQ addresses a critical gap in outdoor adventure planning: the disconn
 - **Live Weather Forecasts** -- Google Weather API integration with persona-specific safety alerts and hourly breakdowns (Phase 1).
 - **Fitness Data Sync** -- Connect Strava for automatic activity sync, or import GPX files from COROS, Garmin, and Komoot devices.
 - **AI Adventure Assistant** -- Gemini-powered chat that understands routes, weather, gear, and training to provide actionable advice.
+- **Saved Places** -- Bookmark routes, mountains, and campsites to Firestore with a dedicated Saved tab and amber map markers. Requires Google sign-in.
 - **Readiness Scoring** -- Compare personal fitness metrics against route demands to get a readiness score and gap analysis (Phase 4).
 
 ### Who It Serves
@@ -171,9 +172,19 @@ NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 # Required - AI Chat Assistant
 GEMINI_API_KEY=your_gemini_api_key
 
-# Required - Firebase Persistence
-FIREBASE_PROJECT_ID=your_firebase_project_id
+# Required - Firebase Client (public keys, safe to commit to source control)
+NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_web_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-firebase-project-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_firebase_app_id
+
+# Required - Firebase Admin (server-side routes only, never expose to client)
 FIREBASE_SERVICE_ACCOUNT_KEY_JSON={"type":"service_account",...}
+
+# Required - App URL (set to your Vercel production URL after first deploy)
+NEXT_PUBLIC_APP_URL=http://localhost:4790
 
 # Required - Strava Integration
 STRAVA_CLIENT_ID=your_strava_client_id

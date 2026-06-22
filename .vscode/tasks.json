@@ -4,7 +4,7 @@
     {
       "label": "Kill Frontend Port",
       "type": "shell",
-      "command": "$ports = @(3000, 3001); foreach ($port in $ports) { $procs = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; if ($procs) { $procs | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue; Write-Host \"Killed process $_ on port $port\" } } else { Write-Host \"No process on port $port\" } }",
+      "command": "$ports = @(4790, 3000, 3001); foreach ($port in $ports) { $procs = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; if ($procs) { $procs | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue; Write-Host \"Killed process $_ on port $port\" } } else { Write-Host \"No process on port $port\" } }",
       "presentation": {
         "echo": true,
         "reveal": "silent",
@@ -17,7 +17,7 @@
     {
       "label": "Kill Backend Port",
       "type": "shell",
-      "command": "$procs = Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; if ($procs) { $procs | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue; Write-Host \"Killed process $_ on port 8000\" } } else { Write-Host \"No process on port 8000\" }; Start-Sleep -Milliseconds 500",
+      "command": "$ports = @(6790, 8000); foreach ($port in $ports) { $procs = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; if ($procs) { $procs | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue; Write-Host \"Killed process $_ on port $port\" } } else { Write-Host \"No process on port $port\" } }",
       "presentation": {
         "echo": true,
         "reveal": "silent",
@@ -104,7 +104,7 @@
     {
       "label": "kill-port-8000-powershell",
       "type": "shell",
-      "command": "Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Where-Object { $_.State -eq 'Listen' } | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }",
+      "command": "$ports = @(6790, 8000); foreach ($port in $ports) { Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | Where-Object { $_.State -eq 'Listen' } | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } }",
       "presentation": {
         "reveal": "silent",
         "close": true
