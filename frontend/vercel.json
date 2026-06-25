@@ -19,6 +19,12 @@
     },
     "src/app/api/admin/strava-sync/route.ts": {
       "maxDuration": 15
+    },
+    "src/app/api/weather/route.ts": {
+      "maxDuration": 15
+    },
+    "src/app/api/health/route.ts": {
+      "maxDuration": 15
     }
   }
 }

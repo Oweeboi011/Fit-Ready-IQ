@@ -321,15 +321,59 @@ npm run test:unit
 npm audit --audit-level=high
 ```
 
-### 7.3 Runtime Endpoint Checks
+### 7.3 Health Endpoint (Single-Shot Deployment Check)
+
+The `/api/health` route aggregates all service checks in one call.
+
+```bash
+# Run immediately after deployment
+curl -s https://YOUR_VERCEL_URL/api/health | jq .
+```
+
+Expected fully-healthy response:
+
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-06-26T...",
+  "services": {
+    "maps":             { "ok": true, "message": "API key present" },
+    "firebase_client":  { "ok": true, "message": "Project: fit-ready-iq" },
+    "firebase_admin":   { "ok": true, "message": "Firestore write OK (project: fit-ready-iq)" },
+    "gemini":           { "ok": true, "message": "API key present and valid format" },
+    "weather":          { "ok": true, "message": "OpenWeather API reachable" },
+    "strava":           { "ok": true, "message": "Client ID: 260217" }
+  }
+}
+```
+
+`status` values:
+- `healthy` -- all 6 services green
+- `degraded` -- 1-2 services failing (non-critical features affected)
+- `unhealthy` -- 3+ services failing (HTTP 503 returned)
+
+### 7.4 Per-Service Recovery Guide
+
+| Service | Health check `ok: false` message | Fix |
+|---------|----------------------------------|-----|
+| maps | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY not configured` | Add key in Vercel env vars, redeploy |
+| firebase_client | `NEXT_PUBLIC_FIREBASE_* vars missing` | Add all `NEXT_PUBLIC_FIREBASE_*` vars |
+| firebase_admin | `No service account credentials` | Paste service account JSON into `FIREBASE_SERVICE_ACCOUNT_KEY_JSON` |
+| firebase_admin | `Firestore write failed` | Check IAM permissions; service account needs Firestore Editor role |
+| gemini | `GEMINI_API_KEY not configured` | Get key from [aistudio.google.com](https://aistudio.google.com/app/apikey) |
+| weather | `OPENWEATHER_API_KEY not configured` | Get free key from [openweathermap.org](https://openweathermap.org/api) |
+| strava | `STRAVA_CLIENT_SECRET missing` | Add both `NEXT_PUBLIC_STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` |
+
+### 7.5 Runtime Endpoint Checks
 
 | Endpoint | Method | Expected Response |
 | --- | --- | --- |
 | `/` | GET | HTML page with Google Maps rendering |
+| `/api/health` | GET | `{ "status": "healthy", ... }` |
 | `/api/integrations/firebase` | GET | `{ "connected": true, "firestoreWrite": true }` |
 | `/api/chat` | POST | `{ "message": "...", "sessionId": "..." }` |
 | `/api/strava/exchange` | POST | Strava token payload (requires valid code) |
-| `/api/weather?lat=14.5&lng=121.0` | GET | Weather forecast JSON (Phase 1) |
+| `/api/weather?lat=14.5&lng=121.0` | GET | Weather forecast JSON |
 
 ---
 

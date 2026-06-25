@@ -82,6 +82,14 @@ interface ActivityDetails {
 
 type DetailsData = RouteDetails | MountainDetails | CampsiteDetails | ActivityDetails;
 
+interface WeatherResult {
+  best: string;
+  avoid: string;
+  temp: string;
+  risk: string;
+  live: boolean; // true = fetched from API, false = static fallback
+}
+
 interface DetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -92,6 +100,26 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
   const [elevHoverIdx, setElevHoverIdx] = useState<number | null>(null);
   const [runtimePhotos, setRuntimePhotos] = useState<string[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [liveWeather, setLiveWeather] = useState<WeatherResult | null>(null);
+
+  // Fetch live weather whenever the modal opens for a mountain or route
+  useEffect(() => {
+    if (!isOpen || !data || data.type === 'activity' || data.type === 'campsite') {
+      setLiveWeather(null);
+      return;
+    }
+    const [lng, lat] = data.coordinates;
+    const elevation = data.type === 'mountain' ? (data.summit_elevation ?? data.elevation_m) : (data.summit_elevation ?? null);
+    const url = `/api/weather?lat=${lat}&lng=${lng}${elevation != null ? `&elevation=${elevation}` : ''}`;
+    fetch(url)
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (json && json.summary && !json.error) {
+          setLiveWeather({ best: json.summary.best, avoid: json.summary.avoid, temp: json.summary.temp, risk: json.summary.risk, live: true });
+        }
+      })
+      .catch(() => {/* silently fall back to static notes */});
+  }, [isOpen, data]);
 
   // Lazily fetch photos from Google Places when the modal opens
   useEffect(() => {
@@ -729,9 +757,10 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                     ? [`Spring at ~${Math.floor(jumpoffElev + elevGain * 0.3)} m (Camp 1 area)`, 'Stream crossing at mid-trail — treat before drinking', `No reliable source above ${Math.floor(summitElev * 0.85)} m — carry 3L minimum`]
                     : [`Creek at trailhead — usually flowing`, `Spring at ~${Math.floor(jumpoffElev + elevGain * 0.5)} m (mid-trail)`, 'Carry 2L minimum as backup'];
 
-                  const weatherNotes = isHighAlt
-                    ? { best: 'Nov – Feb (dry season)', avoid: 'Jun – Sep (typhoon season)', temp: `${Math.floor(5 + (3000 - summitElev) * 0.004)}–${Math.floor(15 + (3000 - summitElev) * 0.004)}°C at summit`, risk: 'Fog and sudden thunderstorms common after noon — aim to summit by 10 AM' }
-                    : { best: 'Nov – Apr (dry season)', avoid: 'Jul – Sep (rainy season)', temp: `${Math.floor(18 + (2000 - summitElev) * 0.004)}–${Math.floor(26 + (2000 - summitElev) * 0.004)}°C at summit`, risk: 'Afternoon rain showers common — start early, pack rain gear' };
+                  const staticWeather = isHighAlt
+                    ? { best: 'Nov – Feb (dry season)', avoid: 'Jun – Sep (typhoon season)', temp: `${Math.floor(5 + (3000 - summitElev) * 0.004)}–${Math.floor(15 + (3000 - summitElev) * 0.004)}°C at summit`, risk: 'Fog and sudden thunderstorms common after noon — aim to summit by 10 AM', live: false }
+                    : { best: 'Nov – Apr (dry season)', avoid: 'Jul – Sep (rainy season)', temp: `${Math.floor(18 + (2000 - summitElev) * 0.004)}–${Math.floor(26 + (2000 - summitElev) * 0.004)}°C at summit`, risk: 'Afternoon rain showers common — start early, pack rain gear', live: false };
+                  const weatherNotes = liveWeather ?? staticWeather;
 
                   const gearList = [
                     ...(isHighAlt ? ['Trekking poles (mandatory)', 'Crampon-compatible boots', 'Fleece + waterproof outer layer'] : ['Ankle-support trail shoes or boots', 'Lightweight rain jacket']),
@@ -832,7 +861,10 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                           <div className="flex items-start gap-3">
                             <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-sky-500/10 text-sm">WEATHER</span>
                             <div className="flex-1">
-                              <p className="text-sm font-semibold text-white">Weather Conditions</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-semibold text-white">Weather Conditions</p>
+                                {weatherNotes.live && <span className="rounded-full bg-sky-500/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-sky-400">Live</span>}
+                              </div>
                               <div className="mt-2 grid grid-cols-2 gap-2">
                                 <div className="rounded-md bg-emerald-500/10 px-3 py-2">
                                   <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Best time</p>
@@ -1320,9 +1352,10 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                   ? ['Spring at ~' + Math.floor((data.jumpoff_elevation || 200) + elevGain * 0.3) + ' m (Camp 1 area)', 'Stream crossing at mid-trail — treat before drinking', 'No reliable source above ' + Math.floor(data.elevation_m * 0.85) + ' m — carry 3L minimum']
                   : ['Creek at trailhead — usually flowing', 'Spring at ~' + Math.floor((data.jumpoff_elevation || 200) + elevGain * 0.5) + ' m (mid-trail)', 'Carry 2L minimum as backup'];
 
-                const weatherNotes = isHighAlt
-                  ? { best: 'Nov – Feb (dry season)', avoid: 'Jun – Sep (typhoon season)', temp: `${Math.floor(5 + (3000 - data.elevation_m) * 0.004)}–${Math.floor(15 + (3000 - data.elevation_m) * 0.004)}°C at summit`, risk: 'Fog and sudden thunderstorms common after noon — aim to summit by 10 AM' }
-                  : { best: 'Nov – Apr (dry season)', avoid: 'Jul – Sep (rainy season)', temp: `${Math.floor(18 + (2000 - data.elevation_m) * 0.004)}–${Math.floor(26 + (2000 - data.elevation_m) * 0.004)}°C at summit`, risk: 'Afternoon rain showers common — start early, pack rain gear' };
+                const staticWeatherM = isHighAlt
+                  ? { best: 'Nov – Feb (dry season)', avoid: 'Jun – Sep (typhoon season)', temp: `${Math.floor(5 + (3000 - data.elevation_m) * 0.004)}–${Math.floor(15 + (3000 - data.elevation_m) * 0.004)}°C at summit`, risk: 'Fog and sudden thunderstorms common after noon — aim to summit by 10 AM', live: false }
+                  : { best: 'Nov – Apr (dry season)', avoid: 'Jul – Sep (rainy season)', temp: `${Math.floor(18 + (2000 - data.elevation_m) * 0.004)}–${Math.floor(26 + (2000 - data.elevation_m) * 0.004)}°C at summit`, risk: 'Afternoon rain showers common — start early, pack rain gear', live: false };
+                const weatherNotes = liveWeather ?? staticWeatherM;
 
                 const gearList = [
                   ...(isHighAlt ? ['Trekking poles (mandatory)', 'Crampon-compatible boots', 'Fleece + waterproof outer layer'] : ['Ankle-support trail shoes or boots', 'Lightweight rain jacket']),
@@ -1435,18 +1468,21 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                         <div className="flex items-start gap-3">
                           <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-sky-500/10 text-sm">WEATHER</span>
                           <div className="flex-1">
-                            <p className="text-sm font-semibold text-white">Weather Conditions</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-semibold text-white">Weather Conditions</p>
+                              {weatherNotes.live && <span className="rounded-full bg-sky-500/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-sky-400">Live</span>}
+                            </div>
                             <div className="mt-2 grid grid-cols-2 gap-2">
                               <div className="rounded-md bg-emerald-500/10 px-3 py-2">
                                 <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Best time</p>
                                 <p className="text-sm font-bold text-emerald-300">{weatherNotes.best}</p>
                               </div>
-                              <div className="rounded-lg bg-red-50 px-3 py-2">
-                                <p className="text-[11px] font-semibold text-red-700 uppercase tracking-wide">Avoid</p>
+                              <div className="rounded-lg bg-red-500/10 px-3 py-2">
+                                <p className="text-[11px] font-semibold text-red-400 uppercase tracking-wide">Avoid</p>
                                 <p className="text-sm font-bold text-red-300">{weatherNotes.avoid}</p>
                               </div>
                             </div>
-                            <p className="mt-2 text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2">
+                            <p className="mt-2 text-xs text-slate-400 bg-slate-800/60 rounded-lg px-3 py-2">
                               RISK: {weatherNotes.risk}
                             </p>
                           </div>
