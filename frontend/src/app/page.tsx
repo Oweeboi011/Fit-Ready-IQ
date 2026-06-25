@@ -238,22 +238,29 @@ export default function Home() {
     }
   };
 
-  // Helper function to generate mock Strava segment data
+  // Deterministic hash from a string — avoids Math.random() in render
+  const hashStr = (s: string): number => {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+    return Math.abs(h);
+  };
+
+  // Helper function to generate Strava segment data derived from route name + metrics
   const generateStravaSegment = (name: string, distance: number, elevation: number) => {
     const avgGrade = ((elevation / (distance * 1000)) * 100);
-    const hasSegment = Math.random() > 0.1; // 90% chance of having Strava data
-    
-    if (!hasSegment) return undefined;
-    
-    // Generate realistic KOM/QOM times
+    const seed = hashStr(name);
+    // ~90% of routes have a Strava segment (seed % 10 !== 0)
+    if (seed % 10 === 0) return undefined;
+
+    // Generate realistic KOM/QOM times deterministically
     const baseSpeed = 3.5; // meters per second
     const gradeAdjustment = 1 - (avgGrade / 100) * 0.5;
     const distanceMeters = distance * 1000;
     const timeSeconds = Math.floor((distanceMeters / baseSpeed) * gradeAdjustment);
-    
-    const komSeconds = timeSeconds + Math.floor(Math.random() * 60);
-    const qomSeconds = Math.floor(komSeconds * 1.15); // QOM typically ~15% slower
-    
+
+    const komSeconds = timeSeconds + (seed % 60);
+    const qomSeconds = Math.floor(komSeconds * 1.15);
+
     const formatTime = (seconds: number) => {
       const hours = Math.floor(seconds / 3600);
       const mins = Math.floor((seconds % 3600) / 60);
@@ -261,15 +268,15 @@ export default function Home() {
       if (hours > 0) return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
       return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
-    
+
     return {
-      id: `seg_${Math.random().toString(36).substr(2, 9)}`,
+      id: `seg_${(seed % 900000 + 100000).toString(16)}`,
       name: `${name} Climb`,
       distance,
       avg_grade: parseFloat(avgGrade.toFixed(1)),
       kom_time: formatTime(komSeconds),
       qom_time: formatTime(qomSeconds),
-      total_efforts: Math.floor(Math.random() * 5000) + 100,
+      total_efforts: (seed % 4900) + 100,
     };
   };
 
