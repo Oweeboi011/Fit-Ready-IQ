@@ -66,18 +66,42 @@ async function checkFirebaseAdmin(): Promise<ServiceStatus> {
 }
 
 async function checkWeather(): Promise<ServiceStatus> {
-  const apiKey =
-    process.env.OPENWEATHER_API_KEY ?? process.env.GOOGLE_WEATHER_API_KEY;
-  if (!apiKey) return { ok: false, message: "OPENWEATHER_API_KEY not configured" };
+  const googleKey = process.env.GOOGLE_WEATHER_API_KEY;
+  const openWeatherKey = process.env.OPENWEATHER_API_KEY;
 
-  const baseUrl =
-    process.env.OPENWEATHER_BASE_URL ??
-    "https://api.openweathermap.org/data/2.5";
-  // Lightweight ping: Manila coordinates
-  const url = `${baseUrl}/weather?lat=14.5995&lon=120.9842&appid=${apiKey}&units=metric`;
+  if (!googleKey && !openWeatherKey) {
+    return { ok: false, message: "No weather API key configured (GOOGLE_WEATHER_API_KEY or OPENWEATHER_API_KEY)" };
+  }
+
+  // Prefer Google Weather API
+  if (googleKey) {
+    const url =
+      `https://weather.googleapis.com/v1/currentConditions:lookup` +
+      `?key=${googleKey}&location.latitude=14.5995&location.longitude=120.9842&languageCode=en`;
+    try {
+      const res = await fetch(url, {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) return { ok: true, message: "Google Weather API reachable" };
+      const body = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+      return {
+        ok: false,
+        message: `Google Weather responded ${res.status}: ${body.error?.message ?? "unknown"}`,
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        message: `Google Weather unreachable: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+  }
+
+  // Fallback: OpenWeather
+  const baseUrl = process.env.OPENWEATHER_BASE_URL ?? "https://api.openweathermap.org/data/2.5";
+  const url = `${baseUrl}/weather?lat=14.5995&lon=120.9842&appid=${openWeatherKey}&units=metric`;
   try {
     const res = await fetch(url, {
-      method: "GET",
       headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(5000),
     });
@@ -100,11 +124,11 @@ async function checkGemini(): Promise<ServiceStatus> {
   if (!apiKey || apiKey.startsWith("YOUR_")) {
     return { ok: false, message: "GEMINI_API_KEY not configured" };
   }
-  // Validate key format — Gemini keys are 39 chars starting with "AIza"
-  if (!apiKey.startsWith("AIza") || apiKey.length < 35) {
-    return { ok: false, message: "GEMINI_API_KEY appears malformed" };
+  // Gemini keys are either AIza... (39 chars) or AQ... format from AI Studio
+  if (apiKey.length < 20) {
+    return { ok: false, message: "GEMINI_API_KEY appears too short" };
   }
-  return { ok: true, message: "API key present and valid format" };
+  return { ok: true, message: "API key present" };
 }
 
 export async function GET() {
