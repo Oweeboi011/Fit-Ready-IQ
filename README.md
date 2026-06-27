@@ -14,7 +14,7 @@ Fit-Ready-IQ addresses a critical gap in outdoor adventure planning: the disconn
 
 - **Route Discovery** -- Find mountains, trails, and campsites near any location with real elevation data from Google Elevation API and place details from Google Places API.
 - **Elevation Intelligence** -- Komoot-style elevation profiles with grade visualization, color-coded difficulty segments, and jumpoff-to-summit analysis.
-- **Live Weather Forecasts** -- Google Weather API integration with persona-specific safety alerts and hourly breakdowns (Phase 1).
+- **Live Weather Forecasts** -- Google Weather API integration with persona-specific safety alerts and hourly breakdowns.
 - **Fitness Data Sync** -- Connect Strava for automatic activity sync, or import GPX files from COROS, Garmin, and Komoot devices.
 - **AI Adventure Assistant** -- Gemini-powered chat that understands routes, weather, gear, and training to provide actionable advice.
 - **Saved Places** -- Bookmark routes, mountains, and campsites to Firestore with a dedicated Saved tab and amber map markers. Requires Google sign-in.
@@ -52,7 +52,10 @@ graph TB
         App["Next.js App Router<br/>(Pages + Components)"]
         ChatRoute["/api/chat"]
         WeatherRoute["/api/weather"]
+        HealthRoute["/api/health"]
+        PlacesCache["/api/places/cache"]
         StravaRoutes["/api/strava/*"]
+        AdminRoutes["/api/admin/*"]
         FirebaseRoute["/api/integrations/firebase"]
     end
 
@@ -73,7 +76,10 @@ graph TB
     ChatRoute --> Firestore
     WeatherRoute --> Weather
     WeatherRoute --> Firestore
+    HealthRoute --> Firestore
+    PlacesCache --> Firestore
     StravaRoutes --> Strava
+    AdminRoutes --> Firestore
     FirebaseRoute --> Firestore
     App --> Auth
     App --> Storage
@@ -124,7 +130,7 @@ sequenceDiagram
 | **Maps** | Google Maps JS API | Interactive map rendering with custom markers |
 | **Places** | Google Places API | Mountain, route, and campsite discovery |
 | **Elevation** | Google Elevation API | Real altitude data for profiles and scoring |
-| **Weather** | Google Weather API (Phase 1) | Live forecasts with persona-specific alerts |
+| **Weather** | Google Weather API | Live forecasts with persona-specific alerts |
 | **AI** | Gemini 1.5 Flash | Conversational adventure planning assistant |
 | **Database** | Firebase Firestore | Document-based data persistence |
 | **Authentication** | Firebase Auth (Phase 3) | Email, Google, and Apple sign-in |
@@ -161,6 +167,8 @@ cd Fit-Ready-IQ/frontend
 npm install
 ```
 
+> `npm install` automatically activates Husky pre-commit hooks via the `prepare` script. No extra steps are needed. Hooks enforce ESLint + Prettier on staged files and validate commit message format on every commit.
+
 ### 2. Configure Environment
 
 Create a `.env.local` file in the `frontend/` directory:
@@ -190,8 +198,9 @@ NEXT_PUBLIC_APP_URL=http://localhost:4790
 STRAVA_CLIENT_ID=your_strava_client_id
 STRAVA_CLIENT_SECRET=your_strava_client_secret
 
-# Phase 1 - Weather (when implemented)
+# Optional - Weather (graceful degradation if missing)
 GOOGLE_WEATHER_API_KEY=your_weather_api_key
+OPENWEATHER_API_KEY=your_openweather_api_key
 ```
 
 ### 3. Run Development Server
@@ -237,12 +246,12 @@ poetry run uvicorn src.main:app --reload --port 8000
 | Route Filtering | `RouteFilter.tsx` | Filter by activity type, difficulty level, distance range, and elevation gain. |
 | Activity History | `ConnectDevicesModal.tsx` | Unified view of synced activities with source badges and polyline overlays. |
 | Photo Galleries | `DetailsModal.tsx` | Google Places photos displayed in route/mountain detail views. |
+| Live Weather | `/api/weather` | Google Weather API (primary) with OpenWeather fallback. Persona-specific safety alerts and hourly breakdowns. |
 
 ### Planned Features (by Phase)
 
 | Phase | Feature | Description |
 | --- | --- | --- |
-| 1 | Live Weather | Google Weather API with persona-specific safety alerts |
 | 2 | Persona Routing | Multi-persona scoring algorithms and UI customization |
 | 3 | User Profiles | Firebase Auth + persistent user data and saved routes |
 | 4 | Readiness Engine | Fitness-vs-route demand comparison with training recommendations |
@@ -258,6 +267,8 @@ graph LR
     subgraph Root["Repository Root"]
         AY["docker-compose.yml"]
         FB["firebase.json"]
+        GH[".github/"]
+        HK[".husky/"]
     end
 
     subgraph FE["frontend/"]
@@ -292,6 +303,8 @@ graph LR
 
 | Path | Purpose |
 | --- | --- |
+| `.github/` | CI/CD workflows, CODEOWNERS, Dependabot config, PR template |
+| `.husky/` | Git hooks (pre-commit: lint-staged, commit-msg: commitlint) |
 | `frontend/src/app/` | Next.js App Router pages and API routes |
 | `frontend/src/app/api/chat/` | Gemini chat server route |
 | `frontend/src/app/api/strava/` | Strava OAuth exchange and activity routes |
@@ -315,7 +328,7 @@ cd frontend
 npm run test:unit
 ```
 
-Current test coverage: `activityTypes.ts`, `decodePolyline.ts`, `gpxParser.ts` (7 tests passing).
+Covers `activityTypes.ts`, `gpxParser.ts`, and `polylineDecoder.ts`. Coverage thresholds: 85% statements, 85% functions, 85% lines, 50% branches.
 
 ### End-to-End Tests (Playwright)
 
@@ -324,7 +337,16 @@ cd frontend
 npm run test:e2e
 ```
 
-Tests the full user journey including map rendering and component interactions.
+Tests the full user journey including map rendering and component interactions. Runs on Chromium with 30 s timeout and 2 retries in CI.
+
+### Mutation Tests (Stryker)
+
+```bash
+cd frontend
+npm run test:mutation
+```
+
+Validates test quality by introducing faults in `gpxParser.ts`, `polylineDecoder.ts`, and `activityTypes.ts` and checking that tests catch them. Thresholds: break 50%, low 60%, high 80%. Triggered in CI on PRs to `main` when `src/lib/` files change.
 
 ### Load Tests (Autocannon)
 
@@ -337,18 +359,49 @@ Validates response times under concurrent request load.
 
 ---
 
-## Deployment
+## CI/CD Pipeline
 
-Production deployment runs on **Vercel** with automatic deployments triggered by pushes to the `main` branch.
+The project uses a `feature/* -> develop -> main` branch flow with automated gates at each step.
+
+### Branch Flow
 
 ```mermaid
 flowchart LR
-    A[Developer pushes to main] --> B[Vercel detects change]
-    B --> C[npm install + npm run build]
-    C --> D{Build passes?}
-    D -->|Yes| E[Deploy to production edge]
-    D -->|No| F[Build fails - notify developer]
-    E --> G[Live at production URL]
+    A["feature/* branch"] -->|PR to develop| B["develop branch"]
+    B -->|CI passes| C["Auto-PR to main"]
+    C -->|E2E + mutation + security pass| D["main branch"]
+    D -->|Auto-deploy| E["Vercel Production"]
+```
+
+### Workflows
+
+| Workflow | Trigger | What It Does |
+| --- | --- | --- |
+| `ci.yml` | PR to `develop`/`main`, push to `develop` | Lint + type-check + unit tests + build (frontend); ruff + mypy + pytest (backend) |
+| `e2e.yml` | PR to `main` | Playwright E2E tests on Chromium |
+| `mutation.yml` | PR to `main` when `src/lib/` changed | Stryker mutation tests |
+| `security.yml` | PRs, push to `main`, weekly Monday | npm audit + gitleaks secret scan + CodeQL |
+| `agent-review.yml` | PR open/synchronize | AI code review comment via Claude Haiku |
+| `auto-pr.yml` | CI passes on `develop` | Auto-creates PR from `develop` to `main` |
+
+See [DEPLOYMENT.md](docs/wiki/DEPLOYMENT.md) for branch protection setup and required GitHub Secrets.
+
+---
+
+## Deployment
+
+Production deployment runs on **Vercel**. Changes reach production only after passing CI on `develop`, an auto-PR to `main`, and E2E + security gates on `main`.
+
+```mermaid
+flowchart TD
+    A[Developer pushes feature branch] --> B[PR to develop]
+    B --> C{CI passes?}
+    C -->|No| D[Fix and re-push]
+    C -->|Yes| E[Auto-PR created: develop to main]
+    E --> F{E2E + Security + Mutation pass?}
+    F -->|No| G[Fix on develop]
+    F -->|Yes| H[Merge to main]
+    H --> I[Vercel auto-deploy to production]
 ```
 
 ### Deploy Manually
@@ -371,11 +424,11 @@ All environment variables must be set in **Vercel Project Settings > Environment
 | **[SOLUTION-PLAN.md](docs/solution-plan/SOLUTION-PLAN.md)** | Master plan -- product vision, roadmap, architecture evolution, data models, quality gates. Source of truth for all decisions. |
 | **[ARCHITECTURE.md](docs/wiki/ARCHITECTURE.md)** | System design, module boundaries, server route patterns, data architecture, configuration strategy. |
 | **[API.md](docs/wiki/API.md)** | Complete API reference for all server routes with request/response schemas and flow diagrams. |
-| **[DEPLOYMENT.md](docs/wiki/DEPLOYMENT.md)** | Vercel deployment setup, environment configuration, validation checklist, rollback strategy. |
-| **[TESTING.md](docs/wiki/TESTING.md)** | Testing strategy, test commands, coverage targets, performance baselines, and post-deploy validation. |
-| **[SECURITY.md](docs/wiki/SECURITY.md)** | Trust boundaries, secret management, integration hardening, incident response procedures. |
+| **[DEPLOYMENT.md](docs/wiki/DEPLOYMENT.md)** | Vercel deployment setup, CI/CD pipeline, environment configuration, validation checklist, rollback strategy. |
+| **[TESTING.md](docs/wiki/TESTING.md)** | Testing strategy, test commands, coverage targets, mutation tests, performance baselines, and post-deploy validation. |
+| **[SECURITY.md](docs/wiki/SECURITY.md)** | Trust boundaries, secret management, automated security scanning, integration hardening, incident response procedures. |
 | **[TROUBLESHOOTING.md](docs/wiki/TROUBLESHOOTING.md)** | Diagnostic flows for common issues across all integrations and deployment targets. |
-| **[CONTRIBUTING.md](docs/wiki/CONTRIBUTING.md)** | Contribution workflow, branch naming, validation commands, review checklist. |
+| **[CONTRIBUTING.md](docs/wiki/CONTRIBUTING.md)** | Contribution workflow, branch naming, pre-commit hooks, validation commands, review checklist. |
 
 ---
 

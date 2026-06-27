@@ -117,22 +117,21 @@ Decoded polylines are stored as `[lng, lat]` pairs (GeoJSON order), not `[lat, l
 ### Branch flow
 
 ```
-feature/* → develop → main
+feature/* → main
 ```
 
-- Direct pushes to `develop` and `main` are blocked (set in GitHub branch protection).
-- `develop` gets an **auto-PR to `main`** created by `auto-pr.yml` whenever CI passes.
+- Direct pushes to `main` are blocked (set in GitHub branch protection).
+- All feature branches open a PR directly to `main`.
 
 ### Workflows
 
 | File | Triggers | What it does |
 |---|---|---|
-| `ci.yml` | PR to `develop`/`main`, push to `develop` | Lint + type-check + unit tests + build (frontend); ruff + mypy + pytest (backend) |
+| `ci.yml` | PR to `main`, push to `main` | Lint + type-check + unit tests + build (frontend); ruff + mypy + pytest (backend) |
 | `e2e.yml` | PR to `main` | Playwright E2E (uses real secrets from GitHub Secrets) |
 | `mutation.yml` | PR to `main` when `src/lib/` changed | Stryker mutation tests |
 | `security.yml` | PRs + push to `main` + weekly Monday | npm audit + gitleaks secret scan + CodeQL |
-| `agent-review.yml` | PR open/synchronize | Posts AI review comment via Claude Haiku. Needs `ANTHROPIC_API_KEY` secret. |
-| `auto-pr.yml` | After CI passes on `develop` | Auto-creates PR from `develop` → `main` |
+| `agent-review.yml` | PR open/synchronize | Posts AI review comment via Claude Haiku. Needs `ANTHROPIC_API_KEY` secret. Add `[skip review]` to PR title to suppress. |
 
 ### Required GitHub Secrets
 
@@ -149,16 +148,12 @@ Add these in **Settings → Secrets and variables → Actions**:
 
 ### Branch protection setup (one-time, GitHub UI)
 
-**`develop` branch:**
-- Require status checks: `Frontend Quality`, `Backend Quality`
-- Require branches to be up to date before merging
-- Restrict direct pushes
-
 **`main` branch:**
 - Require status checks: `Frontend Quality`, `Backend Quality`, `Playwright E2E`, `Secret Scan`
 - Enable merge queue (Settings → Branches → Edit → Merge queue)
 - Require 1 approving review
 - Dismiss stale reviews on new commits
+- Restrict direct pushes
 
 ### Pre-commit hooks (Husky)
 
