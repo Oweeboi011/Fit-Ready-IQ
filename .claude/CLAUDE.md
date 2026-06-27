@@ -109,7 +109,70 @@ Decoded polylines are stored as `[lng, lat]` pairs (GeoJSON order), not `[lat, l
 
 - **Unit tests:** Vitest with jsdom, 85% coverage threshold on statements/functions/lines. Reports in `coverage/`.
 - **E2E tests:** Playwright (Chromium), 30 s timeout, 2 retries in CI, auto-starts dev server on port 4790.
+- **Mutation tests:** Stryker (`npm run test:mutation`), targets `src/lib/gpxParser.ts`, `polylineDecoder.ts`, `activityTypes.ts`. Break threshold 50%, low 60%.
 - **Load tests:** `npm run test:load` (Autocannon).
+
+## CI/CD Pipeline
+
+### Branch flow
+
+```
+feature/* → develop → main
+```
+
+- Direct pushes to `develop` and `main` are blocked (set in GitHub branch protection).
+- `develop` gets an **auto-PR to `main`** created by `auto-pr.yml` whenever CI passes.
+
+### Workflows
+
+| File | Triggers | What it does |
+|---|---|---|
+| `ci.yml` | PR to `develop`/`main`, push to `develop` | Lint + type-check + unit tests + build (frontend); ruff + mypy + pytest (backend) |
+| `e2e.yml` | PR to `main` | Playwright E2E (uses real secrets from GitHub Secrets) |
+| `mutation.yml` | PR to `main` when `src/lib/` changed | Stryker mutation tests |
+| `security.yml` | PRs + push to `main` + weekly Monday | npm audit + gitleaks secret scan + CodeQL |
+| `agent-review.yml` | PR open/synchronize | Posts AI review comment via Claude Haiku. Needs `ANTHROPIC_API_KEY` secret. |
+| `auto-pr.yml` | After CI passes on `develop` | Auto-creates PR from `develop` → `main` |
+
+### Required GitHub Secrets
+
+Add these in **Settings → Secrets and variables → Actions**:
+
+| Secret | Used by |
+|---|---|
+| `ANTHROPIC_API_KEY` | `agent-review.yml` |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | `e2e.yml` |
+| `NEXT_PUBLIC_FIREBASE_*` (all 6) | `e2e.yml` |
+| `GEMINI_API_KEY` | `e2e.yml` |
+| `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | `e2e.yml` |
+| `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` | `e2e.yml` |
+
+### Branch protection setup (one-time, GitHub UI)
+
+**`develop` branch:**
+- Require status checks: `Frontend Quality`, `Backend Quality`
+- Require branches to be up to date before merging
+- Restrict direct pushes
+
+**`main` branch:**
+- Require status checks: `Frontend Quality`, `Backend Quality`, `Playwright E2E`, `Secret Scan`
+- Enable merge queue (Settings → Branches → Edit → Merge queue)
+- Require 1 approving review
+- Dismiss stale reviews on new commits
+
+### Pre-commit hooks (Husky)
+
+After cloning, run once from `frontend/`:
+```bash
+npm install   # installs husky, lint-staged, commitlint
+```
+
+Husky runs automatically after `npm install` via the `prepare` script.
+
+- **pre-commit:** runs `lint-staged` (ESLint --fix + Prettier on staged `*.ts(x)` files)
+- **commit-msg:** enforces Conventional Commits via `commitlint`
+
+Commit format: `type(scope): subject` — types: `feat fix docs style refactor perf test chore revert ci build`
 
 ## Environment variables
 
