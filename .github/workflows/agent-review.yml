@@ -11,7 +11,9 @@ permissions:
 jobs:
   review:
     name: Claude Review
-    if: github.event.pull_request.draft == false
+    if: |
+      github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.title, '[skip review]')
     runs-on: ubuntu-latest
 
     steps:
@@ -21,8 +23,10 @@ jobs:
 
       - name: Extract diff
         id: diff
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          git diff "origin/${{ github.base_ref }}...HEAD" \
+          git diff "origin/${BASE_REF}...HEAD" \
             -- '*.ts' '*.tsx' '*.py' '*.js' \
             ':!*.test.*' ':!*.spec.*' ':!**/coverage/**' \
             ':!**/node_modules/**' \
@@ -31,7 +35,6 @@ jobs:
           BYTES=$(wc -c < /tmp/pr.diff)
           echo "bytes=$BYTES" >> "$GITHUB_OUTPUT"
 
-          # Keep within ~10k chars for haiku token budget
           head -c 10000 /tmp/pr.diff > /tmp/pr_trimmed.diff
 
       - name: Post AI review
@@ -42,9 +45,8 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           BASE_REF: ${{ github.base_ref }}
         run: |
-          # Build and send the request entirely in Python to avoid shell JSON-escaping issues
           TEXT=$(python3 - <<'PYEOF'
-          import json, urllib.request, os, sys
+          import json, urllib.request, os
 
           diff = open('/tmp/pr_trimmed.diff').read()
           base_ref = os.environ.get('BASE_REF', 'main')
@@ -78,7 +80,7 @@ jobs:
             }
           )
           try:
-            with urllib.request.urlopen(req) as resp:
+            with urllib.request.urlopen(req, timeout=30) as resp:
               data = json.loads(resp.read())
               print(data['content'][0]['text'])
           except Exception as e:

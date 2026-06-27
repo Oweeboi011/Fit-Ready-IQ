@@ -253,7 +253,7 @@ service cloud.firestore {
 
 ### 8.1 Current Status
 
-The dependency graph has known vulnerabilities that are tracked as Phase 0 tasks:
+The dependency graph had known vulnerabilities tracked as Phase 0 tasks. The `npm audit --audit-level=high` check in `security.yml` now blocks all PRs and pushes to `main` with high or critical findings, making dependency hygiene a hard CI gate rather than a manual task.
 
 | Package | Severity | Issue | Fix |
 | --- | --- | --- | --- |
@@ -266,26 +266,69 @@ The dependency graph has known vulnerabilities that are tracked as Phase 0 tasks
 
 ```mermaid
 flowchart TD
-    A[Developer installs package] --> B[npm audit runs]
+    A[Developer installs package] --> B[npm audit runs locally]
     B --> C{High/Critical vulns?}
-    C -->|Yes| D[Block: fix before merge]
-    C -->|No| E[Commit package-lock.json]
-    E --> F[Vercel builds with exact versions]
+    C -->|Yes| D[Fix before committing]
+    C -->|No| E[Open PR]
+    E --> F[security.yml runs npm audit in CI]
+    F --> G{High/Critical vulns?}
+    G -->|Yes| H[PR blocked - must fix]
+    G -->|No| I[Commit package-lock.json + merge]
+    I --> J[Vercel builds with exact versions]
 ```
 
 | Practice | Description |
 | --- | --- |
 | Lock file committed | `package-lock.json` ensures reproducible builds |
-| `npm audit` in CI | Block merges with high/critical vulnerabilities |
+| `npm audit` in CI | `security.yml` blocks merges with high/critical vulnerabilities |
+| Dependabot | `.github/dependabot.yml` opens weekly PRs for npm, pip, and GitHub Actions updates targeting `develop` |
 | No `*` or `latest` versions | All deps pinned to specific semver ranges |
 | Quarterly review | Check `npm outdated` and upgrade dependencies |
 | Minimal dependencies | Prefer built-in Node.js APIs over third-party packages |
 
 ---
 
-## 9. Incident Response
+## 9. Automated Security Scanning (CI)
 
-### 9.1 Secret Leakage Response
+The `security.yml` workflow runs automated security checks on every PR, on every push to `main`, and on a weekly Monday schedule. This provides continuous coverage without relying on manual checks.
+
+### 9.1 Scanning Pipeline
+
+```mermaid
+flowchart TD
+    A[PR opened or push to main] --> B[security.yml triggered]
+    B --> C[npm audit --audit-level=high]
+    C -->|High/Critical found| D[Job fails - PR blocked]
+    C -->|Clean| E[gitleaks secret scan]
+    E -->|Secret found in git history| F[Job fails - PR blocked]
+    E -->|Clean| G[CodeQL analysis]
+    G -->|Security issue found| H[Alert posted to Security tab]
+    G -->|Clean| I[All checks pass]
+```
+
+### 9.2 Tools and Coverage
+
+| Tool | What It Checks | Failure Action |
+| --- | --- | --- |
+| `npm audit --audit-level=high` | Frontend npm dependencies for high and critical CVEs | Blocks the PR / push |
+| `gitleaks` | Full git history for leaked credentials, API keys, tokens | Blocks the PR / push |
+| CodeQL | JavaScript/TypeScript source code for security issues (query suite: `security-extended`) | Posts to GitHub Security tab |
+
+**npm audit** catches vulnerabilities in direct and transitive dependencies. Any high or critical finding fails the job and prevents the PR from merging.
+
+**gitleaks** scans the entire commit history, not just the diff. This catches secrets that were committed in the past even if they were later removed from the latest commit. It uses the default gitleaks ruleset plus any custom rules in `.gitleaks.toml` if present.
+
+**CodeQL** provides static application security testing (SAST) using the `security-extended` query set, which covers injection flaws, prototype pollution, path traversal, and other OWASP Top 10 categories relevant to JavaScript/TypeScript applications.
+
+### 9.3 Weekly Schedule
+
+`security.yml` also runs on a `cron: '0 9 * * 1'` schedule (every Monday at 09:00 UTC). This ensures that new vulnerability disclosures against existing dependencies are caught even without code changes triggering a PR.
+
+---
+
+## 10. Incident Response
+
+### 10.1 Secret Leakage Response
 
 ```mermaid
 flowchart TD
@@ -300,7 +343,7 @@ flowchart TD
     H --> I
 ```
 
-### 9.2 Step-by-Step Response
+### 10.2 Step-by-Step Response
 
 1. **Identify** -- Determine which secret was exposed and where (commit history, logs, error messages).
 2. **Rotate** -- Generate a new key/credential in the respective provider console (Google Cloud, Strava, Firebase).
@@ -309,20 +352,20 @@ flowchart TD
 5. **Audit** -- Review provider usage logs for the exposure window. Check for unauthorized API calls.
 6. **Document** -- Record the incident, root cause, and preventive measures taken.
 
-### 9.3 Prevention Measures
+### 10.3 Prevention Measures
 
 | Measure | Implementation |
 | --- | --- |
 | `.gitignore` coverage | `.env.local`, `*.json` (service accounts), `.env` |
-| Pre-commit hooks | (Recommended) Use `detect-secrets` or similar tool |
-| GitHub secret scanning | Enable GitHub's built-in secret scanning alerts |
-| Code review | All PRs reviewed for accidental secret inclusion |
+| gitleaks in CI | `security.yml` scans full git history for leaked credentials on every PR |
+| GitHub secret scanning | GitHub's built-in secret scanning alerts enabled on the repository |
+| Code review | All PRs reviewed for accidental secret inclusion; `agent-review.yml` posts automated review comments |
 
 ---
 
-## 10. Security Checklist
+## 11. Security Checklist
 
-### 10.1 Pre-Deployment Checklist
+### 11.1 Pre-Deployment Checklist
 
 - [ ] All required secrets are configured in Vercel environment variables
 - [ ] No secrets committed to repository (check git history)
@@ -334,7 +377,7 @@ flowchart TD
 - [ ] `.env.local` is in `.gitignore`
 - [ ] HTTPS enforced for all external API calls
 
-### 10.2 Periodic Review Checklist (Quarterly)
+### 11.2 Periodic Review Checklist (Quarterly)
 
 - [ ] Rotate all API keys and credentials
 - [ ] Review and update dependency versions
@@ -346,14 +389,14 @@ flowchart TD
 
 ---
 
-## 11. Known Gaps and Remediation Plan
+## 12. Known Gaps and Remediation Plan
 
 | Gap | Risk Level | Current Status | Remediation Phase |
 | --- | --- | --- | --- |
 | Strava token in localStorage | Medium | Active | Phase 3 (server-managed tokens) |
-| npm high/critical vulnerabilities | High | Tracked | Phase 0 (dependency upgrade sprint) |
+| npm high/critical vulnerabilities | High | CI-blocked (npm audit in security.yml) | Phase 0 (dependency upgrade sprint) |
 | No rate limiting on server routes | Medium | Planned | Phase 1 (rate limiter middleware) |
 | No user authentication | Low (no user data yet) | Planned | Phase 3 (Firebase Auth) |
 | No Firestore security rules | Low (server-only writes) | Planned | Phase 3 (per-user isolation) |
-| Weather API key server-only access | Low | Planned | Phase 1 (route-only access) |
+| Weather API key server-only access | Low | Implemented (route-only) | Done |
 | No request logging/audit trail | Low | Planned | Phase 4 (structured logging) |

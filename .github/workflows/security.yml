@@ -2,7 +2,7 @@ name: Security
 
 on:
   pull_request:
-    branches: [develop, main]
+    branches: [main]
   push:
     branches: [main]
   schedule:
@@ -36,7 +36,6 @@ jobs:
       - name: Backend pip audit
         run: poetry run pip-audit --vulnerability-service osv -l
         working-directory: backend
-        continue-on-error: true
 
   secret-scan:
     name: Secret Scan
