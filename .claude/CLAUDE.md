@@ -88,13 +88,14 @@ Firebase Admin SDK tries credentials in this order: `FIREBASE_SERVICE_ACCOUNT_KE
 - `src/app/page.tsx` — entire map UI, state management, filter logic, Strava/GPX integration (~79 KB)
 - `src/components/MapView.tsx` — Google Maps with custom markers, polylines, OverlayView popups
 - `src/components/ChatBot.tsx` — floating chat widget with Firestore session persistence
-- `src/components/ConnectDevicesModal.tsx` — Strava OAuth + GPX drag-and-drop import
-- `src/components/DetailsModal.tsx` — route/mountain details, elevation profiles, weather
+- `src/components/ConnectDevicesModal.tsx` — Strava OAuth + GPX/Apple Health file import
+- `src/components/DetailsModal.tsx` — route/mountain/campsite/activity details, elevation profiles, weather
 - `src/lib/firebaseAdmin.ts` — Admin SDK init (server-side only)
-- `src/lib/firebaseClient.ts` — client SDK init + Google auth
+- `src/lib/firebaseClient.ts` — client SDK init + Google/Apple auth (`signInWithGoogle`, `signInWithApple`)
 - `src/lib/gpxParser.ts` — GPX/TCX → activity objects (haversine, elevation gain, sport inference)
+- `src/lib/appleHealthParser.ts` — Apple Health export.xml → activity objects (Workout elements)
 - `src/lib/polylineDecoder.ts` — precision-5 polyline decode → `[lng, lat]` pairs
-- `src/lib/activityTypes.ts` — activity interfaces, localStorage persistence (`fri_activities` key), dedup
+- `src/lib/activityTypes.ts` — activity interfaces, localStorage persistence (`fri_activities` key), dedup. Sources: `strava | coros | garmin | komoot | apple_health`
 - `src/lib/useSavedPlaces.ts` — real-time Firestore listener hook for saved places
 
 ### Path aliases (`tsconfig.json`)
@@ -109,8 +110,18 @@ Decoded polylines are stored as `[lng, lat]` pairs (GeoJSON order), not `[lat, l
 
 - **Unit tests:** Vitest with jsdom, 85% coverage threshold on statements/functions/lines. Reports in `coverage/`.
 - **E2E tests:** Playwright (Chromium), 30 s timeout, 2 retries in CI, auto-starts dev server on port 4790.
-- **Mutation tests:** Stryker (`npm run test:mutation`), targets `src/lib/gpxParser.ts`, `polylineDecoder.ts`, `activityTypes.ts`. Break/low threshold 70%, high 80%.
+- **Mutation tests:** Stryker (`npm run test:mutation`), targets `src/lib/gpxParser.ts`, `polylineDecoder.ts`, `activityTypes.ts`. Break/low threshold 70%, high 80%. Note: `stryker.config.ts` has a pre-existing `Config` import error (upstream type issue) — safe to ignore.
 - **Load tests:** `npm run test:load` (Autocannon).
+
+### Cost / performance harnesses added (feature/solution-harnessing)
+
+| Area | What changed |
+|---|---|
+| `/api/health` | Converted to credential-presence checks only (no live Firestore writes or Weather API calls). Cache header: `s-maxage=30, stale-while-revalidate=10`. |
+| `/api/chat` | History capped at 20 messages (anchors first message) to bound Gemini token cost per call. |
+| `DetailsModal.tsx` | Module-level `weatherCache` (30 min TTL) and `photosCache` (session lifetime) prevent redundant paid API calls when re-opening the same modal. |
+| `page.tsx` | Reverse geocode cached in `sessionStorage` with 24 h TTL and 0.1° coordinate grid (`fri_geocode_*` key). Last known user location persisted to `localStorage` (`fri_last_location`) and restored on every page load so the map focuses instantly. |
+| `agent-review.yml` | Uses Claude Haiku (`claude-haiku-4-5-20251001`), diff trimmed to 10 KB, max 1 024 output tokens (~$0.004/PR). |
 
 ## CI/CD Pipeline
 
@@ -180,3 +191,26 @@ Copy `frontend/.env.example` to `frontend/.env.local`. Required keys that will b
 - `STRAVA_CLIENT_ID` + `STRAVA_CLIENT_SECRET`
 
 Optional (graceful degradation): `GOOGLE_WEATHER_API_KEY`, `OPENWEATHER_API_KEY`.
+
+## Auth providers
+
+Firebase Auth supports two sign-in methods. Both require the provider to be enabled in Firebase Console → Authentication → Sign-in method.
+
+| Provider | Firebase | Setup note |
+|---|---|---|
+| Google | `GoogleAuthProvider` | Works on any domain in Firebase authorised-domain list |
+| Apple | `OAuthProvider("apple.com")` | Also requires Apple Developer account with Sign in with Apple entitlement; add Firebase callback URL to Apple service ID |
+
+## Activity sources
+
+All sources are typed in `src/lib/activityTypes.ts`:
+
+| Source key | Origin | Parser |
+|---|---|---|
+| `strava` | Strava OAuth sync | `/api/strava/activities` |
+| `coros` | GPX/TCX file upload | `gpxParser.ts` |
+| `garmin` | GPX/TCX file upload | `gpxParser.ts` |
+| `komoot` | GPX/TCX file upload | `gpxParser.ts` |
+| `apple_health` | Apple Health `export.xml` | `appleHealthParser.ts` |
+
+Apple Health export: iPhone → Health → profile photo → Export All Health Data → extract zip → upload `export.xml` in the Connect Devices modal.
