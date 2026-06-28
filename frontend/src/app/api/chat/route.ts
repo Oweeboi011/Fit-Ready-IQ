@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
 
-import { getFirestoreAdmin } from "@/lib/firebaseAdmin";
+import { getFirestoreAdmin } from '@/lib/firebaseAdmin';
 
-export const runtime = "nodejs";
+export const runtime = 'nodejs';
 
 interface ChatMessage {
-  role: "user" | "assistant";
+  role: 'user' | 'assistant';
   content: string;
 }
 
@@ -34,25 +34,21 @@ async function persistConversation(
     const db = getFirestoreAdmin();
     const now = new Date().toISOString();
 
-    await db.collection("chat_sessions").doc(sessionId).set(
+    await db.collection('chat_sessions').doc(sessionId).set(
       {
         updatedAt: now,
-        source: "fit-ready-iq",
+        source: 'fit-ready-iq',
       },
       { merge: true }
     );
 
-    await db
-      .collection("chat_sessions")
-      .doc(sessionId)
-      .collection("messages")
-      .add({
-        messages,
-        assistantReply,
-        createdAt: now,
-      });
+    await db.collection('chat_sessions').doc(sessionId).collection('messages').add({
+      messages,
+      assistantReply,
+      createdAt: now,
+    });
   } catch (error) {
-    console.error("Firestore persistence skipped:", error);
+    console.error('Firestore persistence skipped:', error);
   }
 }
 
@@ -61,7 +57,7 @@ export async function POST(request: NextRequest) {
 
   if (!apiKey) {
     return NextResponse.json(
-      { error: "AI assistant is not configured. Add GEMINI_API_KEY to your environment." },
+      { error: 'AI assistant is not configured. Add GEMINI_API_KEY to your environment.' },
       { status: 503 }
     );
   }
@@ -70,29 +66,35 @@ export async function POST(request: NextRequest) {
   try {
     requestBody = (await request.json()) as ChatRequestBody;
   } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
   const messages = requestBody.messages;
   const sessionId = requestBody.sessionId ?? crypto.randomUUID();
 
   if (!Array.isArray(messages) || messages.length === 0) {
-    return NextResponse.json({ error: "Messages array required" }, { status: 400 });
+    return NextResponse.json({ error: 'Messages array required' }, { status: 400 });
   }
 
   const hasInvalidMessage = messages.some(
     (m) =>
-      (m.role !== "assistant" && m.role !== "user") ||
-      typeof m.content !== "string" ||
+      (m.role !== 'assistant' && m.role !== 'user') ||
+      typeof m.content !== 'string' ||
       m.content.trim().length === 0
   );
 
   if (hasInvalidMessage) {
-    return NextResponse.json({ error: "Invalid message format" }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid message format' }, { status: 400 });
   }
 
-  const contents = messages.map((msg) => ({
-    role: msg.role === "assistant" ? "model" : "user",
+  // Cap context to last 10 turns (20 messages) to bound per-request token cost.
+  // Keep the first user message so the model retains original intent.
+  const MAX_HISTORY = 20;
+  const trimmed =
+    messages.length > MAX_HISTORY ? [messages[0], ...messages.slice(-(MAX_HISTORY - 1))] : messages;
+
+  const contents = trimmed.map((msg) => ({
+    role: msg.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: msg.content }],
   }));
 
@@ -100,8 +102,8 @@ export async function POST(request: NextRequest) {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
           contents,
@@ -114,8 +116,8 @@ export async function POST(request: NextRequest) {
     );
 
     if (!response.ok) {
-      console.error("Gemini API error:", await response.text());
-      return NextResponse.json({ error: "AI service unavailable" }, { status: 502 });
+      console.error('Gemini API error:', await response.text());
+      return NextResponse.json({ error: 'AI service unavailable' }, { status: 502 });
     }
 
     const data = await response.json();
@@ -127,7 +129,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ message: text, sessionId });
   } catch (error) {
-    console.error("Chat API error:", error);
-    return NextResponse.json({ error: "Failed to reach AI service" }, { status: 500 });
+    console.error('Chat API error:', error);
+    return NextResponse.json({ error: 'Failed to reach AI service' }, { status: 500 });
   }
 }
