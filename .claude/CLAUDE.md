@@ -22,7 +22,7 @@ npm run test:e2e     # Playwright (E2E tests)
 
 Run a single Vitest test file:
 ```bash
-npx vitest run src/lib/__tests__/gpxParser.test.ts
+npx vitest run src/lib/gpxParser.test.ts
 ```
 
 ### Backend (run from `backend/`)
@@ -109,7 +109,7 @@ Decoded polylines are stored as `[lng, lat]` pairs (GeoJSON order), not `[lat, l
 
 - **Unit tests:** Vitest with jsdom, 85% coverage threshold on statements/functions/lines. Reports in `coverage/`.
 - **E2E tests:** Playwright (Chromium), 30 s timeout, 2 retries in CI, auto-starts dev server on port 4790.
-- **Mutation tests:** Stryker (`npm run test:mutation`), targets `src/lib/gpxParser.ts`, `polylineDecoder.ts`, `activityTypes.ts`. Break threshold 50%, low 60%.
+- **Mutation tests:** Stryker (`npm run test:mutation`), targets `src/lib/gpxParser.ts`, `polylineDecoder.ts`, `activityTypes.ts`. Break/low threshold 70%, high 80%.
 - **Load tests:** `npm run test:load` (Autocannon).
 
 ## CI/CD Pipeline

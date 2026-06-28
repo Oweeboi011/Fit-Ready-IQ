@@ -30,7 +30,7 @@ Contributions should improve one or more of:
 
 ```mermaid
 flowchart TD
-    A[Identify task or issue] --> B[Create feature/* branch from develop]
+    A[Identify task or issue] --> B[Create feature/* branch from main]
     B --> C[Implement changes]
     C --> D[Run validation commands]
     D --> E{All checks pass?}
@@ -38,26 +38,25 @@ flowchart TD
     F --> D
     E -->|Yes| G[Update documentation]
     G --> H[Commit with conventional message]
-    H --> I[Push and open PR to develop]
-    I --> J[CI gate passes]
-    J --> K[Auto-PR opened to main]
-    K --> L[E2E + mutation + security pass]
+    H --> I[Push and open PR to main]
+    I --> J[CI + E2E + security + mutation gates]
+    J --> K[AI review comment posted automatically]
+    K --> L[Address feedback + all gates pass]
     L --> M[Merge to main]
     M --> N[Auto-deploy to Vercel]
 ```
 
 ### 3.2 Detailed Steps
 
-1. **Branch** -- Create a `feature/*` branch from `develop` (not from `main`).
+1. **Branch** -- Create a `feature/*` branch from `main`.
 2. **Implement** -- Make changes following code standards (Section 5).
 3. **Validate** -- Run all validation commands (Section 6) and ensure zero errors.
 4. **Document** -- Update relevant docs if behavior changed (Section 7).
 5. **Commit** -- Use conventional commit messages (Section 4). The `commit-msg` hook enforces format automatically.
-6. **PR** -- Open a pull request to `develop`. A PR template is pre-filled on GitHub -- complete all sections.
-7. **CI gate** -- `ci.yml` runs lint, type-check, unit tests, and build. All must pass before merge.
-8. **Auto-PR** -- Once CI passes on `develop`, `auto-pr.yml` automatically opens a PR from `develop` to `main`.
-9. **Review** -- Address reviewer feedback. The `agent-review.yml` workflow posts an AI review comment automatically.
-10. **Merge** -- After E2E, mutation, and security checks pass on the `develop`-to-`main` PR, merge to `main`. Vercel deploys automatically.
+6. **PR** -- Open a pull request directly to `main`. A PR template is pre-filled on GitHub -- complete all sections.
+7. **CI gates** -- `ci.yml` runs lint, type-check, unit tests, and build. `e2e.yml` runs Playwright. `security.yml` runs npm audit, pip-audit, gitleaks, and CodeQL. `mutation.yml` runs if `frontend/src/lib/**` changed. All must pass before merge.
+8. **AI review** -- `agent-review.yml` posts an automated Claude Haiku review comment on every non-draft PR. Address any flagged issues.
+9. **Merge** -- After all gates pass and a reviewer approves, merge to `main`. Vercel deploys automatically.
 
 ---
 
@@ -84,7 +83,7 @@ flowchart LR
 | Testing | `test/<description>` | `test/weather-route-unit-tests` |
 | Maintenance | `chore/<description>` | `chore/upgrade-next-14.2` |
 
-All branches should be created from `develop`, not `main`.
+All branches should be created from `main`.
 
 ### 4.2 Commit Message Format
 

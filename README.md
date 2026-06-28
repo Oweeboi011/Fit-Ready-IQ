@@ -361,28 +361,26 @@ Validates response times under concurrent request load.
 
 ## CI/CD Pipeline
 
-The project uses a `feature/* -> develop -> main` branch flow with automated gates at each step.
+The project uses a **trunk-based** `feature/* → main` branch flow with automated gates on every PR.
 
 ### Branch Flow
 
 ```mermaid
 flowchart LR
-    A["feature/* branch"] -->|PR to develop| B["develop branch"]
-    B -->|CI passes| C["Auto-PR to main"]
-    C -->|E2E + mutation + security pass| D["main branch"]
-    D -->|Auto-deploy| E["Vercel Production"]
+    A["feature/* branch"] -->|PR to main| B["CI + E2E + Security gates"]
+    B -->|All pass + review| C["main branch"]
+    C -->|Auto-deploy| D["Vercel Production"]
 ```
 
 ### Workflows
 
 | Workflow | Trigger | What It Does |
 | --- | --- | --- |
-| `ci.yml` | PR to `develop`/`main`, push to `develop` | Lint + type-check + unit tests + build (frontend); ruff + mypy + pytest (backend) |
+| `ci.yml` | PR to `main`, push to `main` | Lint + type-check + unit tests + build (frontend); ruff + mypy + pytest (backend) |
 | `e2e.yml` | PR to `main` | Playwright E2E tests on Chromium |
-| `mutation.yml` | PR to `main` when `src/lib/` changed | Stryker mutation tests |
-| `security.yml` | PRs, push to `main`, weekly Monday | npm audit + gitleaks secret scan + CodeQL |
-| `agent-review.yml` | PR open/synchronize | AI code review comment via Claude Haiku |
-| `auto-pr.yml` | CI passes on `develop` | Auto-creates PR from `develop` to `main` |
+| `mutation.yml` | PR to `main` when `frontend/src/lib/**` changed | Stryker mutation tests |
+| `security.yml` | PR to `main`, push to `main`, weekly Monday | npm audit + pip-audit + gitleaks secret scan + CodeQL |
+| `agent-review.yml` | Any PR opened/synchronize/ready | AI code review comment via Claude Haiku |
 
 See [DEPLOYMENT.md](docs/wiki/DEPLOYMENT.md) for branch protection setup and required GitHub Secrets.
 
@@ -390,18 +388,16 @@ See [DEPLOYMENT.md](docs/wiki/DEPLOYMENT.md) for branch protection setup and req
 
 ## Deployment
 
-Production deployment runs on **Vercel**. Changes reach production only after passing CI on `develop`, an auto-PR to `main`, and E2E + security gates on `main`.
+Production deployment runs on **Vercel**. Changes reach production only after all CI, E2E, security, and mutation gates pass on the PR to `main`.
 
 ```mermaid
 flowchart TD
-    A[Developer pushes feature branch] --> B[PR to develop]
-    B --> C{CI passes?}
+    A[Developer pushes feature branch] --> B[PR to main]
+    B --> C{CI + E2E + Security + Mutation pass?}
     C -->|No| D[Fix and re-push]
-    C -->|Yes| E[Auto-PR created: develop to main]
-    E --> F{E2E + Security + Mutation pass?}
-    F -->|No| G[Fix on develop]
-    F -->|Yes| H[Merge to main]
-    H --> I[Vercel auto-deploy to production]
+    C -->|Yes| E[PR approved]
+    E --> F[Merge to main]
+    F --> G[Vercel auto-deploy to production]
 ```
 
 ### Deploy Manually

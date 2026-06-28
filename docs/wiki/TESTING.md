@@ -93,12 +93,13 @@ npx vitest --watch
 | `src/lib/activityTypes.test.ts` | 4 | Activity type definitions, persistence helpers, type guards |
 | `src/lib/decodePolyline.test.ts` | 2 | Google polyline encoding/decoding accuracy |
 | `src/lib/gpxParser.test.ts` | 1 | GPX XML parsing, track point extraction, elevation data |
+| `src/lib/useSavedPlaces.test.ts` | -- | Firestore listener hook, save/unsave toggle |
 
-**Total: 7 tests passing** (target: 20+ by Phase 1, 50+ by Phase 6)
+**Total: 7+ tests passing** (target: 20+ by Phase 1, 50+ by Phase 6)
 
 ### 3.3 Coverage Thresholds
 
-Coverage is enforced by Vitest for the three core library files (`activityTypes.ts`, `gpxParser.ts`, `polylineDecoder.ts`). The build fails in CI if any threshold is not met:
+Coverage is enforced by Vitest for four library files (`activityTypes.ts`, `gpxParser.ts`, `polylineDecoder.ts`, `useSavedPlaces.ts`). The build fails in CI if any threshold is not met:
 
 | Metric | Threshold |
 | --- | --- |
@@ -167,7 +168,7 @@ npm run test:mutation
 npx stryker run
 ```
 
-HTML report is generated at `frontend/reports/mutation/mutation.html`.
+HTML report is generated at `frontend/reports/mutation/index.html`.
 
 ### 4.2 Configuration
 
@@ -184,11 +185,11 @@ Test runner: Vitest (via `@stryker-mutator/vitest-runner`)
 
 | Threshold | Value | Meaning |
 | --- | --- | --- |
-| `break` | 50% | CI fails -- mutation score is critically low |
-| `low` | 60% | Warning -- score is below acceptable |
+| `break` | 70% | CI fails -- mutation score is critically low |
+| `low` | 70% | Warning -- score is below acceptable |
 | `high` | 80% | Target -- score at this level is considered good |
 
-The mutation score is the percentage of mutations that were killed by the test suite. A score below `break` (50%) causes the CI pipeline to fail.
+The mutation score is the percentage of mutations that were killed by the test suite. A score below `break` (70%) causes the CI pipeline to fail.
 
 ### 4.4 When It Runs in CI
 
@@ -399,22 +400,21 @@ Each workflow in GitHub Actions runs a specific subset of the test suite:
 
 | Workflow | Tests Run | Trigger |
 | --- | --- | --- |
-| `ci.yml` | Lint + type-check + unit tests (Vitest) + build | PR to `develop`/`main`, push to `develop` |
+| `ci.yml` | Lint + type-check + unit tests (Vitest) + build | PR to `main`, push to `main` |
 | `e2e.yml` | Playwright E2E | PR to `main` |
 | `mutation.yml` | Stryker mutation tests | PR to `main` when `frontend/src/lib/**` changed |
-| `security.yml` | `npm audit` + gitleaks secret scan + CodeQL | PRs, push to `main`, weekly Monday |
+| `security.yml` | `npm audit` + `pip-audit` + gitleaks secret scan + CodeQL | PR to `main`, push to `main`, weekly Monday |
+| `agent-review.yml` | AI diff review via Claude Haiku | Any PR opened / synchronized / ready |
 
 ```mermaid
 flowchart TD
-    A[PR to develop] --> B[ci.yml: lint + type-check + unit + build]
-    B -->|passes| C[Merge to develop]
-    C --> D[auto-pr.yml: creates PR to main]
-    D --> E[ci.yml runs again on main PR]
-    D --> F[e2e.yml: Playwright]
-    D --> G[mutation.yml: Stryker]
-    D --> H[security.yml: audit + gitleaks + CodeQL]
-    E & F & G & H -->|all pass| I[Merge to main]
-    I --> J[Vercel deploy]
+    A[PR to main] --> B[ci.yml: lint + type-check + unit + build]
+    A --> C[e2e.yml: Playwright]
+    A --> D[mutation.yml: Stryker - if src/lib changed]
+    A --> E[security.yml: npm audit + pip-audit + gitleaks + CodeQL]
+    A --> F[agent-review.yml: AI code review comment]
+    B & C & D & E -->|all pass| G[Merge to main]
+    G --> H[Vercel deploy]
 ```
 
 ---

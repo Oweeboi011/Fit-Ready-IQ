@@ -1,22 +1,23 @@
 # Fit-Ready-IQ Solution Plan
 
-**Version:** 2026-06-21
-**Status:** Active -- source of truth for all development
+**Version:** 2026-06-27
+**Status:** Active — source of truth for all development
 **Repository:** [Fit-Ready-IQ](https://github.com/Oweeboi011/Fit-Ready-IQ)
 
 ---
 
 ## 1. Purpose
 
-This document is the **master plan** for Fit-Ready-IQ. Every architectural decision, feature roadmap item, enhancement, and optimization flows from here. All other documentation (ARCHITECTURE.md, DEPLOYMENT.md, API.md, SECURITY.md) derives from this plan and must remain consistent with it.
+This document is the **master plan** for Fit-Ready-IQ. Every architectural decision, feature roadmap item, enhancement, and optimization flows from here. All other documentation (ARCHITECTURE.md, DEPLOYMENT.md, API.md, SECURITY.md, QUALITY-GATES.md) derives from this plan and must remain consistent with it.
 
 This plan defines:
 - Who the product serves and what problems it solves
 - What is implemented today (as-is baseline)
+- What quality harnesses are in place (CI/CD, testing, security)
 - What enhancements and optimizations are planned (phase-by-phase)
 - How the architecture evolves to support each phase
 - Data models, API contracts, and integration details
-- Quality gates and success metrics for each milestone
+- Known risks, challenges, and mitigations
 
 **Governance Rule:** Any architecture, deployment, or feature decision must update this plan first. Other docs are updated to reflect changes defined here.
 
@@ -142,66 +143,114 @@ graph TB
     subgraph Vercel["Vercel Platform"]
         SSR["App Router (SSR)"]
         ChatRoute["/api/chat"]
+        WeatherRoute["/api/weather"]
         StravaRoutes["/api/strava/*"]
-        FirebaseRoute["/api/integrations/firebase"]
+        PlacesRoute["/api/places/cache"]
+        HealthRoute["/api/health"]
+        AdminRoutes["/api/admin/*"]
     end
 
     subgraph External["External Services"]
         Gemini["Gemini 1.5 Flash"]
         Strava["Strava API"]
-        Google["Google Maps + Places + Elevation"]
+        Google["Google Maps + Places + Elevation + Weather"]
+        OpenWeather["OpenWeather (fallback)"]
     end
 
     subgraph Firebase["Firebase"]
         Firestore["Firestore"]
+        Auth["Firebase Auth"]
     end
 
     Client -->|HTTPS| Vercel
     MapsSDK --> Google
     ChatRoute --> Gemini
     ChatRoute --> Firestore
+    WeatherRoute --> Google
+    WeatherRoute --> OpenWeather
     StravaRoutes --> Strava
-    FirebaseRoute --> Firestore
+    StravaRoutes --> Firestore
+    PlacesRoute --> Firestore
+    HealthRoute --> Firestore
 ```
 
-### 4.2 Implemented Features
+### 4.2 CI/CD Quality Harness (Completed 2026-06-27)
+
+```mermaid
+flowchart TD
+    A[git commit] --> B[pre-commit hook\nlint-staged: ESLint + Prettier]
+    B --> C[commit-msg hook\ncommitlint conventional]
+    C --> D[git push + PR to main]
+    D --> E[CI: Frontend Quality\nlint + typecheck + unit + build]
+    D --> F[CI: Backend Quality\nruff + mypy + pytest + pip-audit]
+    D --> G[Security Scan\nnpm audit + gitleaks + pip-audit + CodeQL]
+    D --> H[AI Agent Review\nClaude Haiku diff review]
+    E --> J{all pass?}
+    F --> J
+    G --> J
+    J --> K[E2E Tests\nPlaywright Chromium]
+    K --> L{src/lib changed?}
+    L -->|yes| M[Mutation Tests\nStryker 70% break threshold]
+    L -->|no| N[merge to main]
+    M --> N
+    N --> O[Vercel auto-deploy]
+```
+
+### 4.3 Implemented Features
 
 | Feature | Status | Component | Details |
 | --- | --- | --- | --- |
 | Interactive map exploration | Done | `MapView.tsx` | Google Maps with custom markers for mountains, routes, campsites |
 | Route/mountain detail modal | Done | `DetailsModal.tsx` | Elevation profiles, photos, Strava segments, gear recommendations |
+| Live weather in details | Done | `DetailsModal.tsx` | Google Weather API with OpenWeather fallback |
 | Strava OAuth + activity sync | Done | `ConnectDevicesModal.tsx` | Server-side token exchange, client-side activity display |
 | GPX file import | Done | `ConnectDevicesModal.tsx` | Drag-and-drop for COROS, Garmin, Komoot exports |
 | AI chat assistant | Done | `ChatBot.tsx` | Gemini-backed with Firestore session persistence |
-| Firebase health check | Done | `/api/integrations/firebase` | Connectivity and write probe validation |
+| Places grid cache | Done | `/api/places/cache` | 0.5° grid cells, 24 h TTL, shared across users |
+| Aggregate health endpoint | Done | `/api/health` | Single endpoint checks all integrations |
+| Admin cache management | Done | `/api/admin/cache` | Inspect / purge places cache (batch 400 docs) |
+| Admin Strava sync | Done | `/api/admin/strava-sync` | Sync status across users |
+| Saved places hook | Done | `useSavedPlaces.ts` | Real-time Firestore listener, toggle save |
 | Route filtering | Done | `RouteFilter.tsx` | Activity type, difficulty, distance, elevation filters |
 | Activity history with polylines | Done | `ConnectDevicesModal.tsx` | Source badges, polyline overlay on map |
 | Campsite discovery | Done | `page.tsx` | Google Places nearbySearch for campsites |
 | Elevation profile visualization | Done | `DetailsModal.tsx` | Komoot-style SVG with grade-based color segments |
 | Photo galleries | Done | `DetailsModal.tsx` | Google Places photos in detail views |
+| CI/CD quality harness | Done | `.github/workflows/` | 5 workflows: CI, E2E, mutation, security, AI review |
+| Pre-commit hooks | Done | `.husky/` | lint-staged + commitlint, trunk-based branch flow |
+| Dependabot | Done | `.github/dependabot.yml` | npm, pip, github-actions — weekly PRs to main |
+| Unit test suite | Done | `src/lib/*.test.ts` | gpxParser, polylineDecoder, activityTypes, useSavedPlaces |
 
-### 4.3 Technology Stack
+### 4.4 Technology Stack
 
 | Layer | Technology | Purpose |
 | --- | --- | --- |
 | Frontend | Next.js 14, TypeScript, Tailwind CSS (`slate-*`) | App shell and UI rendering |
 | Maps | Google Maps JS API, Places API, Elevation API | Geographic data and visualization |
 | AI | Gemini 1.5 Flash | Conversational chat assistant |
-| Data | Firebase Firestore | Chat persistence, future user data |
-| Auth | Firebase Auth (planned Phase 3) | User identity management |
+| Data | Firebase Firestore | Chat persistence, places cache, saved places |
+| Auth | Firebase Auth (partial — Google sign-in in firebaseClient) | User identity management |
 | Storage | Firebase Storage (planned Phase 3) | GPX files, user uploads |
 | Device Sync | Strava OAuth, GPX import | Activity data integration |
 | Hosting | Vercel | Frontend + serverless functions |
 | Local Dev | Docker Compose + Firebase Emulators | Offline development environment |
+| CI | GitHub Actions (5 workflows) | Quality gates on every PR |
+| Testing | Vitest, Playwright, Stryker, Autocannon | Unit, E2E, mutation, load |
+| Pre-commit | Husky, lint-staged, commitlint | Code quality before push |
 
-### 4.4 Active Server Routes
+### 4.5 Active Server Routes
 
-| Route | Method | Purpose | External Dependency |
+| Route | Method | Purpose | Timeout |
 | --- | --- | --- | --- |
-| `/api/chat` | POST | Gemini AI chat with Firestore persistence | Gemini API, Firebase |
-| `/api/strava/exchange` | POST | OAuth authorization code to token exchange | Strava API |
-| `/api/strava/activities` | GET | Fetch athlete activities | Strava API |
-| `/api/integrations/firebase` | GET | Firebase connectivity health check | Firebase |
+| `/api/chat` | POST | Gemini AI chat with Firestore persistence | 30 s |
+| `/api/weather` | GET | Google Weather → OpenWeather fallback | 15 s |
+| `/api/health` | GET | Aggregate health check for all integrations | 15 s |
+| `/api/strava/exchange` | POST | OAuth authorization code → token | — |
+| `/api/strava/activities` | GET | Fetch athlete activities from Strava | — |
+| `/api/strava/sync` | POST | Admin: sync Strava activities → Firestore | 60 s |
+| `/api/places/cache` | GET | Grid-based places cache (0.5° cells, 24 h TTL) | 15 s |
+| `/api/admin/cache` | GET/DELETE | Inspect / purge places cache | 30 s |
+| `/api/admin/strava-sync` | GET | Strava sync status across users | — |
 
 ---
 
@@ -216,67 +265,102 @@ gantt
     axisFormat %b %Y
 
     section Foundation
-        Phase 0: Hardening & Cleanup       :done, p0, 2026-06, 2026-07
+        Phase 0: Hardening & CI/CD             :done, p0, 2026-06, 2026-07
 
     section Intelligence Layer
-        Phase 1: Weather API               :active, p1, 2026-07, 2026-08
-        Phase 2: Persona Route Intelligence :p2, 2026-08, 2026-09
+        Phase 1: Weather API                   :active, p1, 2026-07, 2026-08
+        Phase 2: Persona Route Intelligence    :p2, 2026-08, 2026-09
 
     section Platform Layer
-        Phase 3: Auth & User Profiles      :p3, 2026-09, 2026-10
-        Phase 4: Readiness Engine          :p4, 2026-10, 2026-12
+        Phase 3: Auth & User Profiles          :p3, 2026-09, 2026-10
+        Phase 4: Readiness Engine              :p4, 2026-10, 2026-12
 
     section Optimization Layer
-        Phase 5: Intelligent AI Assistant  :p5, 2026-12, 2027-01
-        Phase 6: Performance & Scale       :p6, 2027-01, 2027-02
+        Phase 5: Intelligent AI Assistant      :p5, 2026-12, 2027-01
+        Phase 6: Performance & Scale           :p6, 2027-01, 2027-02
 ```
 
-### 5.2 Phase 0: Foundation Hardening (Current)
+### 5.2 Phase 0: Foundation Hardening (Completed + Remaining)
 
-**Goal:** Stabilize the existing codebase, fix security gaps, update documentation, remove technical debt.
+**Goal:** Stabilize the existing codebase, establish quality harnesses, fix security gaps, update documentation, remove technical debt.
+
+#### Completed
+
+| Task | Completed | Details |
+| --- | --- | --- |
+| Remove Azure deployment artifacts | 2026-06 | Deleted azure.yaml, infra/, .dockerignore, frontend/Dockerfile |
+| Update all documentation | 2026-06 | Rewritten with Mermaid diagrams and detailed content |
+| Live weather endpoint | 2026-06 | `/api/weather` — Google Weather primary, OpenWeather fallback |
+| Aggregate health endpoint | 2026-06 | `/api/health` — all integrations checked in one call |
+| Strava admin sync + cache admin | 2026-06 | `/api/strava/sync`, `/api/admin/*` endpoints |
+| CI/CD quality harness | 2026-06-27 | 5 GitHub Actions workflows (CI, E2E, mutation, security, AI review) |
+| Trunk-based branch flow | 2026-06-27 | `feature/* → main`; removed 3-tier develop flow and auto-pr.yml |
+| Pre-commit hooks | 2026-06-27 | Husky: lint-staged (ESLint + Prettier) + commitlint (Conventional Commits) |
+| Dependabot | 2026-06-27 | Weekly dependency PRs for npm, pip, github-actions |
+| CODEOWNERS | 2026-06-27 | `@oweeboipenaranda` owns all files — enforces PR reviews |
+| Unit test suite | 2026-06-27 | Vitest tests for gpxParser, polylineDecoder, activityTypes, useSavedPlaces |
+| Mutation testing | 2026-06-27 | Stryker on src/lib/ files, break threshold 70%, high 80% |
+| Security scanning | 2026-06-27 | npm audit + gitleaks + CodeQL + pip-audit |
+| AI agent review | 2026-06-27 | Claude Haiku posts review comments on every PR |
+| Shell injection fix (agent-review) | 2026-06-27 | `github.base_ref` moved to env var before git diff step |
+| commit-msg hook path fix | 2026-06-27 | `realpath` before `cd frontend` prevents wrong COMMIT_EDITMSG path |
+| pip-audit added to pyproject.toml | 2026-06-27 | `pip-audit = "^2.7"` in dev dependencies |
+| CI env var deduplication | 2026-06-27 | 7 NEXT_PUBLIC_* vars moved to job-level `env:` in ci.yml |
+| mutation.yml env var gap fixed | 2026-06-27 | Added 2 missing Firebase env vars to prevent init failure in Stryker runs |
+| Stryker threshold raised | 2026-06-27 | break=70 (was 50), low=70 — was too permissive to be a meaningful gate |
+
+#### Remaining (Phase 0)
 
 | Task | Priority | Status | Details |
 | --- | --- | --- | --- |
-| Remove Azure deployment artifacts | P0 | Done | Deleted azure.yaml, infra/, .dockerignore, frontend/Dockerfile |
-| Update all documentation | P0 | Done | Rewritten with Mermaid diagrams and detailed content |
-| Fix npm audit vulnerabilities | P0 | Planned | Upgrade next to 14.2.x+, fix axios/lodash/follow-redirects |
-| Move Strava token from localStorage | P0 | Planned | Server-managed token lifecycle in Firestore |
-| Add .env.example | P1 | Planned | Document all required environment variables |
-| Replace raw `<img>` with next/image | P1 | Planned | Automatic optimization (lazy load, WebP, srcset) |
-| Remove unused dependencies | P1 | Planned | Audit and remove packages not imported anywhere |
+| Fix npm audit vulnerabilities | P0 | Pending | Upgrade next to 14.2.x+, fix known high/critical advisories |
+| Move Strava token from localStorage | P0 | Pending | Server-managed token lifecycle in Firestore — prevents XSS token theft |
+| Add `.env.example` | P1 | Pending | Document all required environment variables for onboarding |
+| Replace raw `<img>` with `next/image` | P1 | Pending | Automatic optimization: lazy load, WebP, srcset |
+| Remove unused dependencies | P1 | Pending | Audit and remove packages not imported anywhere |
+| firebaseClient.ts test coverage | P2 | Pending | Currently excluded from coverage scope — needs mocking strategy |
+| Raise coverage branch threshold | P2 | Pending | Currently 50% — should match statements/functions at 85% |
 
 ### 5.3 Phase 1: Google Weather API Integration
 
 **Goal:** Replace hardcoded weather notes with live forecast data from Google Weather API, including persona-specific safety alerts.
+
+> **Status:** `/api/weather` route is implemented. DetailsModal fetches live weather. Persona-specific alert thresholds and weather overlay on the map are pending.
 
 ```mermaid
 sequenceDiagram
     participant UI as DetailsModal
     participant Route as /api/weather
     participant Cache as Firestore Cache
-    participant API as Google Weather API
+    participant GW as Google Weather API
+    participant OW as OpenWeather (fallback)
 
     UI->>Route: GET /api/weather?lat=X&lng=Y&persona=mountaineer
     Route->>Cache: Check weather_cache/{placeId}
     alt Cache hit (< 60 min old)
         Cache-->>Route: Cached forecast
     else Cache miss or stale
-        Route->>API: Request forecast
-        API-->>Route: Weather data
+        Route->>GW: Request forecast
+        alt Google Weather OK
+            GW-->>Route: Weather data
+        else Google Weather fails
+            Route->>OW: Fallback request
+            OW-->>Route: Weather data
+        end
         Route->>Cache: Store with TTL
     end
     Route->>Route: Apply persona alert thresholds
     Route-->>UI: Forecast + alerts JSON
 ```
 
-| Task | Priority | Details |
-| --- | --- | --- |
-| Create `/api/weather` server route | P0 | Accepts lat/lng/persona, returns forecast + alerts |
-| Implement Firestore weather caching | P0 | TTL-based cache (60 min default) to reduce API costs |
-| Integrate weather in DetailsModal | P0 | Replace static `weatherNotes` object with live data |
-| Persona-specific alert thresholds | P1 | Different warning levels per persona (see table below) |
-| Weather overlay on MapView | P1 | Optional layer showing conditions at marker locations |
-| Sunrise/sunset display | P2 | Show daylight hours for route planning |
+| Task | Priority | Status | Details |
+| --- | --- | --- | --- |
+| `/api/weather` server route | P0 | Done | Live with Google Weather + OpenWeather fallback |
+| Integrate weather in DetailsModal | P0 | Done | Replaces static `weatherNotes` object |
+| Firestore weather caching | P0 | Pending | TTL-based cache (60 min default) to reduce API costs |
+| Persona-specific alert thresholds | P1 | Pending | Different warning levels per persona (see table below) |
+| Weather overlay on MapView | P1 | Pending | Optional layer showing conditions at marker locations |
+| Sunrise/sunset display | P2 | Pending | Show daylight hours for route planning |
 
 **Weather Alert Thresholds by Persona:**
 
@@ -284,8 +368,8 @@ sequenceDiagram
 | --- | --- | --- | --- | --- |
 | Wind (km/h) | >40 warn | >50 warn | >30 warn | >25 warn |
 | Rain (mm/h) | >5 warn | >10 warn | >8 warn | >5 warn |
-| Temp low (C) | <-5 warn | <0 warn | <-3 warn | <2 warn |
-| Temp high (C) | >35 warn | >35 warn | >30 warn | >38 warn |
+| Temp low (°C) | <-5 warn | <0 warn | <-3 warn | <2 warn |
+| Temp high (°C) | >35 warn | >35 warn | >30 warn | >38 warn |
 | Visibility (km) | <1 STOP | <2 warn | <2 warn | <3 warn |
 | Lightning | STOP | STOP | STOP | STOP |
 | UV Index | >8 warn | >8 warn | >8 warn | >8 warn |
@@ -457,7 +541,7 @@ Current route: {route_name}
 - Technical rating: {technical_rating}
 
 Current weather at route location:
-- Temperature: {temperature}C (feels like {feels_like}C)
+- Temperature: {temperature}°C (feels like {feels_like}°C)
 - Wind: {wind_speed} km/h from {wind_direction}
 - Conditions: {conditions}
 - Visibility: {visibility} km
@@ -630,14 +714,21 @@ erDiagram
 | Variable | Scope | Required | Phase | Description |
 | --- | --- | --- | --- | --- |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Client + Server | Yes | 0 | Google Maps JS API key (browser-restricted) |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Client | Yes | 0 | Firebase client API key |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Client | Yes | 0 | Firebase Auth domain |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Client | Yes | 0 | Firebase project ID (client SDK) |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | Client | Yes | 0 | Firebase app ID |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Client | Yes | 0 | FCM sender ID |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Client | Yes | 0 | Firebase Storage bucket |
 | `GOOGLE_WEATHER_API_KEY` | Server only | Yes | 1 | Google Weather API key |
 | `GEMINI_API_KEY` | Server only | Yes | 0 | Gemini AI API key |
-| `FIREBASE_PROJECT_ID` | Server only | Yes | 0 | GCP/Firebase project identifier |
+| `FIREBASE_PROJECT_ID` | Server only | Yes | 0 | GCP/Firebase project identifier (Admin SDK) |
 | `FIREBASE_SERVICE_ACCOUNT_KEY_JSON` | Server only | Recommended | 0 | Service account JSON string |
 | `FIREBASE_CLIENT_EMAIL` | Server only | Alternative | 0 | Service account email |
 | `FIREBASE_PRIVATE_KEY` | Server only | Alternative | 0 | Service account private key |
 | `STRAVA_CLIENT_ID` | Server only | Yes | 0 | Strava OAuth application client ID |
 | `STRAVA_CLIENT_SECRET` | Server only | Yes | 0 | Strava OAuth application client secret |
+| `OPENWEATHER_API_KEY` | Server only | Optional | 1 | OpenWeather fallback key |
 
 ---
 
@@ -679,6 +770,7 @@ erDiagram
 - Deduplicate results across query terms by `place_id`
 - Batch related searches to minimize round trips
 - Cache `place_id` results in component state for session duration
+- Server-side grid cache (`/api/places/cache`) — 0.5° cells shared across users
 
 ### 8.3 Elevation API (Current)
 
@@ -689,7 +781,7 @@ erDiagram
 - Cache elevation results by `place_id` in component state
 - Request elevation data only when detail modal opens (lazy loading)
 
-### 8.4 Weather API (Phase 1)
+### 8.4 Weather API (Current)
 
 **Purpose:** Live weather forecasts with current conditions, hourly breakdowns, daily summaries, and safety alerts.
 
@@ -699,82 +791,126 @@ flowchart TD
     B --> C{"Cache fresh?<br/>(< TTL minutes)"}
     C -->|Yes| D["Return cached data"]
     C -->|No| E["Call Google Weather API"]
-    E --> F["Parse response"]
-    F --> G["Store in Firestore<br/>weather_cache/{placeId}"]
-    G --> H["Apply persona thresholds"]
-    H --> I["Return forecast + alerts"]
-    D --> H
-```
-
-**Response Shape:**
-
-```json
-{
-  "temperature_c": 18,
-  "feels_like_c": 15,
-  "humidity_pct": 65,
-  "wind_speed_kmh": 22,
-  "wind_direction": "NW",
-  "conditions": "Partly cloudy",
-  "precipitation_mm": 0,
-  "uv_index": 6,
-  "visibility_km": 15,
-  "sunrise": "05:42",
-  "sunset": "18:15",
-  "hourly_forecast": [],
-  "alerts": [
-    { "type": "wind", "severity": "warning", "message": "..." }
-  ],
-  "persona_warnings": {
-    "mountaineer": [],
-    "hiker": [],
-    "trail_runner": ["High UV -- carry sun protection"],
-    "cyclist": ["Headwind NW 22km/h on exposed sections"]
-  }
-}
+    E --> F{"Success?"}
+    F -->|Yes| G["Parse and cache in Firestore"]
+    F -->|No| H["OpenWeather fallback"]
+    H --> G
+    G --> I["Apply persona thresholds"]
+    I --> J["Return forecast + alerts"]
+    D --> I
 ```
 
 ---
 
-## 9. Key Risks and Mitigations
+## 9. Risks, Challenges, and Mitigations
 
-| Risk | Impact | Likelihood | Mitigation Strategy |
+### 9.1 Security Risks
+
+| Risk | Impact | Likelihood | Mitigation |
 | --- | --- | --- | --- |
-| Google Maps API cost overrun | High bills from Places/Elevation calls | Medium | Cache aggressively in Firestore, batch elevation calls, set billing alerts in Cloud Console |
-| npm dependency vulnerabilities | Security exposure, potential data breach | High (current) | Upgrade next to 14.2.x, run `npm audit fix`, scheduled quarterly dependency reviews |
-| Client-side Strava token storage | Token theft via XSS attack | Medium | Phase 3: Move to server-managed tokens in Firestore with auto-refresh |
-| Large page.tsx monolith | Slow development velocity, merge conflicts | Low | Phase 6: Extract custom hooks (`usePlacesData`, `useActivities`) |
-| Weather API rate limits | Degraded UX during high traffic | Low | Firestore TTL cache (60 min default), graceful fallback to static weather notes |
-| Firebase cold starts on Vercel | Slow first request after idle period | Medium | Firebase Admin singleton pattern, consider function warming with cron |
-| Gemini API quota exhaustion | Chat assistant unavailable | Low | Rate limit in route (max 15 RPM free tier), upgrade plan for production |
+| npm dependency vulnerabilities | Data breach, supply chain attack | High (15 high/critical currently) | Upgrade next to 14.2.x+, run `npm audit fix`, Dependabot weekly PRs |
+| Client-side Strava token storage | Token theft via XSS | Medium | Phase 3: Server-managed tokens in Firestore with auto-refresh |
+| Hardcoded secrets in commits | Credential exposure | Low (gitleaks blocks pushes) | Gitleaks secret scan in security.yml blocks merges |
+| pip dependency vulnerabilities | Backend compromise | Low (pip-audit now in CI) | `pip-audit` runs in both security.yml and backend CI |
+| Firebase rules too permissive | Unauthorized data access | Unknown | Audit Firestore security rules before Phase 3 user data |
+
+### 9.2 Architecture Risks
+
+| Risk | Impact | Likelihood | Mitigation |
+| --- | --- | --- | --- |
+| Large page.tsx monolith (~79 KB, 1200 lines) | Slow development, merge conflicts | Medium | Phase 6: Extract `usePlacesData`, `useActivities` hooks |
+| Activities stored in localStorage only | Data loss on clear, no cross-device | High | Phase 3: Move to Firestore user-scoped collection |
+| Firebase cold starts on Vercel | Slow first request after idle | Medium | Firebase Admin singleton pattern; function warming via cron |
+| Gemini quota exhaustion | Chat assistant unavailable | Low | Rate limit in route (max 15 RPM free tier); upgrade for production |
+| Google Maps API cost overrun | High bills from Places/Elevation calls | Medium | Cache aggressively in Firestore; batch elevation calls; set billing alerts |
+
+### 9.3 CI/CD and Testing Risks
+
+| Risk | Impact | Likelihood | Mitigation |
+| --- | --- | --- | --- |
+| Stryker 70% threshold fails after new code | CI blocks merges | Medium | Add mutation tests alongside new lib/ code; keep logic out of components |
+| Dynamic imports in useSavedPlaces make testing brittle | Coverage gaps | Low | Vitest `vi.mock` handles dynamic imports; full test suite added 2026-06-27 |
+| firebaseClient.ts not in coverage scope | Hidden regressions | Medium | Add to vitest.config.ts include list; use Firebase emulator for integration tests |
+| Agent-review burns ANTHROPIC_API_KEY quota | Review not posted | Low | 30 s timeout added; `[skip review]` in PR title suppresses it |
+| E2E tests need real API keys | CI flaky in PR environment | Medium | All secrets in GitHub Secrets; E2E only runs on PR to main |
+| Mutation tests only on push to src/lib/ | Coverage gaps for lib changes in large PRs | Low | path filter in mutation.yml is intentional — keeps CI fast |
+
+### 9.4 Operational Challenges
+
+| Challenge | Current State | Plan |
+| --- | --- | --- |
+| No staging environment | Preview URLs on Vercel but no stable staging Firebase project | Create `fit-ready-iq-dev` Firebase project for PR previews |
+| No alerting or monitoring | No Sentry integration, no uptime monitoring | Add Sentry SDK (already in backend pyproject.toml) to frontend; configure alert thresholds |
+| Vercel function timeouts on slow Strava sync | 60 s timeout may not be enough for large accounts | Consider queued background job via Firestore + Cloud Function trigger |
+| Weather API fallback not cached separately | OpenWeather response treated same as Google Weather | Consider separate TTL for fallback data (lower confidence data) |
 
 ---
 
 ## 10. Quality Gates
 
-Every phase must pass these gates before merging to the `main` branch:
+Every PR to `main` must pass all applicable gates before merge:
+
+```mermaid
+flowchart TD
+    A[git commit] --> B{pre-commit}
+    B -->|fail| Z1[blocked locally]
+    B -->|pass| C[PR opened]
+    C --> D[Frontend CI\nlint + typecheck + unit + build]
+    C --> E[Backend CI\nruff + mypy + pytest + pip-audit]
+    C --> F[Security Scan\nnpm audit + gitleaks + pip-audit + CodeQL]
+    C --> G[AI Agent Review\nClaude Haiku — optional read]
+    D --> H{all CI pass?}
+    E --> H
+    F --> H
+    H -->|fail| Z2[merge blocked]
+    H -->|pass| I[E2E: Playwright Chromium]
+    I --> J{src/lib/ changed?}
+    J -->|yes| K[Mutation: Stryker 70%]
+    J -->|no| L[merge to main]
+    K --> L
+    L --> M[Vercel production deploy]
+```
+
+### Gate Details
+
+| Gate | Workflow | Check | Threshold | Runs when |
+| --- | --- | --- | --- | --- |
+| Frontend lint | `ci.yml` | ESLint | Zero errors | Every PR |
+| Frontend typecheck | `ci.yml` | TypeScript strict | Zero errors | Every PR |
+| Frontend unit tests | `ci.yml` | Vitest (4 test files) | 85% stmt/fn/lines, 50% branch | Every PR |
+| Frontend build | `ci.yml` | Next.js compiler | Zero errors | Every PR |
+| Backend lint | `ci.yml` | Ruff check + format | Zero errors | Every PR |
+| Backend types | `ci.yml` | mypy | Zero errors | Every PR |
+| Backend tests | `ci.yml` | pytest --cov | All green | Every PR |
+| Backend security | `ci.yml` | pip-audit | No high/critical | Every PR |
+| npm audit | `security.yml` | npm audit --audit-level=high | Zero high/critical | Every PR + weekly |
+| Secret scan | `security.yml` | gitleaks | Zero secrets | Every PR + weekly |
+| Python audit | `security.yml` | pip-audit | Zero high/critical | Every PR + weekly |
+| Code analysis | `security.yml` | CodeQL | Zero high alerts | Every PR + weekly |
+| E2E tests | `e2e.yml` | Playwright (Chromium) | All scenarios pass | PR to main |
+| Mutation tests | `mutation.yml` | Stryker on src/lib/ | break=70, high=80 | PR to main (lib/ changed) |
+| AI review | `agent-review.yml` | Claude Haiku diff review | Informational only | PR open/update |
+| Pre-commit lint | Husky | lint-staged (ESLint + Prettier) | Zero errors | Every commit |
+| Commit format | Husky | commitlint conventional | Valid type + subject-case | Every commit |
+
+### Pre-commit Flow
 
 ```mermaid
 flowchart LR
-    A[Code Change] --> B[Build Gate]
-    B --> C[Lint Gate]
-    C --> D[Test Gate]
-    D --> E[Security Gate]
-    E --> F[Palette Gate]
-    F --> G[Docs Gate]
-    G --> H[Ready to Merge]
+    A[git commit] --> B[lint-staged]
+    B --> C[ESLint --fix on staged *.ts/*.tsx]
+    C --> D[Prettier --write on staged files]
+    D --> E[commit-msg hook]
+    E --> F[commitlint]
+    F -->|invalid| G[commit rejected\nwith error message]
+    F -->|valid| H[commit created]
 ```
 
-| Gate | Check | Tool | Threshold |
-| --- | --- | --- | --- |
-| Build | `npm run build` passes | Next.js compiler | Zero errors |
-| Lint | `npm run lint` passes | ESLint | Zero errors |
-| Tests | `npm run test:unit` passes | Vitest | All tests green |
-| Security | `npm audit --audit-level=high` | npm audit | No new high/critical |
-| Types | No untyped `any` without justification | TypeScript strict | Zero violations |
-| Secrets | No hardcoded keys in tracked files | grep + code review | Zero findings |
-| Docs | SOLUTION-PLAN.md updated for arch changes | Manual review | Current and accurate |
-| Palette | All Tailwind uses `slate-*` | grep for `gray-` | Zero matches |
+**Commit format:** `type(scope): lowercase subject`
+
+Types: `feat fix docs style refactor perf test chore revert ci build`
+
+Example: `feat(weather): add persona-specific alert thresholds`
 
 ---
 
@@ -785,59 +921,79 @@ flowchart LR
 | Time to first map render | ~3s | < 2s | < 2s | < 1.5s |
 | Places API calls per session | ~50+ | < 30 (cached) | < 25 | < 20 |
 | Chat response latency (p95) | ~2s | < 1.5s | < 1.5s | < 1s |
-| Weather data freshness | Static (hardcoded) | < 60 min | < 30 min | < 30 min |
-| Unit test count | 7 | 20+ | 35+ | 50+ |
+| Weather data freshness | Live (no cache yet) | < 60 min | < 30 min | < 30 min |
+| Unit test count | 4 files / ~35 cases | 6 files / 50+ | 10 files / 75+ | 15 files / 100+ |
+| Mutation score (src/lib/) | ~70% (current gate) | > 75% | > 80% | > 85% |
 | npm audit high/critical | 15 | 0 | 0 | 0 |
 | Active personas supported | 1 (generic) | 2 (+ cyclist) | 4 (all) | 4 (optimized) |
 | Lighthouse performance score | ~65 | > 75 | > 80 | > 90 |
 | Bundle size (first load JS) | 187 KB | < 170 KB | < 160 KB | < 130 KB |
+| CI run time (full suite) | ~4 min | < 5 min | < 6 min | < 5 min |
 
 ---
 
 ## 12. Deployment Architecture
 
+### 12.1 Branch and Release Flow
+
 ```mermaid
-flowchart TD
-    subgraph Source["Source Control"]
-        GitHub["GitHub Repository<br/>(main branch)"]
-    end
-
-    subgraph CI["Continuous Deployment"]
-        Vercel["Vercel Platform<br/>- Auto-build on push<br/>- Preview on PR<br/>- Production on merge"]
-    end
-
-    subgraph Runtime["Production Runtime"]
-        Edge["Vercel Edge CDN<br/>(Static assets)"]
-        Functions["Serverless Functions<br/>(/api/* routes)"]
-    end
-
-    subgraph Data["Data Layer"]
-        Firestore["Firebase Firestore"]
-        Auth["Firebase Auth"]
-        Storage["Firebase Storage"]
-    end
-
-    subgraph APIs["External APIs"]
-        Google["Google Cloud APIs"]
-        Strava["Strava API"]
-        Gemini["Gemini API"]
-    end
-
-    GitHub -->|Push/merge| Vercel
-    Vercel --> Edge
-    Vercel --> Functions
-    Functions --> Data
-    Functions --> APIs
-    Edge -->|Client-side| Google
+gitGraph
+    commit id: "main (production)"
+    branch feature/my-change
+    checkout feature/my-change
+    commit id: "implement"
+    commit id: "tests"
+    checkout main
+    merge feature/my-change id: "PR merge → deploy"
 ```
 
-### 12.1 Environments
+All development follows trunk-based flow: short-lived feature branches PR directly to `main`. No intermediary branches. Vercel deploys automatically on every merge to `main`.
+
+### 12.2 Infrastructure Diagram
+
+```mermaid
+flowchart TD
+    subgraph Source["Source Control (GitHub)"]
+        Main["main branch\n(protected — PR required)"]
+        Feature["feature/* branches\n(short-lived)"]
+    end
+
+    subgraph Quality["Quality Gates"]
+        CI["GitHub Actions CI\n5 workflows"]
+        Vercel_Preview["Vercel Preview URL\n(per PR)"]
+    end
+
+    subgraph Production["Production"]
+        Vercel_Prod["Vercel Production\n(custom domain)"]
+        Firebase_Prod["Firebase Production\nfit-ready-iq-prod"]
+        Google_Prod["Google APIs\n(production keys)"]
+    end
+
+    Feature -->|PR| CI
+    CI --> Vercel_Preview
+    CI -->|all pass + merge| Main
+    Main -->|auto-deploy| Vercel_Prod
+    Vercel_Prod --> Firebase_Prod
+    Vercel_Prod --> Google_Prod
+```
+
+### 12.3 Environments
 
 | Environment | Platform | Firebase Project | Trigger | Purpose |
 | --- | --- | --- | --- | --- |
 | Development | localhost:4790 | Emulators (Docker) | `npm run dev` | Local development with hot reload |
-| Preview | Vercel preview URL | fit-ready-iq-dev | PR opened/updated | PR review and QA testing |
+| Preview | Vercel preview URL | fit-ready-iq-dev (planned) | PR opened/updated | PR review and QA testing |
 | Production | Custom domain | fit-ready-iq-prod | Push to `main` | Live users |
+
+### 12.4 GitHub Actions Workflows
+
+| Workflow | File | Triggers | Duration (est.) | Purpose |
+| --- | --- | --- | --- | --- |
+| CI | `ci.yml` | PR to main, push to main | ~3 min | Lint, typecheck, unit tests, build (frontend + backend) |
+| E2E | `e2e.yml` | PR to main | ~5 min | Playwright E2E with real secrets |
+| Mutation | `mutation.yml` | PR to main (src/lib/ changed) | ~4 min | Stryker mutation testing |
+| Security | `security.yml` | PR + push to main + weekly Mon | ~3 min | npm audit + gitleaks + pip-audit + CodeQL |
+| AI Review | `agent-review.yml` | PR open/synchronize | ~30 s | Claude Haiku posts diff review comment |
 
 ---
 
@@ -845,20 +1001,31 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    subgraph Now["NOW (Phase 0)"]
+    subgraph Done["DONE (Phase 0)"]
+        direction TB
+        D1["CI/CD harness\n5 workflows"]
+        D2["Trunk-based flow\nfeature/* → main"]
+        D3["Pre-commit hooks\nlint + commitlint"]
+        D4["Live weather\n/api/weather"]
+        D5["Health endpoint\n/api/health"]
+        D6["Unit + mutation\n+ security tests"]
+    end
+
+    subgraph Now["NOW (Phase 0 remaining)"]
         direction TB
         N1["Fix npm vulnerabilities"]
         N2["Server-managed Strava tokens"]
         N3[".env.example file"]
         N4["next/image migration"]
+        N5["firebaseClient.ts tests"]
     end
 
     subgraph Next["NEXT (Phase 1-2)"]
         direction TB
-        X1["Google Weather API"]
-        X2["Live weather in modals"]
-        X3["Persona selector"]
-        X4["Persona-specific scoring"]
+        X1["Weather Firestore cache\n(TTL 60 min)"]
+        X2["Persona-specific alerts"]
+        X3["Persona selector UI"]
+        X4["Persona scoring algo"]
         X5["Estimated time calculators"]
     end
 
@@ -866,7 +1033,7 @@ flowchart LR
         direction TB
         L1["Firebase Auth"]
         L2["User profiles"]
-        L3["Saved routes"]
+        L3["Saved routes in Firestore"]
         L4["Readiness scoring API"]
         L5["Training gap analysis"]
     end
@@ -880,7 +1047,7 @@ flowchart LR
         F5["Edge caching"]
     end
 
-    Now --> Next --> Later --> Future
+    Done --> Now --> Next --> Later --> Future
 ```
 
 ---
@@ -891,8 +1058,8 @@ flowchart LR
 
 Any architecture, deployment, or feature decision must:
 1. Update **this solution plan** first (source of truth)
-2. Update derived docs (`ARCHITECTURE.md`, `DEPLOYMENT.md`, `API.md`, `SECURITY.md`) to remain consistent
-3. Go through PR review -- no direct pushes to `main` for feature work
+2. Update derived docs (`ARCHITECTURE.md`, `DEPLOYMENT.md`, `API.md`, `SECURITY.md`, `QUALITY-GATES.md`) to remain consistent
+3. Go through PR review — no direct pushes to `main` for feature work
 
 ### 14.2 Change Categories
 
@@ -903,6 +1070,7 @@ Any architecture, deployment, or feature decision must:
 | Architecture change | PR review + solution plan update + ADR | New data model, new external service |
 | Security change | PR review + solution plan update + security review | New secret, auth flow change |
 | Dependency update | PR review + audit check | Upgrade Next.js, add new package |
+| CI/CD change | PR review + update section 10 | New workflow, gate threshold change |
 
 ### 14.3 Documentation Cascade
 
@@ -914,10 +1082,12 @@ flowchart TD
     C -->|API surface| E["Update API.md"]
     C -->|Deploy config| F["Update DEPLOYMENT.md"]
     C -->|Security posture| G["Update SECURITY.md"]
-    C -->|Common issue| H["Update TROUBLESHOOTING.md"]
-    D --> I["PR ready"]
-    E --> I
-    F --> I
-    G --> I
-    H --> I
+    C -->|Quality gates| H["Update QUALITY-GATES.md"]
+    C -->|Common issue| I["Update TROUBLESHOOTING.md"]
+    D --> J["PR ready"]
+    E --> J
+    F --> J
+    G --> J
+    H --> J
+    I --> J
 ```

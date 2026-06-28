@@ -281,7 +281,7 @@ flowchart TD
 | --- | --- |
 | Lock file committed | `package-lock.json` ensures reproducible builds |
 | `npm audit` in CI | `security.yml` blocks merges with high/critical vulnerabilities |
-| Dependabot | `.github/dependabot.yml` opens weekly PRs for npm, pip, and GitHub Actions updates targeting `develop` |
+| Dependabot | `.github/dependabot.yml` opens weekly PRs for npm, pip, and GitHub Actions updates targeting `main` |
 | No `*` or `latest` versions | All deps pinned to specific semver ranges |
 | Quarterly review | Check `npm outdated` and upgrade dependencies |
 | Minimal dependencies | Prefer built-in Node.js APIs over third-party packages |
@@ -290,20 +290,22 @@ flowchart TD
 
 ## 9. Automated Security Scanning (CI)
 
-The `security.yml` workflow runs automated security checks on every PR, on every push to `main`, and on a weekly Monday schedule. This provides continuous coverage without relying on manual checks.
+The `security.yml` workflow runs automated security checks on every PR to `main`, on every push to `main`, and on a weekly Monday schedule. This provides continuous coverage without relying on manual checks.
 
 ### 9.1 Scanning Pipeline
 
 ```mermaid
 flowchart TD
-    A[PR opened or push to main] --> B[security.yml triggered]
+    A[PR to main or push to main] --> B[security.yml triggered]
     B --> C[npm audit --audit-level=high]
     C -->|High/Critical found| D[Job fails - PR blocked]
-    C -->|Clean| E[gitleaks secret scan]
-    E -->|Secret found in git history| F[Job fails - PR blocked]
-    E -->|Clean| G[CodeQL analysis]
-    G -->|Security issue found| H[Alert posted to Security tab]
-    G -->|Clean| I[All checks pass]
+    C -->|Clean| E[pip-audit - Python deps]
+    E -->|CVE found| D
+    E -->|Clean| F[gitleaks secret scan]
+    F -->|Secret found in git history| G[Job fails - PR blocked]
+    F -->|Clean| H[CodeQL analysis]
+    H -->|Security issue found| I[Alert posted to Security tab]
+    H -->|Clean| J[All checks pass]
 ```
 
 ### 9.2 Tools and Coverage
@@ -311,6 +313,7 @@ flowchart TD
 | Tool | What It Checks | Failure Action |
 | --- | --- | --- |
 | `npm audit --audit-level=high` | Frontend npm dependencies for high and critical CVEs | Blocks the PR / push |
+| `pip-audit --vulnerability-service osv` | Backend Python dependencies for CVEs via OSV database | Blocks the PR / push |
 | `gitleaks` | Full git history for leaked credentials, API keys, tokens | Blocks the PR / push |
 | CodeQL | JavaScript/TypeScript source code for security issues (query suite: `security-extended`) | Posts to GitHub Security tab |
 
@@ -322,7 +325,7 @@ flowchart TD
 
 ### 9.3 Weekly Schedule
 
-`security.yml` also runs on a `cron: '0 9 * * 1'` schedule (every Monday at 09:00 UTC). This ensures that new vulnerability disclosures against existing dependencies are caught even without code changes triggering a PR.
+`security.yml` also runs on a `cron: '0 6 * * 1'` schedule (every Monday at 06:00 UTC). This ensures that new vulnerability disclosures against existing dependencies are caught even without code changes triggering a PR.
 
 ---
 

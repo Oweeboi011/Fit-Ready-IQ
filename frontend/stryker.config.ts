@@ -5,12 +5,12 @@ const config: Config = {
   vitest: {
     configFile: 'vitest.config.ts',
   },
-  // Only mutate pure business-logic utilities — not UI components or API routes
+  // Scoped to lib/ only — running Stryker on the full codebase exceeds the 30s per-test timeout
   mutate: ['src/lib/gpxParser.ts', 'src/lib/polylineDecoder.ts', 'src/lib/activityTypes.ts'],
   thresholds: {
     high: 80,
-    low: 60,
-    break: 50,
+    low: 70,
+    break: 70,
   },
   reporters: ['html', 'progress'],
   htmlReporter: {
