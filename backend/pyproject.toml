@@ -30,6 +30,7 @@ sentry-sdk = {extras = ["fastapi"], version = "^1.39.0"}
 pytest = "^9.0.0"
 pytest-asyncio = "^1.0.0"
 pytest-cov = "^5.0.0"
+pip-audit = "^2.7"
 ruff = "^0.6.0"
 locust = "^2.29.1"
 black = "^23.12.1"
