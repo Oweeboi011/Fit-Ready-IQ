@@ -17,6 +17,14 @@ jobs:
     defaults:
       run:
         working-directory: frontend
+    env:
+      NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: dummy
+      NEXT_PUBLIC_FIREBASE_API_KEY: dummy
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: dummy.firebaseapp.com
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: dummy-project
+      NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:0000000000000000"
+      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
+      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: dummy-project.appspot.com
 
     steps:
       - uses: actions/checkout@v4
@@ -37,25 +45,10 @@ jobs:
 
       - name: Unit tests
         run: npm run test:unit
-        env:
-          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: dummy
-          NEXT_PUBLIC_FIREBASE_API_KEY: dummy
-          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: dummy.firebaseapp.com
-          NEXT_PUBLIC_FIREBASE_PROJECT_ID: dummy-project
-          NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:0000000000000000"
-          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
-          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: dummy-project.appspot.com
 
       - name: Build
         run: npm run build
         env:
-          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: dummy
-          NEXT_PUBLIC_FIREBASE_API_KEY: dummy
-          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: dummy.firebaseapp.com
-          NEXT_PUBLIC_FIREBASE_PROJECT_ID: dummy-project
-          NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:0000000000000000"
-          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
-          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: dummy-project.appspot.com
           GEMINI_API_KEY: dummy
           FIREBASE_PROJECT_ID: dummy-project
           FIREBASE_CLIENT_EMAIL: dummy@dummy-project.iam.gserviceaccount.com
