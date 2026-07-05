@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr *)",
+      "Bash(git commit -m ' *)",
+      "Bash(npm install *)",
+      "PowerShell(ccusage *)",
+      "Bash(bash \"C:\\\\Users\\\\My PC\\\\.claude\\\\statusline-command.sh\")",
+      "Bash(git remote *)",
+      "Bash(gh run *)",
+      "Bash(npm audit *)",
+      "Bash(npm run *)",
+      "Bash(npx tsc *)"
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "npx -y ccstatusline@latest",
+    "padding": 0,
+    "refreshInterval": 10
+  }
+}

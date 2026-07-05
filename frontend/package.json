@@ -12,7 +12,18 @@
     "test": "vitest run --coverage",
     "test:unit": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:load": "node tests/performance/load-test.js"
+    "test:load": "node tests/performance/load-test.js",
+    "test:mutation": "stryker run",
+    "prepare": "cd .. && husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{js,jsx,json,md}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
@@ -34,8 +45,13 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.6.0",
+    "@commitlint/config-conventional": "^19.6.0",
     "@playwright/test": "^1.55.0",
+    "@stryker-mutator/core": "^8.7.0",
+    "@stryker-mutator/vitest-runner": "^8.7.0",
     "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
@@ -44,7 +60,9 @@
     "autoprefixer": "^10.4.16",
     "eslint": "^8.56.0",
     "eslint-config-next": "14.1.0",
+    "husky": "^9.1.7",
     "jsdom": "^25.0.1",
+    "lint-staged": "^15.2.10",
     "postcss": "^8.4.33",
     "prettier": "^3.2.2",
     "prettier-plugin-tailwindcss": "^0.5.11",

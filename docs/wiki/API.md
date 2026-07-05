@@ -31,13 +31,21 @@ graph TB
         UI["Next.js Frontend"]
     end
 
-    subgraph ServerRoutes["Server Routes (Vercel Functions)"]
+    subgraph ServerRoutes["Server Routes (Vercel Functions) - Active"]
         Chat["POST /api/chat<br/>AI Conversation"]
         Weather["GET /api/weather<br/>Live Forecasts"]
+        Health["GET /api/health<br/>Aggregate Health Check"]
+        PlacesCache["GET /api/places/cache<br/>Grid-based Cache"]
         StravaEx["POST /api/strava/exchange<br/>OAuth Token Exchange"]
         StravaAct["GET /api/strava/activities<br/>Activity Retrieval"]
-        Firebase["GET /api/integrations/firebase<br/>Health Check"]
-        Readiness["POST /api/readiness<br/>Fitness Scoring"]
+        StravaSync["GET /api/strava/sync<br/>Admin Sync"]
+        AdminCache["GET /api/admin/cache<br/>Cache Management"]
+        AdminStrava["GET /api/admin/strava-sync<br/>Sync Status"]
+        Firebase["GET /api/integrations/firebase<br/>Firebase Health"]
+    end
+
+    subgraph PlannedRoutes["Planned Routes"]
+        Readiness["POST /api/readiness<br/>Fitness Scoring (Phase 4)"]
     end
 
     subgraph External["External Services"]
@@ -49,17 +57,23 @@ graph TB
 
     UI --> Chat
     UI --> Weather
+    UI --> Health
+    UI --> PlacesCache
     UI --> StravaEx
     UI --> StravaAct
-    UI --> Firebase
-    UI --> Readiness
 
     Chat --> Gemini
     Chat --> FS
     Weather --> GoogleW
     Weather --> FS
+    Health --> FS
+    PlacesCache --> FS
     StravaEx --> Strava
     StravaAct --> Strava
+    StravaSync --> Strava
+    StravaSync --> FS
+    AdminCache --> FS
+    AdminStrava --> FS
     Firebase --> FS
     Readiness --> FS
 ```
@@ -292,11 +306,11 @@ GET /api/strava/activities?token=ACCESS_TOKEN&page=1
 
 ---
 
-## 4. Planned Endpoints
+### 3.5 GET /api/weather
 
-### 4.1 GET /api/weather (Phase 1)
+**Description:** Returns weather forecast data for a geographic location. Uses Google Weather API as the primary source, with OpenWeather as fallback when the primary source is unavailable. Includes current conditions, hourly/daily forecasts, and persona-specific safety alerts. Results are cached in Firestore with a 60-minute TTL to reduce API costs.
 
-**Description:** Returns weather forecast data for a geographic location using the Google Weather API. Includes current conditions, hourly/daily forecasts, and persona-specific safety alerts. Results are cached in Firestore with a configurable TTL (default 60 minutes).
+**Runtime:** Node.js
 
 **Flow:**
 
@@ -308,11 +322,13 @@ flowchart TD
     D --> E{Check Firestore weather_cache}
     E -->|Fresh data exists| F["Return cached forecast"]
     E -->|Stale or missing| G["Call Google Weather API"]
-    G -->|API error| H["Return fallback/cached stale"]
+    G -->|API error| H["Try OpenWeather fallback"]
     G -->|Success| I["Write to Firestore cache"]
-    I --> J["Apply persona alert thresholds"]
-    J --> K["200 OK + forecast + alerts"]
-    F --> J
+    H -->|Success| I
+    H -->|Error| J["Return error response"]
+    I --> K["Apply persona alert thresholds"]
+    K --> L["200 OK + forecast + alerts"]
+    F --> K
 ```
 
 **Request:**
@@ -327,7 +343,7 @@ GET /api/weather?lat=14.5995&lng=120.9842&persona=mountaineer
 | `lng` | number | Yes | Longitude (-180 to 180) |
 | `persona` | string | No | One of: `mountaineer`, `hiker`, `runner`, `cyclist`. Affects alert thresholds. |
 
-**Planned Response:**
+**Response:**
 
 ```json
 {
@@ -371,9 +387,131 @@ GET /api/weather?lat=14.5995&lng=120.9842&persona=mountaineer
 | Lightning | STOP | STOP | STOP | STOP |
 | UV Index | >8 warn | >8 warn | >8 warn | >8 warn |
 
+**Configuration:**
+- `GOOGLE_WEATHER_API_KEY` -- Primary weather source.
+- `OPENWEATHER_API_KEY` -- Fallback weather source. Graceful degradation if both are missing.
+
 ---
 
-### 4.2 POST /api/readiness (Phase 4)
+### 3.6 GET /api/health
+
+**Description:** Aggregates connectivity and configuration checks for all six integrated services in a single call. Designed for post-deployment validation, monitoring dashboards, and uptime checks. The endpoint always returns a response body regardless of service health; the HTTP status code indicates overall system health.
+
+**Runtime:** Node.js
+
+**Request:**
+
+```http
+GET /api/health
+```
+
+No parameters required.
+
+**Response:**
+
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-06-27T10:00:00Z",
+  "services": {
+    "maps":           { "ok": true,  "message": "API key present" },
+    "firebase_client":{ "ok": true,  "message": "Project: fit-ready-iq" },
+    "firebase_admin": { "ok": true,  "message": "Firestore write OK (project: fit-ready-iq)" },
+    "gemini":         { "ok": true,  "message": "API key present and valid format" },
+    "weather":        { "ok": true,  "message": "OpenWeather API reachable" },
+    "strava":         { "ok": true,  "message": "Client ID: 260217" }
+  }
+}
+```
+
+| Status Value | Meaning | HTTP Code |
+| --- | --- | --- |
+| `healthy` | All 6 services green | 200 |
+| `degraded` | 1-2 services failing (non-critical features affected) | 200 |
+| `unhealthy` | 3+ services failing | 503 |
+
+**Configuration:** Checks for the presence of `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, all `NEXT_PUBLIC_FIREBASE_*` vars, Firebase Admin credentials, `GEMINI_API_KEY`, `GOOGLE_WEATHER_API_KEY` or `OPENWEATHER_API_KEY`, and `STRAVA_CLIENT_ID`/`STRAVA_CLIENT_SECRET`.
+
+---
+
+### 3.7 GET /api/places/cache
+
+**Description:** Returns cached Google Places results for a geographic grid cell. Coordinates are rounded to the nearest 0.5 degree boundary so that nearby users share cached results. Cache TTL is 24 hours. On a cache miss, fetches from Google Places and writes the result to Firestore.
+
+**Runtime:** Node.js
+
+**Request:**
+
+```http
+GET /api/places/cache?lat=14.5995&lng=120.9842&type=mountain
+```
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `lat` | number | Yes | Latitude, rounded to 0.5° grid cell internally |
+| `lng` | number | Yes | Longitude, rounded to 0.5° grid cell internally |
+| `type` | string | No | Place type filter (e.g., `mountain`, `trail`, `campsite`) |
+
+**Responses:**
+
+| Status | Condition |
+| --- | --- |
+| 200 | Cached or freshly fetched place results |
+| 400 | Missing or invalid `lat`/`lng` parameters |
+| 502 | Upstream Google Places API error |
+
+**Configuration:**
+- `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` -- Used server-side for Places API calls.
+- Firebase Admin credentials -- Required for Firestore cache reads/writes.
+
+---
+
+### 3.8 GET /api/admin/cache
+
+**Description:** Admin endpoint for inspecting and purging the Firestore places cache. Returns cache metadata (keys, sizes, TTL status) and supports batch purge operations (up to 400 documents per call).
+
+**Runtime:** Node.js (30 s timeout)
+
+**Request:**
+
+```http
+GET /api/admin/cache
+GET /api/admin/cache?purge=true
+```
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `purge` | boolean | No | If `true`, deletes all expired cache documents |
+
+**Responses:** Returns JSON with cache statistics. Purge returns a count of deleted documents.
+
+**Note:** This endpoint has no authentication guard in the current phase. In Phase 3, it will require an admin Firebase ID token.
+
+---
+
+### 3.9 GET /api/admin/strava-sync
+
+**Description:** Admin endpoint that reports Strava sync status across users. Returns sync manifest data from Firestore showing last sync timestamp, activity count, and sync health per user.
+
+**Runtime:** Node.js
+
+**Request:**
+
+```http
+GET /api/admin/strava-sync
+```
+
+No parameters required.
+
+**Responses:** Returns JSON array of sync manifests. Each entry includes `uid`, `last_sync`, `activity_count`, and `status`.
+
+**Note:** This endpoint has no authentication guard in the current phase. In Phase 3, it will require an admin Firebase ID token.
+
+---
+
+## 4. Planned Endpoints
+
+### 4.1 POST /api/readiness (Phase 4)
 
 **Description:** Compares user fitness data against route demands and returns a readiness score with gap analysis and training recommendations.
 

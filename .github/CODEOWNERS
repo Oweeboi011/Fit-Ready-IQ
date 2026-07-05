@@ -1,0 +1,14 @@
+# Default reviewer for all changes
+* @oweeboipenaranda
+
+# API routes — server-side secrets and auth logic
+frontend/src/app/api/ @oweeboipenaranda
+
+# Firestore security rules — always needs careful review
+firestore.rules @oweeboipenaranda
+firestore.indexes.json @oweeboipenaranda
+
+# CI/CD and deployment configuration
+.github/ @oweeboipenaranda
+vercel.json @oweeboipenaranda
+docker-compose.yml @oweeboipenaranda

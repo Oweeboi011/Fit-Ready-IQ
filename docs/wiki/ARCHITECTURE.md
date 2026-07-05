@@ -31,7 +31,7 @@ graph TB
         MapsAPI["Maps JavaScript API"]
         PlacesAPI["Places API"]
         ElevationAPI["Elevation API"]
-        WeatherAPI["Weather API (Phase 1)"]
+        WeatherAPI["Weather API"]
     end
 
     subgraph Firebase["Firebase Platform"]
@@ -168,6 +168,7 @@ graph TD
 | `RouteFilter.tsx` | Provides filtering controls for activity type, difficulty, distance range, and elevation gain. Emits filter state changes to parent. | None (pure UI) |
 | `ConnectDevicesModal.tsx` | Manages Strava OAuth flow, GPX file drag-and-drop import, and activity history display with source badges. | Strava routes, GPX parser |
 | `ChatBot.tsx` | Conversational AI interface with message history, typing indicators, and session management. | /api/chat route |
+| `useSavedPlaces.ts` | Real-time Firestore listener hook for the authenticated user's saved places. Subscribes on mount, unsubscribes on unmount. | Firebase client SDK, Firestore |
 
 ### 3.3 State Management Strategy
 
@@ -226,11 +227,16 @@ graph LR
         Chat["POST /api/chat<br/>Gemini + Firestore"]
         StravaEx["POST /api/strava/exchange<br/>OAuth Token Exchange"]
         StravaAct["GET /api/strava/activities<br/>Activity Retrieval"]
-        FBHealth["GET /api/integrations/firebase<br/>Health Check"]
+        StravaSync["GET /api/strava/sync<br/>Admin Sync to Firestore"]
+        Weather["GET /api/weather<br/>Google Weather + Fallback"]
+        Health["GET /api/health<br/>Aggregate Health Check"]
+        PlacesCache["GET /api/places/cache<br/>Grid-based Cache"]
+        AdminCache["GET /api/admin/cache<br/>Inspect/Purge Cache"]
+        AdminStrava["GET /api/admin/strava-sync<br/>Sync Status"]
+        FBHealth["GET /api/integrations/firebase<br/>Firebase Health Check"]
     end
 
     subgraph Planned["Planned Routes"]
-        Weather["GET /api/weather<br/>Weather + Alerts (Phase 1)"]
         Readiness["POST /api/readiness<br/>Fitness Scoring (Phase 4)"]
         UserAPI["CRUD /api/user/*<br/>Profile Management (Phase 3)"]
     end
@@ -239,9 +245,15 @@ graph LR
     Chat --> FS1["Firestore"]
     StravaEx --> Strava["Strava API"]
     StravaAct --> Strava
-    FBHealth --> FS2["Firestore"]
+    StravaSync --> Strava
+    StravaSync --> FS2["Firestore"]
     Weather --> GW["Google Weather API"]
     Weather --> FS3["Firestore Cache"]
+    Health --> FS4["Firestore"]
+    PlacesCache --> FS5["Firestore"]
+    AdminCache --> FS6["Firestore"]
+    AdminStrava --> FS7["Firestore"]
+    FBHealth --> FS8["Firestore"]
 ```
 
 ### 4.3 Chat Route Flow
@@ -262,7 +274,7 @@ flowchart TD
     K --> L
 ```
 
-### 4.4 Weather Route Flow (Phase 1)
+### 4.4 Weather Route Flow
 
 ```mermaid
 flowchart TD
@@ -271,10 +283,51 @@ flowchart TD
     B -->|Valid| D[Check Firestore weather_cache]
     D -->|Fresh data exists| E[Return cached forecast]
     D -->|Stale or missing| F[Call Google Weather API]
-    F -->|Error| G[Return fallback/error]
-    F -->|Success| H[Store in Firestore cache]
-    H --> I[Apply persona-specific alerts]
-    I --> J[Return forecast + alerts]
+    F -->|Error| G[Try OpenWeather fallback]
+    G -->|Success| H[Store in Firestore cache]
+    G -->|Error| I[Return error response]
+    F -->|Success| H
+    H --> J[Apply persona-specific alerts]
+    J --> K[Return forecast + alerts]
+```
+
+### 4.5 Health Route
+
+`GET /api/health` aggregates connectivity checks for all six integrated services in a single call. It is used for post-deployment validation and monitoring dashboards.
+
+```mermaid
+flowchart TD
+    A["GET /api/health"] --> B[Check maps key]
+    A --> C[Check Firebase client vars]
+    A --> D[Check Firebase Admin / Firestore write]
+    A --> E[Check Gemini key]
+    A --> F[Check weather key]
+    A --> G[Check Strava credentials]
+    B & C & D & E & F & G --> H{Count failures}
+    H -->|0 failures| I["200 status: healthy"]
+    H -->|1-2 failures| J["200 status: degraded"]
+    H -->|3+ failures| K["503 status: unhealthy"]
+```
+
+The endpoint always returns a response (even on failures), so monitoring tools can distinguish between "route unreachable" and "service degraded." See [API.md](API.md) for the full response schema.
+
+### 4.6 Places Cache Route
+
+`GET /api/places/cache` implements a grid-based cache for Google Places results stored in Firestore.
+
+**Cache key strategy:** Incoming `lat`/`lng` coordinates are rounded to the nearest 0.5 degree boundary. This means all users within the same 0.5° grid cell (roughly 55 km x 55 km at mid-latitudes) share the same cached result, dramatically reducing Places API calls.
+
+**TTL:** 24 hours. Stale documents are refreshed on the next cache miss.
+
+```mermaid
+flowchart TD
+    A["GET /api/places/cache?lat=X&lng=Y&type=T"] --> B[Round lat/lng to 0.5 grid]
+    B --> C[Generate gridKey]
+    C --> D{Firestore cache hit?}
+    D -->|Yes + fresh| E[Return cached places]
+    D -->|No or stale| F[Fetch from Google Places API]
+    F --> G[Write to places_cache/gridKey]
+    G --> H[Return places]
 ```
 
 ---
@@ -482,16 +535,16 @@ gantt
     title Architecture Evolution Phases
     dateFormat YYYY-MM
     section Foundation
-        Phase 0 - Hardening        :done, p0, 2026-06, 2026-07
+        Phase 0 - Hardening        :done, p0, 2026-05, 2026-07
     section Intelligence
-        Phase 1 - Weather API      :active, p1, 2026-07, 2026-08
-        Phase 2 - Persona Routing  :p2, 2026-08, 2026-09
+        Phase 1 - Weather API      :done, p1, 2026-06, 2026-07
+        Phase 2 - Persona Routing  :active, p2, 2026-07, 2026-08
     section Platform
-        Phase 3 - Auth + Profiles  :p3, 2026-09, 2026-10
-        Phase 4 - Readiness Engine :p4, 2026-10, 2026-11
+        Phase 3 - Auth + Profiles  :p3, 2026-08, 2026-09
+        Phase 4 - Readiness Engine :p4, 2026-09, 2026-10
     section Optimization
-        Phase 5 - Smart AI         :p5, 2026-11, 2026-12
-        Phase 6 - Performance      :p6, 2026-12, 2027-01
+        Phase 5 - Smart AI         :p5, 2026-10, 2026-11
+        Phase 6 - Performance      :p6, 2026-11, 2026-12
 ```
 
 ### 8.2 Target State Architecture (Phase 6)
