@@ -87,11 +87,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid message format' }, { status: 400 });
   }
 
-  // Cap context to last 10 turns (20 messages) to bound per-request token cost.
-  // Keep the first user message so the model retains original intent.
+  // Cap context to bound per-request token cost.
+  // Slice the most recent MAX_HISTORY messages, then drop one more if needed so the
+  // array always starts with a user turn — Gemini requires strict user/model alternation.
   const MAX_HISTORY = 20;
-  const trimmed =
-    messages.length > MAX_HISTORY ? [messages[0], ...messages.slice(-(MAX_HISTORY - 1))] : messages;
+  let trimmed = messages;
+  if (messages.length > MAX_HISTORY) {
+    const recent = messages.slice(-MAX_HISTORY);
+    trimmed = recent[0].role === 'user' ? recent : recent.slice(1);
+  }
 
   const contents = trimmed.map((msg) => ({
     role: msg.role === 'assistant' ? 'model' : 'user',
