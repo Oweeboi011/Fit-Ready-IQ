@@ -1,1 +1,8 @@
 .vercel
+.next/
+node_modules/
+coverage/
+reports/
+.stryker-tmp/
+test-results/
+playwright-report/

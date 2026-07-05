@@ -56,22 +56,24 @@ graph TB
 
 ### 2.2 Deploy Flow
 
+Changes reach production only after all CI, E2E, security, and (when `frontend/src/lib/` changes) mutation gates pass on the PR to `main`. Direct pushes to `main` are blocked by branch protection.
+
 ```mermaid
 sequenceDiagram
     participant Dev as Developer
-    participant GH as GitHub
+    participant GH as GitHub Actions
     participant V as Vercel
     participant Prod as Production
 
-    Dev->>GH: Push to main (or merge PR)
+    Dev->>GH: Push feature/* branch, open PR to main
+    GH->>GH: ci.yml: lint + type-check + unit tests + build
+    GH->>GH: e2e.yml: Playwright E2E
+    GH->>GH: security.yml: npm audit + pip-audit + gitleaks + CodeQL
+    GH->>GH: mutation.yml (if src/lib changed)
+    GH-->>Dev: All gates result
+    Dev->>GH: Merge to main (after approval)
     GH->>V: Webhook trigger
-    V->>V: Clone repository
-    V->>V: cd frontend/
-    V->>V: npm install
-    V->>V: npm run build
-    V->>V: Bundle serverless functions
-    V->>V: Upload static assets to CDN
-
+    V->>V: npm install + npm run build
     alt Build succeeds
         V->>Prod: Atomic deployment swap
         V-->>Dev: Deployment URL + success notification
@@ -79,6 +81,62 @@ sequenceDiagram
         V-->>Dev: Error log + failure notification
     end
 ```
+
+### 2.3 CI/CD Pipeline
+
+The project uses GitHub Actions workflows to enforce quality gates before any change reaches production.
+
+**Branch flow:** `feature/*` → `main` → Vercel (trunk-based, no intermediate branch)
+
+```mermaid
+flowchart LR
+    A["feature/* branch"] -->|PR to main| B["CI + E2E + Security gates"]
+    B -->|All gates pass + review| C["main"]
+    C -->|Auto-deploy| D["Vercel Production"]
+```
+
+**Workflow table:**
+
+| Workflow | Trigger | What It Does |
+| --- | --- | --- |
+| `ci.yml` | PR to `main`, push to `main` | Lint + type-check + unit tests + build (frontend); ruff + mypy + pytest (backend) |
+| `e2e.yml` | PR to `main` | Playwright E2E tests on Chromium (uses real secrets from GitHub Secrets) |
+| `mutation.yml` | PR to `main` when `frontend/src/lib/**` changed | Stryker mutation tests |
+| `security.yml` | PR to `main`, push to `main`, weekly Monday | npm audit + pip-audit + gitleaks secret scan + CodeQL |
+| `agent-review.yml` | Any PR opened / synchronized / ready | Posts AI code review comment via Claude Haiku. Needs `ANTHROPIC_API_KEY` secret. Add `[skip review]` to PR title to suppress. |
+
+**Required GitHub Secrets** (Settings -> Secrets and variables -> Actions):
+
+| Secret | Required By |
+| --- | --- |
+| `ANTHROPIC_API_KEY` | `agent-review.yml` |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | `ci.yml`, `e2e.yml` |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | `ci.yml`, `e2e.yml` |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | `ci.yml`, `e2e.yml` |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | `ci.yml`, `e2e.yml` |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | `ci.yml`, `e2e.yml` |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | `ci.yml`, `e2e.yml` |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | `ci.yml`, `e2e.yml` |
+| `GEMINI_API_KEY` | `ci.yml`, `e2e.yml` |
+| `FIREBASE_PROJECT_ID` | `ci.yml`, `e2e.yml` |
+| `FIREBASE_CLIENT_EMAIL` | `ci.yml`, `e2e.yml` |
+| `FIREBASE_PRIVATE_KEY` | `ci.yml`, `e2e.yml` |
+| `STRAVA_CLIENT_ID` | `ci.yml`, `e2e.yml` |
+| `STRAVA_CLIENT_SECRET` | `ci.yml`, `e2e.yml` |
+| `GOOGLE_WEATHER_API_KEY` | `ci.yml` |
+| `GITHUB_TOKEN` | `security.yml`, `agent-review.yml` (automatic) |
+
+### 2.4 Branch Protection Setup (One-Time, GitHub UI)
+
+Configure branch protection for `main` in **Settings → Branches** after pushing the workflows.
+
+**`main` branch:**
+- Require status checks: `Frontend Quality`, `Backend Quality`, `Playwright E2E`, `Secret Scan`
+- Require branches to be up to date before merging
+- Enable merge queue (Settings → Branches → Edit → Merge queue)
+- Require 1 approving review
+- Dismiss stale reviews on new commits
+- Restrict direct pushes (no commits directly to `main`)
 
 ---
 
@@ -184,17 +242,19 @@ npx vercel env add GEMINI_API_KEY preview
 
 ### 5.1 Automatic Deployment (Recommended)
 
-Connect the GitHub repository to Vercel. Every push to `main` triggers a production deployment. Every pull request gets a preview deployment.
+Connect the GitHub repository to Vercel. Merges to `main` (after passing all CI/CD gates on the PR to `main`) trigger a production deployment. Every pull request gets a preview deployment for early validation.
 
 ```mermaid
 flowchart LR
-    A[Push to main] --> B[Vercel auto-build]
+    A[Merge to main] --> B[Vercel auto-build]
     B --> C[Production deployment]
 
     D[Open PR] --> E[Vercel auto-build]
     E --> F[Preview deployment]
     F --> G[PR comment with preview URL]
 ```
+
+Changes reach `main` only after the full gate sequence: feature PR to `main` → CI + E2E + mutation + security pass → approval → merge. Direct pushes to `main` are blocked by branch protection.
 
 ### 5.2 Manual Deployment
 

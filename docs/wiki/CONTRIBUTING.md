@@ -30,7 +30,7 @@ Contributions should improve one or more of:
 
 ```mermaid
 flowchart TD
-    A[Identify task or issue] --> B[Create branch from main]
+    A[Identify task or issue] --> B[Create feature/* branch from main]
     B --> C[Implement changes]
     C --> D[Run validation commands]
     D --> E{All checks pass?}
@@ -38,22 +38,25 @@ flowchart TD
     F --> D
     E -->|Yes| G[Update documentation]
     G --> H[Commit with conventional message]
-    H --> I[Push and open PR]
-    I --> J[Address review feedback]
-    J --> K[Merge to main]
-    K --> L[Auto-deploy to Vercel]
+    H --> I[Push and open PR to main]
+    I --> J[CI + E2E + security + mutation gates]
+    J --> K[AI review comment posted automatically]
+    K --> L[Address feedback + all gates pass]
+    L --> M[Merge to main]
+    M --> N[Auto-deploy to Vercel]
 ```
 
 ### 3.2 Detailed Steps
 
-1. **Branch** -- Create a feature/fix branch from `main`.
+1. **Branch** -- Create a `feature/*` branch from `main`.
 2. **Implement** -- Make changes following code standards (Section 5).
 3. **Validate** -- Run all validation commands (Section 6) and ensure zero errors.
 4. **Document** -- Update relevant docs if behavior changed (Section 7).
-5. **Commit** -- Use conventional commit messages (Section 4).
-6. **PR** -- Open a pull request with description of changes and testing done.
-7. **Review** -- Address reviewer feedback and re-validate.
-8. **Merge** -- Squash-merge to `main` triggers auto-deploy.
+5. **Commit** -- Use conventional commit messages (Section 4). The `commit-msg` hook enforces format automatically.
+6. **PR** -- Open a pull request directly to `main`. A PR template is pre-filled on GitHub -- complete all sections.
+7. **CI gates** -- `ci.yml` runs lint, type-check, unit tests, and build. `e2e.yml` runs Playwright. `security.yml` runs npm audit, pip-audit, gitleaks, and CodeQL. `mutation.yml` runs if `frontend/src/lib/**` changed. All must pass before merge.
+8. **AI review** -- `agent-review.yml` posts an automated Claude Haiku review comment on every non-draft PR. Address any flagged issues.
+9. **Merge** -- After all gates pass and a reviewer approves, merge to `main`. Vercel deploys automatically.
 
 ---
 
@@ -80,9 +83,11 @@ flowchart LR
 | Testing | `test/<description>` | `test/weather-route-unit-tests` |
 | Maintenance | `chore/<description>` | `chore/upgrade-next-14.2` |
 
+All branches should be created from `main`.
+
 ### 4.2 Commit Message Format
 
-Use [Conventional Commits](https://www.conventionalcommits.org/):
+Use [Conventional Commits](https://www.conventionalcommits.org/). The `commit-msg` Husky hook enforces this format automatically on every commit.
 
 ```
 <type>(<scope>): <description>
@@ -90,6 +95,8 @@ Use [Conventional Commits](https://www.conventionalcommits.org/):
 [optional body]
 [optional footer]
 ```
+
+Max subject length: 100 characters.
 
 **Examples:**
 
@@ -116,9 +123,20 @@ Update all documentation files to use Mermaid flowcharts
 and sequence diagrams for better rendering on GitHub.
 ```
 
-**Types:** `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `style`
+**Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `revert`, `ci`, `build`
 
-**Scopes:** `maps`, `weather`, `chat`, `strava`, `firebase`, `elevation`, `ui`, `build`, `deps`
+**Scopes:** `maps`, `weather`, `chat`, `strava`, `firebase`, `elevation`, `ui`, `build`, `deps`, `health`, `admin`, `places`
+
+### 4.3 Pre-commit Hooks (Husky)
+
+Husky installs two Git hooks automatically when you run `npm install`:
+
+| Hook | Trigger | What It Does |
+| --- | --- | --- |
+| `pre-commit` | Before every commit | Runs `lint-staged`: ESLint `--fix` + Prettier on staged `*.ts(x)` files. Auto-fixes are re-staged. |
+| `commit-msg` | After writing commit message | Runs `commitlint` to validate Conventional Commits format. Rejects the commit if the message is invalid. |
+
+These hooks run without any manual setup. If a commit is rejected by `commit-msg`, fix the message and try again -- the staged changes are preserved.
 
 ---
 
@@ -187,7 +205,10 @@ cd frontend
 # Lint check (ESLint)
 npm run lint
 
-# Build check (TypeScript + Next.js)
+# TypeScript type check
+npm run type-check
+
+# Build check (Next.js)
 npm run build
 
 # Unit tests (Vitest)
@@ -223,19 +244,23 @@ flowchart TD
     B --> C{Passes?}
     C -->|No| D[Fix lint errors]
     D --> B
-    C -->|Yes| E[npm run build]
+    C -->|Yes| E[npm run type-check]
     E --> F{Passes?}
-    F -->|No| G[Fix TypeScript/build errors]
+    F -->|No| G[Fix TypeScript errors]
     G --> E
-    F -->|Yes| H[npm run test:unit]
+    F -->|Yes| H[npm run build]
     H --> I{Passes?}
-    I -->|No| J[Fix failing tests]
+    I -->|No| J[Fix build errors]
     J --> H
-    I -->|Yes| K[npm audit --audit-level=high]
+    I -->|Yes| K[npm run test:unit]
     K --> L{Passes?}
-    L -->|No| M[Address vulnerabilities]
+    L -->|No| M[Fix failing tests]
     M --> K
-    L -->|Yes| N[Ready for PR]
+    L -->|Yes| N[npm audit --audit-level=high]
+    N --> O{Passes?}
+    O -->|No| P[Address vulnerabilities]
+    P --> N
+    O -->|Yes| Q[Ready for PR]
 ```
 
 ---
@@ -270,6 +295,7 @@ If your change affects any of the following, update the corresponding document:
 ### 8.1 Self-Review (Before Opening PR)
 
 - [ ] Code builds and lints with zero errors
+- [ ] TypeScript type-check passes (`npm run type-check`)
 - [ ] All unit tests pass
 - [ ] No hardcoded secrets or API keys in any file
 - [ ] No `console.log` in production code
@@ -277,7 +303,8 @@ If your change affects any of the following, update the corresponding document:
 - [ ] New environment variables documented in DEPLOYMENT.md
 - [ ] Mermaid diagrams updated where architecture changed
 - [ ] Solution plan updated if behavior/feature changed
-- [ ] Commit messages follow conventional format
+- [ ] Commit messages follow conventional format (enforced by commitlint hook)
+- [ ] PR template on GitHub is fully completed
 
 ### 8.2 Reviewer Checklist
 
@@ -338,13 +365,15 @@ cd Fit-Ready-IQ
 
 # Frontend setup
 cd frontend
-npm install
-cp .env.example .env.local  # Then fill in API keys
+npm install  # Also installs Husky hooks automatically via the prepare script
+cp ../frontend/.env.example .env.local  # Copy from frontend/.env.example, then fill in API keys
 
 # Start development
 npm run dev
 # App at http://localhost:4790
 ```
+
+Husky hooks are active immediately after `npm install`. No separate install step is required.
 
 ### 10.3 VS Code Extensions (Recommended)
 
