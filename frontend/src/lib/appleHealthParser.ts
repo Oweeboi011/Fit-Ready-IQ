@@ -51,11 +51,11 @@ export function parseAppleHealthXml(xml: string): AppleHealthWorkout[] {
     if (distEl) {
       const unit = distEl.getAttribute('unit') ?? '';
       const val = parseFloat(distEl.getAttribute('sum') ?? '0');
-      distKm = unit === 'm' ? val / 1000 : val;
+      distKm = unit === 'm' ? val / 1000 : unit === 'mi' ? val * 1.60934 : val;
     } else {
       const rawDist = parseFloat(w.getAttribute('totalDistance') ?? '0');
       const rawUnit = w.getAttribute('totalDistanceUnit') ?? 'km';
-      distKm = rawUnit === 'm' ? rawDist / 1000 : rawDist;
+      distKm = rawUnit === 'm' ? rawDist / 1000 : rawUnit === 'mi' ? rawDist * 1.60934 : rawDist;
     }
 
     // Elevation — from WorkoutStatistics or route metadata
@@ -76,7 +76,7 @@ export function parseAppleHealthXml(xml: string): AppleHealthWorkout[] {
 
     results.push({
       name: `${sport} – ${dateLabel}`,
-      sport_type: sport.toLowerCase(),
+      sport_type: sport,
       start_date: startDate,
       distance_km: Math.round(distKm * 100) / 100,
       elevation_gain_m: Math.round(elevGain),
@@ -92,8 +92,8 @@ export function appleHealthWorkoutsToActivities(
   workouts: AppleHealthWorkout[],
   fileHint: string
 ): Activity[] {
-  return workouts.map((w, i) => ({
-    id: `apple_${fileHint}_${w.start_date}_${i}`,
+  return workouts.map((w) => ({
+    id: `apple_${w.sport_type}_${w.start_date}_${w.moving_time_s}`,
     source: 'apple_health' as Activity['source'],
     name: w.name,
     sport_type: w.sport_type,

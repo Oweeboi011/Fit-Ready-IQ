@@ -150,6 +150,13 @@ export default function ConnectDevicesModal({
     for (const file of files) {
       try {
         if (deviceId === 'apple_health') {
+          const MAX_APPLE_HEALTH_SIZE = 50 * 1024 * 1024; // 50 MB
+          if (file.size > MAX_APPLE_HEALTH_SIZE) {
+            errors.push(
+              `${file.name}: File too large (${Math.round(file.size / 1024 / 1024)} MB). Maximum size is 50 MB. Try exporting a shorter date range.`
+            );
+            continue;
+          }
           const text = await file.text();
           const workouts = parseAppleHealthXml(text);
           const acts = appleHealthWorkoutsToActivities(workouts, file.name);
