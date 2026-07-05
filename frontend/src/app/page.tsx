@@ -491,7 +491,10 @@ export default function Home() {
               avg_heartrate: item.average_heartrate,
               max_heartrate: item.max_heartrate,
               external_id: String(item.id),
-              start_latlng: item.start_latlng,
+              // Strava returns [lat, lng]; Activity convention is [lng, lat] (GeoJSON)
+              start_latlng: item.start_latlng
+                ? [item.start_latlng[1], item.start_latlng[0]]
+                : undefined,
               polyline: item.map?.summary_polyline
                 ? decodePolyline(item.map.summary_polyline)
                 : undefined,
@@ -532,7 +535,8 @@ export default function Home() {
     } catch {
       // ignore malformed token
     }
-  }, []);
+    // Re-run when uid changes so users who sign in post-mount get their Strava sync fired.
+  }, [authUser?.uid]);
 
   // Fetch real data from Google Maps Places API
   useEffect(() => {
