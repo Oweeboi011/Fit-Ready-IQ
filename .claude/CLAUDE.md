@@ -51,13 +51,13 @@ The FastAPI backend is not called by the frontend in production; it is planned f
 
 | Route | Purpose | Timeout |
 |---|---|---|
-| `/api/chat` | Gemini 1.5 Flash conversation, persisted to Firestore | 30 s |
+| `/api/chat` | Gemini 1.5 Flash conversation, persisted to Firestore. History capped at 20 messages (first message anchored) to bound token cost. | 30 s |
 | `/api/strava/exchange` | Server-side OAuth token exchange (keeps secret off client) | — |
 | `/api/strava/activities` | Fetch activities from Strava API | — |
 | `/api/strava/sync` | Admin: sync Strava activities → Firestore | 60 s |
 | `/api/places/cache` | Grid-based places cache (0.5° cells, 24 h TTL) | 15 s |
 | `/api/weather` | Google Weather (primary) → OpenWeather fallback | 15 s |
-| `/api/health` | Aggregate health check for all integrations | 15 s |
+| `/api/health` | Credential-presence checks only (no live API calls). `s-maxage=30, stale-while-revalidate=10`. | 15 s |
 | `/api/admin/cache` | Inspect / purge places cache (batch 400 docs) | 30 s |
 | `/api/admin/strava-sync` | Strava sync status across users | — |
 
@@ -77,6 +77,14 @@ _health/                                # health check documents
 
 Places cache key = coordinates rounded to 0.5° so nearby users share cached results.
 
+### Client-side caching
+
+To avoid redundant paid API calls:
+
+- **Weather + photos** (`DetailsModal.tsx`): module-level `weatherCache` (30 min TTL) and `photosCache` (session lifetime).
+- **Reverse geocode** (`page.tsx`): `sessionStorage` with 24 h TTL and 0.1° coordinate grid (`fri_geocode_*` key).
+- **Last user location** (`page.tsx`): persisted to `localStorage` (`fri_last_location`) and restored on page load so the map focuses instantly.
+
 ### Credential split
 
 `NEXT_PUBLIC_*` variables are safe to expose to the browser. All other keys (`GEMINI_API_KEY`, `STRAVA_CLIENT_SECRET`, `FIREBASE_SERVICE_ACCOUNT_KEY_JSON`, `FIREBASE_PRIVATE_KEY`) are server-side only and must never appear in client-side code.
@@ -90,38 +98,44 @@ Firebase Admin SDK tries credentials in this order: `FIREBASE_SERVICE_ACCOUNT_KE
 - `src/components/ChatBot.tsx` — floating chat widget with Firestore session persistence
 - `src/components/ConnectDevicesModal.tsx` — Strava OAuth + GPX/Apple Health file import
 - `src/components/DetailsModal.tsx` — route/mountain/campsite/activity details, elevation profiles, weather
+- `src/components/ProfileModal.tsx` — user profile display
+- `src/components/RouteFilter.tsx` — filter controls for map markers
 - `src/lib/firebaseAdmin.ts` — Admin SDK init (server-side only)
 - `src/lib/firebaseClient.ts` — client SDK init + Google/Apple auth (`signInWithGoogle`, `signInWithApple`)
 - `src/lib/gpxParser.ts` — GPX/TCX → activity objects (haversine, elevation gain, sport inference)
 - `src/lib/appleHealthParser.ts` — Apple Health export.xml → activity objects (Workout elements)
-- `src/lib/polylineDecoder.ts` — precision-5 polyline decode → `[lng, lat]` pairs
+- `src/lib/polylineDecoder.ts` — precision-5 polyline decode → `[lng, lat]` pairs (test file is `decodePolyline.test.ts`)
 - `src/lib/activityTypes.ts` — activity interfaces, localStorage persistence (`fri_activities` key), dedup. Sources: `strava | coros | garmin | komoot | apple_health`
 - `src/lib/useSavedPlaces.ts` — real-time Firestore listener hook for saved places
-
-### Path aliases (`tsconfig.json`)
-
-`@/*`, `@/components/*`, `@/lib/*`, `@/types/*`, `@/store/*` all resolve under `src/`.
 
 ### Polyline convention
 
 Decoded polylines are stored as `[lng, lat]` pairs (GeoJSON order), not `[lat, lng]`.
 
+### Backend architecture
+
+The FastAPI backend (`backend/`) follows Clean Architecture — dependencies point inward only:
+
+```
+Infrastructure → Interface → Application → Domain
+```
+
+| Layer | Path | Contains |
+|---|---|---|
+| Domain | `src/domain/` | Entities, value objects, interfaces (ports), domain services |
+| Infrastructure | `src/infrastructure/` | Config, API clients, database adapters |
+| Config | `src/config/` | Pydantic settings via `settings.py` |
+
+Do not import from outer layers into inner ones (domain has zero external imports).
+
 ## Testing
 
-- **Unit tests:** Vitest with jsdom, 85% coverage threshold on statements/functions/lines. Reports in `coverage/`.
+- **Unit tests:** Vitest with jsdom. Coverage thresholds: 85% statements/functions/lines, 50% branches. Reports in `coverage/`.
 - **E2E tests:** Playwright (Chromium), 30 s timeout, 2 retries in CI, auto-starts dev server on port 4790.
-- **Mutation tests:** Stryker (`npm run test:mutation`), targets `src/lib/gpxParser.ts`, `polylineDecoder.ts`, `activityTypes.ts`. Break/low threshold 70%, high 80%. Note: `stryker.config.ts` has a pre-existing `Config` import error (upstream type issue) — safe to ignore.
+- **Mutation tests:** Stryker (`npm run test:mutation`), config in `stryker.config.json`, targets `src/lib/gpxParser.ts`, `polylineDecoder.ts`, `activityTypes.ts`. Break/low threshold 70%, high 80%.
 - **Load tests:** `npm run test:load` (Autocannon).
 
-### Cost / performance harnesses added (feature/solution-harnessing)
-
-| Area | What changed |
-|---|---|
-| `/api/health` | Converted to credential-presence checks only (no live Firestore writes or Weather API calls). Cache header: `s-maxage=30, stale-while-revalidate=10`. |
-| `/api/chat` | History capped at 20 messages (anchors first message) to bound Gemini token cost per call. |
-| `DetailsModal.tsx` | Module-level `weatherCache` (30 min TTL) and `photosCache` (session lifetime) prevent redundant paid API calls when re-opening the same modal. |
-| `page.tsx` | Reverse geocode cached in `sessionStorage` with 24 h TTL and 0.1° coordinate grid (`fri_geocode_*` key). Last known user location persisted to `localStorage` (`fri_last_location`) and restored on every page load so the map focuses instantly. |
-| `agent-review.yml` | Uses Claude Haiku (`claude-haiku-4-5-20251001`), diff trimmed to 10 KB, max 1 024 output tokens (~$0.004/PR). |
+When writing tests for `useSavedPlaces.ts`, import the module after mocks are registered (use top-level `await import(...)` pattern). Do not add new top-level `await` imports to other test files — Stryker instruments string literals in dynamic imports and an empty-string mutant will break Vite's module resolver.
 
 ## CI/CD Pipeline
 
@@ -141,8 +155,10 @@ feature/* → main
 | `ci.yml` | PR to `main`, push to `main` | Lint + type-check + unit tests + build (frontend); ruff + mypy + pytest (backend) |
 | `e2e.yml` | PR to `main` | Playwright E2E (uses real secrets from GitHub Secrets) |
 | `mutation.yml` | PR to `main` when `src/lib/` changed | Stryker mutation tests |
-| `security.yml` | PRs + push to `main` + weekly Monday | npm audit + gitleaks secret scan + CodeQL |
+| `security.yml` | PRs + push to `main` + weekly Monday | npm audit (`--audit-level=high`) + gitleaks secret scan + CodeQL |
 | `agent-review.yml` | PR open/synchronize | Posts AI review comment via Claude Haiku. Needs `ANTHROPIC_API_KEY` secret. Add `[skip review]` to PR title to suppress. |
+
+The AI review workflow uses `claude-haiku-4-5-20251001`, trims diffs to 10 KB, and caps output at 1 024 tokens (~$0.004/PR).
 
 ### Required GitHub Secrets
 
@@ -179,6 +195,12 @@ Husky runs automatically after `npm install` via the `prepare` script.
 - **commit-msg:** enforces Conventional Commits via `commitlint`
 
 Commit format: `type(scope): subject` — types: `feat fix docs style refactor perf test chore revert ci build`
+
+## Naming conventions
+
+**TypeScript/React:** PascalCase for components and interfaces; camelCase for utilities, hooks, and variables; `ALL_CAPS` for constants; prefix private class members with `_`.
+
+**Python:** snake_case for functions, variables, and files; PascalCase for classes; `ALL_CAPS` for constants; prefix private members with `_`.
 
 ## Environment variables
 
