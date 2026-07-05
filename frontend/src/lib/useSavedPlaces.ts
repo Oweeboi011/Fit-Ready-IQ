@@ -44,15 +44,20 @@ export function useSavedPlaces(uid: string | null) {
     }
 
     let unsubscribeFn: (() => void) | undefined;
+    let cancelled = false;
     setLoading(true);
 
     (async () => {
       const db = await getFirestoreDb();
-      if (!db) {
+      if (cancelled || !db) {
         setLoading(false);
         return;
       }
       const { collection, onSnapshot } = await import('firebase/firestore');
+      if (cancelled) {
+        setLoading(false);
+        return;
+      }
       const ref = collection(db, 'users', uid, 'saved_places');
       unsubscribeFn = onSnapshot(
         ref,
@@ -87,7 +92,10 @@ export function useSavedPlaces(uid: string | null) {
       );
     })();
 
-    return () => unsubscribeFn?.();
+    return () => {
+      cancelled = true;
+      unsubscribeFn?.();
+    };
   }, [uid]);
 
   const isSaved = useCallback((id: string) => savedPlaces.some((p) => p.id === id), [savedPlaces]);

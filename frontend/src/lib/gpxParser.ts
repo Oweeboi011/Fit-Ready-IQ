@@ -66,7 +66,8 @@ export async function parseGpxFile(file: File): Promise<ParsedGpxActivity> {
     const lat = parseFloat(pt.getAttribute('lat') ?? '0');
     const lon = parseFloat(pt.getAttribute('lon') ?? '0');
     const eleText = pt.querySelector('ele')?.textContent;
-    const ele = eleText !== undefined && eleText !== null ? parseFloat(eleText) : null;
+    const rawEle = eleText != null && eleText !== '' ? parseFloat(eleText) : NaN;
+    const ele = isNaN(rawEle) ? null : rawEle;
 
     polyline.push([lon, lat]);
 
