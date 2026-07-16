@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 
 from .config.settings import get_settings
 from .infrastructure.database.connection import initialize_firebase
+from .presentation.routes import routes
 
 # Configure structured logging
 structlog.configure(
@@ -85,11 +86,12 @@ async def root():
     }
 
 
-# Import and include routers (will be created)
-# from .presentation.routes import auth, fitness, routes, itinerary
+app.include_router(routes.router, prefix="/api/routes", tags=["Routes"])
+
+# Additional routers, not yet built:
+# from .presentation.routes import auth, fitness, itinerary
 # app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 # app.include_router(fitness.router, prefix="/api/fitness", tags=["Fitness"])
-# app.include_router(routes.router, prefix="/api/routes", tags=["Routes"])
 # app.include_router(itinerary.router, prefix="/api/itinerary", tags=["Itinerary"])
 
 
