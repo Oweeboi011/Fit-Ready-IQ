@@ -117,13 +117,15 @@ Decoded polylines are stored as `[lng, lat]` pairs (GeoJSON order), not `[lat, l
 The FastAPI backend (`backend/`) follows Clean Architecture — dependencies point inward only:
 
 ```
-Infrastructure → Interface → Application → Domain
+Infrastructure → Presentation → Application → Domain
 ```
 
 | Layer | Path | Contains |
 |---|---|---|
 | Domain | `src/domain/` | Entities, value objects, interfaces (ports), domain services |
-| Infrastructure | `src/infrastructure/` | Config, API clients, database adapters |
+| Application | `src/application/` | Use cases (e.g. `match_routes_use_case.py`) |
+| Presentation | `src/presentation/` | API routers, request/response models, dependency providers |
+| Infrastructure | `src/infrastructure/` | Database adapters, external API clients |
 | Config | `src/config/` | Pydantic settings via `settings.py` |
 
 Do not import from outer layers into inner ones (domain has zero external imports).
@@ -157,6 +159,7 @@ feature/* → main
 | `mutation.yml` | PR to `main` when `src/lib/` changed | Stryker mutation tests |
 | `security.yml` | PRs + push to `main` + weekly Monday | npm audit (`--audit-level=high`) + gitleaks secret scan + CodeQL |
 | `agent-review.yml` | PR open/synchronize | Posts AI review comment via Claude Haiku. Needs `ANTHROPIC_API_KEY` secret. Add `[skip review]` to PR title to suppress. |
+| `uptime.yml` | Every 15 min, manual dispatch | Curls `{PRODUCTION_URL}/api/health`; fails the run (no auto-notification beyond GitHub's own workflow-failure alerts) if it doesn't return 2xx. Needs `PRODUCTION_URL` repo variable. |
 
 The AI review workflow uses `claude-haiku-4-5-20251001`, trims diffs to 10 KB, and caps output at 1 024 tokens (~$0.004/PR).
 

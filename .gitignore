@@ -30,7 +30,6 @@ venv/
 ENV/
 env/
 .venv
-.env.example
 
 # PyCharm
 .idea/

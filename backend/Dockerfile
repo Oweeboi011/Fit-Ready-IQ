@@ -3,13 +3,9 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies for PostgreSQL, PostGIS, and compilation
+# Install system dependencies for compilation
 RUN apt-get update && apt-get install -y \
     gcc \
-    postgresql-client \
-    libpq-dev \
-    gdal-bin \
-    libgdal-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry

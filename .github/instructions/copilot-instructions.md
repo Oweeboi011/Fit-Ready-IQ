@@ -8,10 +8,10 @@ This is a full-stack solution following Clean Architecture, SOLID principles, an
 
 **Stack:**
 
-- Backend: Python 3.12, FastAPI, Pydantic v2
-- Frontend: Next.js 14+, React 18+, TypeScript, Tailwind CSS
-- Database: PostgreSQL
-- Infrastructure: Docker, Azure Container Apps, Bicep
+- Backend: Python 3.11+, FastAPI, Pydantic v2 (not yet deployed to production)
+- Frontend: Next.js 14 App Router, React 18+, TypeScript, Tailwind CSS (deployed to Vercel)
+- Database: Firestore (Firebase Admin SDK)
+- Infrastructure: Docker Compose (local dev/Firebase emulators), Vercel (frontend hosting)
 
 ---
 
@@ -55,18 +55,21 @@ Review solution for compliance with relevant regulations
 
 **Layer locations and responsibilities:**
 
-| Layer          | Path                  | Contains                                                     |
-| -------------- | --------------------- | ------------------------------------------------------------ |
-| Domain         | `src/domain/`         | Entities, value objects, domain services, interfaces (ports) |
-| Application    | `src/application/`    | Use cases, DTOs, application services                        |
-| Interface      | `src/interface/`      | API routers, repository implementations, presenters          |
-| Infrastructure | `src/infrastructure/` | Config, database, external clients, middleware               |
+| Layer          | Path                  | Contains                                                      |
+| -------------- | --------------------- | -------------------------------------------------------------- |
+| Domain         | `src/domain/`         | Entities, value objects, domain services, interfaces (ports)  |
+| Application    | `src/application/`    | Use cases (e.g. `match_routes_use_case.py`)                   |
+| Presentation   | `src/presentation/`   | API routers, request/response models, dependency providers    |
+| Infrastructure | `src/infrastructure/` | Database adapters, external API clients                       |
+| Config         | `src/config/`         | Pydantic settings (`settings.py`)                              |
+
+Note: this repo calls the outermost API layer "presentation" (`src/presentation/`), not "interface" — use that name when generating new routers/dependencies.
 
 **Import rules:**
 
 - Domain layer: NO imports from other layers
 - Application layer: Import ONLY from domain
-- Interface layer: Import from domain and application
+- Presentation layer: Import from domain, application, and infrastructure
 - Infrastructure layer: Can import from all layers
 
 ---
@@ -349,15 +352,16 @@ async def test_create_user(mock_repository):
     mock_repository.add.assert_called_once()
 ```
 
-**TypeScript (Jest):**
+**TypeScript (Vitest):**
 
 ```typescript
 // Component test
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 describe('UserCard', () => {
   it('calls onSelect when clicked', () => {
-    const mockOnSelect = jest.fn();
+    const mockOnSelect = vi.fn();
     const user = { id: '1', name: 'Test User' };
 
     render(<UserCard user={user} onSelect={mockOnSelect} />);
@@ -441,21 +445,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
 ## Docker
 
-**Multi-stage builds:**
-
-```dockerfile
-FROM python:3.12-slim AS base
-WORKDIR /app
-
-FROM base AS builder
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-FROM base AS production
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY src/ ./src/
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0"]
-```
+The real image is `backend/Dockerfile` (single-stage, Poetry-based, non-root user, `HEALTHCHECK` against `/health`). It's used for local dev via `docker-compose.yml`; the backend is not yet deployed to production. Don't add PostgreSQL/PostGIS/GDAL system packages — this backend has no dependency on them.
 
 ---
 
