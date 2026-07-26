@@ -1,0 +1,22 @@
+name: Uptime
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health-check:
+    name: Production health check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check /api/health
+        run: |
+          if [ -z "${{ vars.PRODUCTION_URL }}" ]; then
+            echo "PRODUCTION_URL repo variable is not set — see Settings > Secrets and variables > Actions > Variables" >&2
+            exit 1
+          fi
+          curl --fail --silent --show-error "${{ vars.PRODUCTION_URL }}/api/health"

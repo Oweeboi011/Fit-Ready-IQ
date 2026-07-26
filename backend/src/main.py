@@ -2,6 +2,7 @@
 
 from contextlib import asynccontextmanager
 
+import sentry_sdk
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,6 +23,9 @@ structlog.configure(
 
 logger = structlog.get_logger()
 settings = get_settings()
+
+if settings.sentry_dsn:
+    sentry_sdk.init(dsn=settings.sentry_dsn, environment=settings.environment)
 
 
 @asynccontextmanager
