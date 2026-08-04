@@ -28,6 +28,7 @@ import RouteFilter, { FilterState } from '@/components/RouteFilter';
 import ConnectDevicesModal from '@/components/ConnectDevicesModal';
 import DetailsModal from '@/components/DetailsModal';
 import ProfileModal from '@/components/ProfileModal';
+import { getValidStravaToken } from '@/lib/stravaAuth';
 import {
   type Activity,
   type ActivityPolyline,
@@ -448,12 +449,9 @@ export default function Home() {
     const stored = loadActivities();
     if (stored.length > 0) setActivities(stored);
 
-    const tokenRaw =
-      typeof window !== 'undefined' ? localStorage.getItem('fri_strava_token') : null;
-    if (!tokenRaw) return;
-    try {
-      const token = JSON.parse(tokenRaw) as { access_token: string; expires_at: number };
-      if (token.expires_at * 1000 < Date.now()) return;
+    (async () => {
+      const token = await getValidStravaToken();
+      if (!token) return;
 
       // Throttle Strava refresh — skip if fetched within last 5 minutes
       const STRAVA_REFRESH_KEY = 'fri_strava_last_fetch';
@@ -461,80 +459,90 @@ export default function Home() {
       const lastFetch = parseInt(localStorage.getItem(STRAVA_REFRESH_KEY) ?? '0', 10);
       if (Date.now() - lastFetch < STRAVA_TTL_MS) return;
 
-      fetch(`/api/strava/activities?token=${encodeURIComponent(token.access_token)}`)
-        .then((r) => (r.ok ? r.json() : Promise.reject()))
-        .then(
-          (
-            items: Array<{
-              id: number;
-              name: string;
-              sport_type: string;
-              start_date: string;
-              distance: number;
-              total_elevation_gain: number;
-              moving_time: number;
-              average_heartrate?: number;
-              max_heartrate?: number;
-              map?: { summary_polyline?: string };
-              start_latlng?: [number, number];
-            }>
-          ) => {
-            const incoming: Activity[] = items.map((item) => ({
-              id: `strava-${item.id}`,
-              source: 'strava' as const,
-              name: item.name,
-              sport_type: item.sport_type,
-              start_date: item.start_date,
-              distance_km: item.distance / 1000,
-              elevation_gain_m: Math.round(item.total_elevation_gain),
-              moving_time_s: item.moving_time,
-              avg_heartrate: item.average_heartrate,
-              max_heartrate: item.max_heartrate,
-              external_id: String(item.id),
-              // Strava returns [lat, lng]; Activity convention is [lng, lat] (GeoJSON)
-              start_latlng: item.start_latlng
-                ? [item.start_latlng[1], item.start_latlng[0]]
-                : undefined,
-              polyline: item.map?.summary_polyline
-                ? decodePolyline(item.map.summary_polyline)
-                : undefined,
-            }));
-            const merged = mergeActivities(stored, incoming);
-            saveActivities(merged);
-            setActivities(merged);
-            localStorage.setItem(STRAVA_REFRESH_KEY, String(Date.now()));
+      type StravaItem = {
+        id: number;
+        name: string;
+        sport_type: string;
+        start_date: string;
+        distance: number;
+        total_elevation_gain: number;
+        moving_time: number;
+        average_heartrate?: number;
+        max_heartrate?: number;
+        map?: { summary_polyline?: string };
+        start_latlng?: [number, number];
+      };
 
-            // Background-sync all historical Strava activities to Firestore
-            // Only runs when the user is authenticated (uid required for Firestore path)
-            const uid = authUser?.uid;
-            if (uid) {
-              const SYNC_KEY = 'fri_strava_last_firestore_sync';
-              const SYNC_TTL_MS = 60 * 60 * 1000; // re-sync at most once per hour
-              const lastSync = parseInt(localStorage.getItem(SYNC_KEY) ?? '0', 10);
-              if (Date.now() - lastSync > SYNC_TTL_MS) {
-                fetch('/api/strava/sync', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ token: token.access_token, uid }),
-                })
-                  .then((r) => (r.ok ? r.json() : Promise.reject()))
-                  .then((result: { synced: number }) => {
-                    localStorage.setItem(SYNC_KEY, String(Date.now()));
-                    console.info(`Strava → Firestore sync complete: ${result.synced} activities`);
-                  })
-                  .catch(() => {
-                    /* non-critical, will retry next hour */
-                  });
-              }
-            }
-          }
-        )
-        .catch(() => {
-          /* Strava fetch failed silently */
-        });
-    } catch {
-      // ignore malformed token
-    }
+      // Strava paginates 30 per page — walk pages until Strava returns a
+      // short page (fully caught up), same cap as the server-side sync.
+      const STRAVA_MAX_PAGES = 10;
+      const allItems: StravaItem[] = [];
+      try {
+        for (let page = 1; page <= STRAVA_MAX_PAGES; page++) {
+          const res = await fetch(
+            `/api/strava/activities?token=${encodeURIComponent(token.access_token)}&page=${page}`
+          );
+          if (!res.ok) break;
+          const items: StravaItem[] = await res.json();
+          if (!items || items.length === 0) break;
+          allItems.push(...items);
+          if (items.length < 30) break;
+        }
+      } catch {
+        /* Strava fetch failed silently */
+      }
+
+      if (allItems.length > 0) {
+        const incoming: Activity[] = allItems.map((item) => ({
+          id: `strava-${item.id}`,
+          source: 'strava' as const,
+          name: item.name,
+          sport_type: item.sport_type,
+          start_date: item.start_date,
+          distance_km: item.distance / 1000,
+          elevation_gain_m: Math.round(item.total_elevation_gain),
+          moving_time_s: item.moving_time,
+          avg_heartrate: item.average_heartrate,
+          max_heartrate: item.max_heartrate,
+          external_id: String(item.id),
+          // Strava returns [lat, lng]; Activity convention is [lng, lat] (GeoJSON)
+          start_latlng: item.start_latlng
+            ? [item.start_latlng[1], item.start_latlng[0]]
+            : undefined,
+          polyline: item.map?.summary_polyline
+            ? decodePolyline(item.map.summary_polyline)
+            : undefined,
+        }));
+        const merged = mergeActivities(stored, incoming);
+        saveActivities(merged);
+        setActivities(merged);
+        localStorage.setItem(STRAVA_REFRESH_KEY, String(Date.now()));
+      }
+
+      // Background-sync all historical Strava activities to Firestore
+      // Only runs when the user is authenticated (uid required for Firestore path)
+      const uid = authUser?.uid;
+      if (uid) {
+        const SYNC_KEY = 'fri_strava_last_firestore_sync';
+        const SYNC_TTL_MS = 60 * 60 * 1000; // re-sync at most once per hour
+        const lastSync = parseInt(localStorage.getItem(SYNC_KEY) ?? '0', 10);
+        if (Date.now() - lastSync > SYNC_TTL_MS) {
+          fetch('/api/strava/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: token.access_token, uid }),
+          })
+            .then((r) => (r.ok ? r.json() : Promise.reject()))
+            .then((result: { synced: number }) => {
+              localStorage.setItem(SYNC_KEY, String(Date.now()));
+              console.info(`Strava → Firestore sync complete: ${result.synced} activities`);
+            })
+            .catch(() => {
+              /* non-critical, will retry next hour */
+            });
+        }
+      }
+    })();
     // Re-run when uid changes so users who sign in post-mount get their Strava sync fired.
   }, [authUser?.uid]);
 

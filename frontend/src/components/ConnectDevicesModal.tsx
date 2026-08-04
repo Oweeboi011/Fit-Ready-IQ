@@ -10,6 +10,7 @@ import {
 } from '@/lib/activityTypes';
 import { parseGpxFile } from '@/lib/gpxParser';
 import { parseAppleHealthXml, appleHealthWorkoutsToActivities } from '@/lib/appleHealthParser';
+import { getValidStravaToken } from '@/lib/stravaAuth';
 
 interface ConnectDevicesModalProps {
   isOpen: boolean;
@@ -82,20 +83,18 @@ export default function ConnectDevicesModal({
   // On open — reflect persisted connection state from localStorage
   useEffect(() => {
     if (!isOpen) return;
-    try {
-      const raw = localStorage.getItem('fri_strava_token');
-      if (raw) {
-        const token = JSON.parse(raw);
-        const expired = token.expires_at ? Date.now() / 1000 > token.expires_at : false;
-        if (!expired) {
-          const stravaCount = loadActivities().filter((a) => a.source === 'strava').length;
-          setDevices((prev) =>
-            prev.map((d) =>
-              d.id === 'strava' ? { ...d, status: 'connected', activityCount: stravaCount } : d
-            )
-          );
-        }
+    (async () => {
+      const token = await getValidStravaToken();
+      if (token) {
+        const stravaCount = loadActivities().filter((a) => a.source === 'strava').length;
+        setDevices((prev) =>
+          prev.map((d) =>
+            d.id === 'strava' ? { ...d, status: 'connected', activityCount: stravaCount } : d
+          )
+        );
       }
+    })();
+    try {
       const existing = loadActivities();
       const sourceCounts: Partial<Record<Device['id'], number>> = {};
       for (const a of existing) {
