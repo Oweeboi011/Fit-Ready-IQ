@@ -29,6 +29,7 @@ import ConnectDevicesModal from '@/components/ConnectDevicesModal';
 import DetailsModal from '@/components/DetailsModal';
 import ProfileModal from '@/components/ProfileModal';
 import { getValidStravaToken } from '@/lib/stravaAuth';
+import { haversineDistanceKm } from '@/lib/gpxParser';
 import {
   type Activity,
   type ActivityPolyline,
@@ -80,6 +81,7 @@ interface Route {
   polyline?: [number, number][];
   photos?: string[];
   place_id?: string;
+  distance_from_user_km?: number;
   jumpoff_elevation?: number;
   summit_elevation?: number;
   strava_segment?: {
@@ -185,6 +187,26 @@ export default function Home() {
     } catch {
       /* ignore */
     }
+  };
+
+  // Annotate each route with its distance from `from`, then sort nearest-first.
+  // Route.coordinates is [lng, lat] (GeoJSON order); `from` is {lat, lng}.
+  const sortRoutesByDistance = (
+    list: Route[],
+    from: { lat: number; lng: number } | null
+  ): Route[] => {
+    if (!from) return list;
+    return list
+      .map((route) => ({
+        ...route,
+        distance_from_user_km: haversineDistanceKm(
+          from.lat,
+          from.lng,
+          route.coordinates[1],
+          route.coordinates[0]
+        ),
+      }))
+      .sort((a, b) => a.distance_from_user_km - b.distance_from_user_km);
   };
 
   // Center the map on the user's device location as early as possible —
@@ -587,7 +609,7 @@ export default function Home() {
       location?: { lat: number; lng: number; address?: string };
     }) => {
       setRoutes(data.routes);
-      setFilteredRoutes(data.routes);
+      setFilteredRoutes(sortRoutesByDistance(data.routes, data.location ?? userLocation));
       setMountains(data.mountains);
       setCampsites(data.campsites);
       if (data.location) saveAndSetUserLocation(data.location);
@@ -1249,7 +1271,7 @@ export default function Home() {
         }
 
         setRoutes(routes);
-        setFilteredRoutes(routes);
+        setFilteredRoutes(sortRoutesByDistance(routes, { lat: userCoords[1], lng: userCoords[0] }));
         setMountains(mountains);
         setCampsites(campsites);
         setIsLoading(false);
@@ -1313,7 +1335,7 @@ export default function Home() {
         route.elevation_gain_m <= filters.maxElevation
     );
 
-    setFilteredRoutes(filtered);
+    setFilteredRoutes(sortRoutesByDistance(filtered, userLocation));
   };
 
   const handleRouteClick = (route: Route) => {
@@ -1762,6 +1784,17 @@ export default function Home() {
                                 <ArrowUpDown className="h-2.5 w-2.5" />
                                 <span className="font-tabular">{route.elevation_gain_m} m</span>
                               </span>
+                              {route.distance_from_user_km !== undefined && (
+                                <>
+                                  <span className="text-white/15">|</span>
+                                  <span className="flex items-center gap-0.5 text-blue-400">
+                                    <MapPin className="h-2.5 w-2.5" />
+                                    <span className="font-tabular">
+                                      {route.distance_from_user_km.toFixed(1)} km away
+                                    </span>
+                                  </span>
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>
