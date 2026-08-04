@@ -2698,9 +2698,9 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                         </p>
                         <p className="font-tabular mt-0.5 font-bold text-white">
                           {(() => {
-                            const secPerKm = data.moving_time_s / data.distance_km;
-                            const m = Math.floor(secPerKm / 60);
-                            const s = Math.round(secPerKm % 60);
+                            const totalSec = Math.round(data.moving_time_s / data.distance_km);
+                            const m = Math.floor(totalSec / 60);
+                            const s = totalSec % 60;
                             return `${m}:${s.toString().padStart(2, '0')} /km`;
                           })()}
                         </p>
