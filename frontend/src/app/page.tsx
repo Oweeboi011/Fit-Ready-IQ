@@ -187,6 +187,28 @@ export default function Home() {
     }
   };
 
+  // Center the map on the user's device location as early as possible —
+  // independent of the Places-fetch pipeline below, which waits on the
+  // Google Maps API to finish loading first and would otherwise leave the
+  // map showing the San Francisco fallback for a beat on first-ever visits.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        saveAndSetUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      () => {
+        /* permission denied or unavailable — keep localStorage/SF fallback */
+      }
+    );
+    // Runs once on mount; fetchRoutes below still does its own geolocation
+    // fetch to pair coordinates with reverse-geocoded address + Places search.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const googleMapsLoaderOptions = useMemo(
     () => ({
       googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
