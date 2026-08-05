@@ -48,14 +48,14 @@
     "@commitlint/cli": "^19.6.0",
     "@commitlint/config-conventional": "^19.6.0",
     "@playwright/test": "^1.55.0",
-    "@stryker-mutator/core": "^8.7.0",
-    "@stryker-mutator/vitest-runner": "^8.7.0",
+    "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/vitest-runner": "^9.6.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
-    "@vitest/coverage-v8": "^2.1.8",
+    "@vitest/coverage-v8": "^4.1.10",
     "autocannon": "^8.0.0",
     "autoprefixer": "^10.4.16",
     "eslint": "^8.56.0",
@@ -68,6 +68,6 @@
     "prettier-plugin-tailwindcss": "^0.5.11",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3",
-    "vitest": "^2.1.8"
+    "vitest": "^4.1.10"
   }
 }
