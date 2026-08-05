@@ -101,7 +101,12 @@ def test_best_fit_routes_requires_bearer_token(client: TestClient) -> None:
 
 @pytest.mark.integration
 def test_best_fit_routes_validates_latitude_range(client: TestClient) -> None:
+    # The use case provider is stubbed alongside auth: FastAPI resolves every
+    # dependency before reporting validation errors, so leaving it live would
+    # build a real Firestore client and fail on missing credentials rather
+    # than returning the 422 under test.
     app.dependency_overrides[get_current_user_id] = lambda: "test-firebase-uid"
+    app.dependency_overrides[get_match_routes_use_case] = lambda: StubUseCase([])
     try:
         response = client.get(
             "/api/routes/best-fit",
@@ -110,5 +115,6 @@ def test_best_fit_routes_validates_latitude_range(client: TestClient) -> None:
         )
     finally:
         app.dependency_overrides.pop(get_current_user_id, None)
+        app.dependency_overrides.pop(get_match_routes_use_case, None)
 
     assert response.status_code == 422
