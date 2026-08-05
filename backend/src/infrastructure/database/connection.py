@@ -2,7 +2,7 @@
 
 import json
 import os
-from typing import Optional
+from typing import Any, Optional
 
 import firebase_admin
 from firebase_admin import auth, credentials, firestore_async, storage
@@ -70,7 +70,7 @@ def get_auth() -> auth.Client:
     return auth.Client(_app)
 
 
-def get_storage_bucket():
+def get_storage_bucket() -> Any:
     """Return the Firebase Storage bucket. Requires initialize_firebase() first."""
     return storage.bucket()
 
@@ -81,5 +81,5 @@ async def verify_firebase_token(id_token: str) -> dict:
 
     Raises firebase_admin.auth.InvalidIdTokenError on failure.
     """
-    decoded = auth.verify_id_token(id_token)
+    decoded: dict[Any, Any] = auth.verify_id_token(id_token)
     return decoded

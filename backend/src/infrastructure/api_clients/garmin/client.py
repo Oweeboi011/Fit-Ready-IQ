@@ -30,13 +30,13 @@ class GarminFitParser(IFileParser):
         """
         try:
             fit_file = FitFile(file_content)
-            activity_data = {
+            activity_data: dict[str, Any] = {
                 "activities": [],
                 "source": "garmin_fit_file",
             }
 
             # Extract records from FIT file
-            records = []
+            records: list[dict[str, Any]] = []
             for record in fit_file.get_messages("record"):
                 record_data = {}
                 for field in record:

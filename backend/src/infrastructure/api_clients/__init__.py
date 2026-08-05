@@ -4,10 +4,10 @@ from .coros import CorosFitParser
 from .garmin import GarminFitParser
 from .google_maps import GoogleMapsClient
 from .komoot import KomootClient
-from .strava import StravaClient
+from .strava import StravaAPIClient
 
 __all__ = [
-    "StravaClient",
+    "StravaAPIClient",
     "GarminFitParser",
     "CorosFitParser",
     "KomootClient",
