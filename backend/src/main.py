@@ -1,5 +1,6 @@
 """FastAPI application entry point."""
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import sentry_sdk
@@ -29,7 +30,7 @@ if settings.sentry_dsn:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan events."""
     # Startup
     logger.info("starting_application", environment=settings.environment)
@@ -68,7 +69,7 @@ app.add_middleware(
 
 
 @app.get("/health", tags=["Health"])
-async def health_check():
+async def health_check() -> JSONResponse:
     """Health check endpoint for monitoring."""
     return JSONResponse(
         content={
@@ -80,7 +81,7 @@ async def health_check():
 
 
 @app.get("/", tags=["Root"])
-async def root():
+async def root() -> dict[str, str]:
     """Root endpoint with API information."""
     return {
         "message": "Welcome to Fit-Ready-IQ API",

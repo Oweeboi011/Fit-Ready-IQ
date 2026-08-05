@@ -1,5 +1,6 @@
 """Google Maps API client implementation."""
 
+from types import TracebackType
 from typing import Any, Optional
 
 import httpx
@@ -82,7 +83,7 @@ class GoogleMapsClient(IMapClient, IRoutingClient):
             data = response.json()
 
             if data["status"] == "OK" and data["results"]:
-                address = data["results"][0]["formatted_address"]
+                address: str = data["results"][0]["formatted_address"]
                 logger.info(
                     "reverse_geocode_success", coordinates=coordinates, address=address
                 )
@@ -112,7 +113,7 @@ class GoogleMapsClient(IMapClient, IRoutingClient):
             List of POI data
         """
         try:
-            params = {
+            params: dict[str, Any] = {
                 "location": f"{coordinates.latitude},{coordinates.longitude}",
                 "radius": min(radius_meters, 50000),  # Max radius 50km
                 "key": self.api_key,
@@ -130,7 +131,8 @@ class GoogleMapsClient(IMapClient, IRoutingClient):
                     coordinates=coordinates,
                     count=len(data.get("results", [])),
                 )
-                return data.get("results", [])
+                results: list[dict[str, Any]] = data.get("results", [])
+                return results
 
             logger.warning("poi_search_no_results", status=data["status"])
             return []
@@ -274,12 +276,17 @@ class GoogleMapsClient(IMapClient, IRoutingClient):
         logger.info("elevation_profile_retrieved", point_count=len(all_elevations))
         return all_elevations
 
-    async def close(self):
+    async def close(self) -> None:
         """Close the HTTP client."""
         await self.client.aclose()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "GoogleMapsClient":
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         await self.close()
