@@ -53,7 +53,7 @@ import { useSavedPlaces, type SavedPlace } from '@/lib/useSavedPlaces';
 
 const libraries: ('places' | 'geometry')[] = ['places', 'geometry'];
 
-// Dynamically import MapView to avoid SSR issues with mapbox-gl
+// Dynamically import MapView to avoid SSR issues with the Google Maps SDK
 const MapView = dynamic(() => import('@/components/MapView'), {
   ssr: false,
   loading: () => (
@@ -228,7 +228,6 @@ export default function Home() {
     );
     // Runs once on mount; fetchRoutes below still does its own geolocation
     // fetch to pair coordinates with reverse-geocoded address + Places search.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const googleMapsLoaderOptions = useMemo(
