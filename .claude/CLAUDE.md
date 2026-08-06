@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Fit-Ready-IQ is an outdoor fitness platform that combines route discovery (mountains, trails, campsites), Strava integration, GPX import, AI-powered chat, and real-time weather. The production surface is a **Next.js 14 App Router** frontend deployed on Vercel. A **FastAPI Python backend** exists in `backend/` but is not yet deployed.
+Fit-Ready-IQ is an outdoor fitness platform that combines route discovery (mountains, trails, campsites), Strava integration, GPX import, AI-powered chat, and real-time weather. The production surface is a **Next.js 16 App Router** frontend deployed on Vercel. A **FastAPI Python backend** exists in `backend/` but is not yet deployed.
 
 ## Commands
 
@@ -51,7 +51,7 @@ The FastAPI backend is not called by the frontend in production; it is planned f
 
 | Route | Purpose | Timeout |
 |---|---|---|
-| `/api/chat` | Gemini 1.5 Flash conversation, persisted to Firestore. History capped at 20 messages (first message anchored) to bound token cost. | 30 s |
+| `/api/chat` | Gemini 2.5 Flash conversation, persisted to Firestore. History capped at 20 messages (first message anchored) to bound token cost. | 30 s |
 | `/api/strava/exchange` | Server-side OAuth token exchange (keeps secret off client) | — |
 | `/api/strava/activities` | Fetch activities from Strava API | — |
 | `/api/strava/sync` | Admin: sync Strava activities → Firestore | 60 s |
@@ -83,7 +83,7 @@ To avoid redundant paid API calls:
 
 - **Weather + photos** (`DetailsModal.tsx`): module-level `weatherCache` (30 min TTL) and `photosCache` (session lifetime).
 - **Reverse geocode** (`page.tsx`): `sessionStorage` with 24 h TTL and 0.1° coordinate grid (`fri_geocode_*` key).
-- **Last user location** (`page.tsx`): persisted to `localStorage` (`fri_last_location`) and restored on page load so the map focuses instantly.
+- **Last user location** (`page.tsx`): persisted to `localStorage` (`fri_last_location`) and restored on page load so the map focuses instantly. Restore it in an effect, never in a `useState` initializer — reading storage during render makes the server and client disagree on first paint and React discards the server tree.
 
 ### Credential split
 
