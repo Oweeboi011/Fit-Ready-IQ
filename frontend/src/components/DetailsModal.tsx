@@ -1922,7 +1922,7 @@ export default function DetailsModal({ isOpen, onClose, data }: DetailsModalProp
                 const isTechnical = data.elevation_m > 2000;
 
                 const parkingInfo = isHighAlt
-                  ? `Nearest barangay hall or designated trailhead parking ~${Math.floor(1 + Math.random() * 3)} km from jumpoff. Limited slots — arrive before 5 AM on weekends.`
+                  ? `Nearest barangay hall or designated trailhead parking ~${1 + (Math.floor(data.elevation_m / 100) % 3)} km from jumpoff. Limited slots — arrive before 5 AM on weekends.`
                   : `Park at the barangay hall or trailhead designated area near ${data.name.split(' ').slice(-1)[0]}. Roadside parking available within 500 m of jumpoff.`;
 
                 const jumpoffInfo = `Jumpoff at elevation ${data.jumpoff_elevation || Math.floor(data.elevation_m * 0.3)} m ASL. Register at the DENR/local guide station before 7 AM. Late arrivals may be turned back for safety.`;
