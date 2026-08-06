@@ -49,6 +49,7 @@ import {
   signOutFirebaseUser,
 } from '@/lib/firebaseClient';
 import ChatBot from '@/components/ChatBot';
+import MapLoadingOverlay from '@/components/MapLoadingOverlay';
 import { useSavedPlaces, type SavedPlace } from '@/lib/useSavedPlaces';
 
 const libraries: ('places' | 'geometry')[] = ['places', 'geometry'];
@@ -164,17 +165,8 @@ export default function Home() {
     lat: number;
     lng: number;
     address?: string;
-  } | null>(() => {
-    // Restore last known location from localStorage so the map focuses instantly on page load
-    if (typeof window === 'undefined') return null;
-    try {
-      const raw = localStorage.getItem('fri_last_location');
-      if (raw) return JSON.parse(raw) as { lat: number; lng: number; address?: string };
-    } catch {
-      /* ignore */
-    }
-    return null;
-  });
+  } | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
   const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -209,21 +201,37 @@ export default function Home() {
       .sort((a, b) => a.distance_from_user_km - b.distance_from_user_km);
   };
 
+  // Restore the last known location after mount rather than in a useState
+  // initializer: reading localStorage during render makes the server and
+  // client disagree on first paint, which React reports as a hydration
+  // mismatch and recovers from by throwing away the server tree.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('fri_last_location');
+      if (raw) setUserLocation(JSON.parse(raw) as { lat: number; lng: number; address?: string });
+    } catch {
+      /* unreadable or malformed — fall through to geolocation below */
+    }
+  }, []);
+
   // Center the map on the user's device location as early as possible —
   // independent of the Places-fetch pipeline below, which waits on the
   // Google Maps API to finish loading first and would otherwise leave the
   // map showing the San Francisco fallback for a beat on first-ever visits.
   useEffect(() => {
     if (typeof window === 'undefined' || !navigator.geolocation) return;
+    setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
         saveAndSetUserLocation({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         });
+        setIsLocating(false);
       },
       () => {
         /* permission denied or unavailable — keep localStorage/SF fallback */
+        setIsLocating(false);
       }
     );
     // Runs once on mount; fetchRoutes below still does its own geolocation
@@ -2122,7 +2130,12 @@ export default function Home() {
         </aside>
 
         {/* Map View */}
-        <div className="flex-1">
+        <div className="relative flex-1">
+          <MapLoadingOverlay
+            isLoading={isLoading || isLocating}
+            message={isLocating ? 'Locating you' : 'Finding routes near you'}
+            detail={!isLocating ? userLocation?.address : undefined}
+          />
           <MapView
             routes={filteredRoutes}
             mountains={mountains}
