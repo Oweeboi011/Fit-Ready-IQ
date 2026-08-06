@@ -42,7 +42,7 @@ See **[SOLUTION-PLAN.md](docs/solution-plan/SOLUTION-PLAN.md)** for the complete
 ```mermaid
 graph TB
     subgraph Client["User Browser"]
-        UI["Next.js 14 App<br/>(React + TypeScript)"]
+        UI["Next.js 16 App<br/>(React + TypeScript)"]
         Maps["Google Maps JS API"]
         Places["Google Places API"]
         Elevation["Google Elevation API"]
@@ -60,7 +60,7 @@ graph TB
     end
 
     subgraph External["External Services"]
-        Gemini["Gemini 1.5 Flash<br/>(AI Chat)"]
+        Gemini["Gemini 2.5 Flash<br/>(AI Chat)"]
         Strava["Strava API<br/>(OAuth + Activities)"]
         Weather["Google Weather API<br/>(Forecasts + Alerts)"]
     end
@@ -124,14 +124,14 @@ sequenceDiagram
 
 | Layer | Technology | Purpose |
 | --- | --- | --- |
-| **Frontend Framework** | Next.js 14 (App Router) | Server-rendered React with file-based routing |
+| **Frontend Framework** | Next.js 16 (App Router) | Server-rendered React with file-based routing |
 | **Language** | TypeScript (strict mode) | Type-safe development across all components |
 | **Styling** | Tailwind CSS (`slate-*` palette) | Utility-first CSS with consistent dark theme |
 | **Maps** | Google Maps JS API | Interactive map rendering with custom markers |
 | **Places** | Google Places API | Mountain, route, and campsite discovery |
 | **Elevation** | Google Elevation API | Real altitude data for profiles and scoring |
 | **Weather** | Google Weather API | Live forecasts with persona-specific alerts |
-| **AI** | Gemini 1.5 Flash | Conversational adventure planning assistant |
+| **AI** | Gemini 2.5 Flash | Conversational adventure planning assistant |
 | **Database** | Firebase Firestore | Document-based data persistence |
 | **Authentication** | Firebase Auth (Phase 3) | Email, Google, and Apple sign-in |
 | **File Storage** | Firebase Storage (Phase 3) | GPX uploads, user content |
