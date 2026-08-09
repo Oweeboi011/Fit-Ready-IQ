@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
-import { getFirestoreAdmin } from "@/lib/firebaseAdmin";
+import { NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/adminAuth';
+import { getFirestoreAdmin } from '@/lib/firebaseAdmin';
 
-export const runtime = "nodejs";
+export const runtime = 'nodejs';
 
 /**
  * GET /api/admin/strava-sync
@@ -17,20 +18,25 @@ export interface StravaSyncEntry {
   errors: string[] | null;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
+
   try {
     const db = getFirestoreAdmin();
-    const usersSnapshot = await db.collection("users").get();
+    const usersSnapshot = await db.collection('users').get();
 
     const entries: StravaSyncEntry[] = [];
 
     for (const doc of usersSnapshot.docs) {
       const data = doc.data();
-      const syncManifest = data.strava_sync as {
-        last_synced_at?: string;
-        total_activities?: number;
-        errors?: string[] | null;
-      } | undefined;
+      const syncManifest = data.strava_sync as
+        | {
+            last_synced_at?: string;
+            total_activities?: number;
+            errors?: string[] | null;
+          }
+        | undefined;
 
       if (!syncManifest) continue; // user has never synced Strava
 
@@ -50,7 +56,7 @@ export async function GET() {
 
     return NextResponse.json({ total: entries.length, entries });
   } catch (err) {
-    console.error("admin/strava-sync GET error:", err);
-    return NextResponse.json({ error: "Failed to read sync status" }, { status: 500 });
+    console.error('admin/strava-sync GET error:', err);
+    return NextResponse.json({ error: 'Failed to read sync status' }, { status: 500 });
   }
 }
