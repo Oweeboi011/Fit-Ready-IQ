@@ -2,9 +2,9 @@ import { expect, test } from '@playwright/test';
 
 test.describe('map loading overlay', () => {
   test('announces progress and can be dismissed without blocking the map', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/app');
 
-    const overlay = page.getByRole('status');
+    const overlay = page.getByRole('status', { name: 'Map loading progress' });
     await expect(overlay).toBeVisible();
     await expect(overlay).toContainText(/Finding routes near you|Locating you/);
 
@@ -23,7 +23,7 @@ test.describe('map loading overlay', () => {
       if (msg.type() === 'error' && /hydrat/i.test(msg.text())) hydrationErrors.push(msg.text());
     });
 
-    await page.goto('/');
+    await page.goto('/app');
     await expect(page.getByText('Fit Ready IQ')).toBeVisible();
 
     expect(hydrationErrors).toEqual([]);
