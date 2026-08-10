@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getFirestoreAdmin } from "@/lib/firebaseAdmin";
+import { NextRequest, NextResponse } from 'next/server';
+import { getFirestoreAdmin } from '@/lib/firebaseAdmin';
 
-export const runtime = "nodejs";
+export const runtime = 'nodejs';
 
 /**
  * Shared Places cache — Firestore collection: places_cache
@@ -12,7 +12,7 @@ export const runtime = "nodejs";
  * TTL: 24 hours. After that the client falls through to live API calls.
  */
 const CACHE_TTL_HOURS = 24;
-const COLLECTION = "places_cache";
+const COLLECTION = 'places_cache';
 
 function gridKey(lat: number, lng: number): string {
   const gLat = Math.round(lat * 2) / 2;
@@ -26,11 +26,11 @@ function gridKey(lat: number, lng: number): string {
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const lat = parseFloat(searchParams.get("lat") ?? "");
-  const lng = parseFloat(searchParams.get("lng") ?? "");
+  const lat = parseFloat(searchParams.get('lat') ?? '');
+  const lng = parseFloat(searchParams.get('lng') ?? '');
 
   if (isNaN(lat) || isNaN(lng)) {
-    return NextResponse.json({ error: "lat and lng required" }, { status: 400 });
+    return NextResponse.json({ error: 'lat and lng required' }, { status: 400 });
   }
 
   try {
@@ -50,6 +50,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       hit: true,
+      // Schema version travels with the payload so the client can reject an
+      // entry written before a field changed meaning.
+      v: data.v ?? 1,
       routes: data.routes,
       mountains: data.mountains,
       campsites: data.campsites,
@@ -58,18 +61,19 @@ export async function GET(request: NextRequest) {
     });
   } catch (err) {
     // Firestore unavailable — caller falls back to live fetch
-    console.warn("places/cache GET failed:", err);
+    console.warn('places/cache GET failed:', err);
     return NextResponse.json({ hit: false }, { status: 404 });
   }
 }
 
 /**
  * POST /api/places/cache
- * Body: { lat, lng, routes, mountains, campsites, location }
+ * Body: { v, lat, lng, routes, mountains, campsites, location }
  * Writes to Firestore. Called after a successful live fetch.
  */
 export async function POST(request: NextRequest) {
   let body: {
+    v?: number;
     lat: number;
     lng: number;
     routes: unknown;
@@ -81,28 +85,32 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { lat, lng, routes, mountains, campsites, location } = body;
+  const { v, lat, lng, routes, mountains, campsites, location } = body;
 
-  if (typeof lat !== "number" || typeof lng !== "number") {
-    return NextResponse.json({ error: "lat and lng must be numbers" }, { status: 400 });
+  if (typeof lat !== 'number' || typeof lng !== 'number') {
+    return NextResponse.json({ error: 'lat and lng must be numbers' }, { status: 400 });
   }
 
   try {
     const db = getFirestoreAdmin();
-    await db.collection(COLLECTION).doc(gridKey(lat, lng)).set({
-      routes,
-      mountains,
-      campsites,
-      location,
-      ts: new Date().toISOString(),
-    });
+    await db
+      .collection(COLLECTION)
+      .doc(gridKey(lat, lng))
+      .set({
+        v: v ?? 1,
+        routes,
+        mountains,
+        campsites,
+        location,
+        ts: new Date().toISOString(),
+      });
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.warn("places/cache POST failed:", err);
-    return NextResponse.json({ error: "Cache write failed" }, { status: 500 });
+    console.warn('places/cache POST failed:', err);
+    return NextResponse.json({ error: 'Cache write failed' }, { status: 500 });
   }
 }

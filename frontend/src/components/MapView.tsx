@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { GoogleMap, Polyline, OverlayView } from '@react-google-maps/api';
 import {
   Mountain as MountainIcon,
@@ -10,18 +10,25 @@ import {
   Map as MapIcon,
   MapPin,
   Bookmark,
+  Eye,
+  EyeOff,
+  TriangleAlert,
   type LucideIcon,
 } from 'lucide-react';
 import { type ActivityPolyline } from '@/lib/activityTypes';
 import { type SavedPlace } from '@/lib/useSavedPlaces';
+import type { Difficulty } from '@/lib/routeDifficulty';
+import { layerForActivityType, type MapLayer } from '@/lib/mapLayers';
+import { buttonPrimary, buttonSize } from '@/lib/ui';
+import { fetchLatestRadarFrame, radarTileUrl } from '@/lib/radarLayer';
 
 interface Route {
   id: string;
   name: string;
   coordinates: [number, number];
   distance_km: number;
-  elevation_gain_m: number;
-  difficulty: string;
+  elevation_gain_m: number | null;
+  difficulty: Difficulty;
   activity_type: string;
   polyline?: [number, number][];
 }
@@ -30,7 +37,7 @@ interface Mountain {
   id: string;
   name: string;
   coordinates: [number, number];
-  elevation_m: number;
+  elevation_m: number | null;
   prominence_m?: number;
   trail_class?: string;
   mountain_type: string; // peak, summit, mountain
@@ -52,20 +59,103 @@ interface MapViewProps {
   mountains?: Mountain[];
   campsites?: Campsite[];
   savedPlaces?: SavedPlace[];
+  /** Layers the user has switched off, owned by the page so the dock can drive it. */
+  hiddenLayers?: MapLayer[];
+  /** Google's own zoom / map-type / fullscreen controls. */
+  showNativeControls?: boolean;
+  /** Google's own POI pins — restaurants, shops, transit. */
+  showNativePoi?: boolean;
+  /** Closures, hazards and rescue notices that the feed has pinned to a place. */
+  advisories?: {
+    id: string;
+    kind: string;
+    title: string;
+    coordinates?: [number, number];
+  }[];
+  onAdvisoryClick?: (id: string) => void;
   activityPolylines?: ActivityPolyline[];
   userLocation?: [number, number];
+  /**
+   * Whether `userLocation` is a real device fix. When false the map still
+   * centres there, but must not draw the "Your Location" marker — pointing at
+   * a fallback and calling it the user is a claim we cannot make.
+   */
+  hasPreciseLocation?: boolean;
+  /** The dock owns legend visibility so both can't claim the same corner. */
+  showLegend?: boolean;
+  /** Precipitation radar tiles (RainViewer), toggled from the dock's layers panel. */
+  showWeatherRadar?: boolean;
   isLoaded: boolean;
   loadError: Error | undefined;
   onRouteClick?: (route: Route) => void;
   onMountainClick?: (mountain: Mountain) => void;
   onCampsiteClick?: (campsite: Campsite) => void;
   onFocusUserLocation?: (fn: () => void) => void;
+  /** Hands the map instance up so directions can be drawn on this same map. */
+  onMapReady?: (map: google.maps.Map | null) => void;
+  /** Waypoints being planned, drawn as a numbered line over the terrain. */
+  plannerWaypoints?: { id: string; coordinates: [number, number]; name: string }[];
+  /** The routed line through those waypoints; falls back to joining them. */
+  plannerPath?: [number, number][];
+  /**
+   * Set while the planner is open. A click on empty map drops a plain
+   * waypoint; a click on a place adds that place by name, which is far more
+   * useful than an unnamed dot and is what makes the exported GPX readable.
+   */
+  onMapClick?: (coordinates: [number, number], name?: string) => void;
 }
 
 const mapContainerStyle = {
   width: '100%',
   height: '100%',
 };
+
+/**
+ * Floor for the auto-fit zoom. Roughly a regional view; anything below this
+ * means the bounds swallowed a marker that has no business being in them.
+ */
+const MIN_AUTOFIT_ZOOM = 8;
+
+/** Advisory kinds that get the red pin rather than amber. */
+const URGENT_ADVISORY_KINDS = new Set(['closure', 'emergency', 'rescue']);
+
+const VIEWPORT_KEY = 'fri_map_viewport';
+
+/**
+ * Marker/line groups the user can switch off. A crowded map is the main reason
+ * people stop reading it, and activity tracks in particular pile up until the
+ * routes underneath are unreadable — so every group is independently hideable.
+ */
+/** Viewports older than this are stale enough that re-framing is kinder. */
+const VIEWPORT_TTL_MS = 24 * 60 * 60 * 1000;
+
+interface StoredViewport {
+  lat: number;
+  lng: number;
+  zoom: number;
+}
+
+function readStoredViewport(): StoredViewport | null {
+  try {
+    const raw = localStorage.getItem(VIEWPORT_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as StoredViewport & { ts?: number };
+    if (Date.now() - (saved.ts ?? 0) > VIEWPORT_TTL_MS) return null;
+    if (typeof saved.lat !== 'number' || typeof saved.lng !== 'number') return null;
+    if (typeof saved.zoom !== 'number') return null;
+    return { lat: saved.lat, lng: saved.lng, zoom: saved.zoom };
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredViewport(v: StoredViewport): void {
+  try {
+    localStorage.setItem(VIEWPORT_KEY, JSON.stringify({ ...v, ts: Date.now() }));
+  } catch {
+    /* private mode — the map just won't remember */
+  }
+}
 
 const SOURCE_POLYLINE_COLOR: Record<string, string> = {
   strava: '#fc4c02',
@@ -106,17 +196,33 @@ export default function MapView({
   mountains = [],
   campsites = [],
   savedPlaces = [],
+  hiddenLayers = [],
+  showNativeControls = true,
+  showNativePoi = true,
+  advisories = [],
+  onAdvisoryClick,
   activityPolylines = [],
   userLocation: userLocationProp,
+  hasPreciseLocation = false,
+  showLegend = true,
+  showWeatherRadar = false,
   isLoaded,
   loadError,
   onRouteClick,
   onMountainClick,
   onCampsiteClick,
   onFocusUserLocation,
+  onMapReady,
+  plannerWaypoints = [],
+  plannerPath,
+  onMapClick,
 }: MapViewProps) {
   const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
   const [runtimeMapError, setRuntimeMapError] = useState<string | null>(null);
+
+  const isLayerVisible = (layer: MapLayer) => !hiddenLayers.includes(layer);
+  const visibleRoutes = routes.filter((r) => isLayerVisible(layerForActivityType(r.activity_type)));
+
   const loadErrorMessage = loadError?.message ?? '';
   const effectiveMapErrorMessage = runtimeMapError ?? loadErrorMessage;
   const isMapAuthError = /RefererNotAllowedMapError|gm_authFailure|authentication failed/i.test(
@@ -160,6 +266,38 @@ export default function MapView({
     lng: initialCenter[0],
   });
   const [map, setMap] = useState<google.maps.Map | null>(null);
+  /** Auto-framing is a one-time courtesy; after that the viewport is theirs. */
+  const hasAutoFittedRef = useRef(false);
+
+  // Precipitation radar overlay. Re-fetched each time it's switched on, since
+  // RainViewer publishes a new frame roughly every 10 minutes and the map can
+  // stay open far longer than that.
+  useEffect(() => {
+    if (!map || !showWeatherRadar) return;
+
+    let cancelled = false;
+    let overlay: google.maps.ImageMapType | null = null;
+
+    fetchLatestRadarFrame().then((frame) => {
+      if (cancelled || !frame) return;
+      overlay = new google.maps.ImageMapType({
+        getTileUrl: (coord, zoom) => radarTileUrl(frame, coord.x, coord.y, zoom),
+        tileSize: new google.maps.Size(256, 256),
+        opacity: 0.6,
+        name: 'Precipitation radar',
+      });
+      map.overlayMapTypes.push(overlay);
+    });
+
+    return () => {
+      cancelled = true;
+      if (!overlay) return;
+      const types = map.overlayMapTypes;
+      for (let i = types.getLength() - 1; i >= 0; i--) {
+        if (types.getAt(i) === overlay) types.removeAt(i);
+      }
+    };
+  }, [map, showWeatherRadar]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -209,9 +347,13 @@ export default function MapView({
     };
   }, []);
 
-  const onLoad = useCallback((map: google.maps.Map) => {
-    setMap(map);
-  }, []);
+  const onLoad = useCallback(
+    (instance: google.maps.Map) => {
+      setMap(instance);
+      onMapReady?.(instance);
+    },
+    [onMapReady]
+  );
 
   // Register the focus-to-user-location handler with the parent
   useEffect(() => {
@@ -225,19 +367,50 @@ export default function MapView({
 
   const onUnmount = useCallback(() => {
     setMap(null);
-  }, []);
+    onMapReady?.(null);
+  }, [onMapReady]);
+
+  // Restore where the user last was, before any auto-fit runs.
+  useEffect(() => {
+    if (!map) return;
+    const saved = readStoredViewport();
+    if (!saved) return;
+    map.setCenter({ lat: saved.lat, lng: saved.lng });
+    map.setZoom(saved.zoom);
+    hasAutoFittedRef.current = true;
+  }, [map]);
+
+  // Remember the viewport so a reload does not dump the user back at the
+  // default framing of a map they had already navigated.
+  useEffect(() => {
+    if (!map) return;
+    const listener = map.addListener('idle', () => {
+      const center = map.getCenter();
+      const zoom = map.getZoom();
+      if (!center || zoom === undefined) return;
+      writeStoredViewport({ lat: center.lat(), lng: center.lng(), zoom });
+    });
+    return () => google.maps.event.removeListener(listener);
+  }, [map]);
 
   // On initial load, fit the map to a 50 km circle around the user
   useEffect(() => {
     if (!map || !userLocation) return;
+    if (hasAutoFittedRef.current) return;
     const center = new google.maps.LatLng(userLocation[1], userLocation[0]);
     const circle = new google.maps.Circle({ center, radius: 50000 });
     map.fitBounds(circle.getBounds()!);
   }, [map, userLocation]);
 
-  // After data loads, expand bounds to include all markers
+  // After data loads, expand bounds to include all markers.
+  //
+  // Guarded to run once: `routes` is the *filtered* list, so without the guard
+  // every filter change re-framed the map and threw away wherever the user had
+  // panned to.
   useEffect(() => {
     if (!map || (routes.length === 0 && mountains.length === 0 && campsites.length === 0)) return;
+    if (hasAutoFittedRef.current) return;
+    hasAutoFittedRef.current = true;
 
     const bounds = new google.maps.LatLngBounds();
     let hasValidCoordinates = false;
@@ -248,8 +421,10 @@ export default function MapView({
       hasValidCoordinates = true;
     }
 
+    // Only visible layers get a vote on the framing — otherwise the map zooms
+    // out to fit markers the user has deliberately switched off.
     // Add all route coordinates to bounds
-    routes.forEach((route) => {
+    visibleRoutes.forEach((route) => {
       if (route.coordinates && route.coordinates.length === 2) {
         bounds.extend({ lat: route.coordinates[1], lng: route.coordinates[0] });
         hasValidCoordinates = true;
@@ -264,7 +439,7 @@ export default function MapView({
     });
 
     // Add all mountain coordinates to bounds
-    mountains.forEach((mountain) => {
+    (isLayerVisible('mountains') ? mountains : []).forEach((mountain) => {
       if (mountain.coordinates && mountain.coordinates.length === 2) {
         bounds.extend({ lat: mountain.coordinates[1], lng: mountain.coordinates[0] });
         hasValidCoordinates = true;
@@ -272,65 +447,41 @@ export default function MapView({
     });
 
     // Add all campsite coordinates to bounds
-    campsites.forEach((campsite) => {
+    (isLayerVisible('campsites') ? campsites : []).forEach((campsite) => {
       if (campsite.coordinates && campsite.coordinates.length === 2) {
         bounds.extend({ lat: campsite.coordinates[1], lng: campsite.coordinates[0] });
         hasValidCoordinates = true;
       }
     });
 
-    // Fit map to bounds with padding
-    if (hasValidCoordinates) {
-      map.fitBounds(bounds, {
-        top: 50,
-        right: 50,
-        bottom: 50,
-        left: 50,
-      });
-    }
+    if (!hasValidCoordinates) return;
+
+    map.fitBounds(bounds, { top: 50, right: 50, bottom: 50, left: 50 });
+
+    // Belt and braces: even with the radius filter upstream, a single bad
+    // coordinate must not be able to zoom the map out to the whole planet.
+    // fitBounds is async, so correct on the next idle rather than immediately.
+    if (!userLocation) return;
+    const listener = google.maps.event.addListenerOnce(map, 'idle', () => {
+      const zoom = map.getZoom();
+      if (zoom !== undefined && zoom < MIN_AUTOFIT_ZOOM) {
+        map.setCenter({ lat: userLocation[1], lng: userLocation[0] });
+        map.setZoom(MIN_AUTOFIT_ZOOM);
+      }
+    });
+    return () => google.maps.event.removeListener(listener);
   }, [map, routes, mountains, campsites, userLocation]);
 
-  // Get user's current location
+  // Centre on whatever the page resolved. This component no longer asks for
+  // geolocation itself — useUserLocation owns that, so there is exactly one
+  // permission prompt and one set of coordinates in the app.
   useEffect(() => {
-    if (userLocationProp) {
-      setUserLocation(userLocationProp);
-      setMapCenter({
-        lat: userLocationProp[1],
-        lng: userLocationProp[0],
-      });
-      return;
-    }
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const coords: [number, number] = [position.coords.longitude, position.coords.latitude];
-          setUserLocation(coords);
-          setMapCenter({
-            lat: coords[1],
-            lng: coords[0],
-          });
-        },
-        (error) => {
-          console.debug('Location unavailable, using fallback coordinates.', error);
-          // Fallback to default location (San Francisco)
-          const fallback: [number, number] = [-122.4194, 37.7749];
-          setUserLocation(fallback);
-          setMapCenter({
-            lat: fallback[1],
-            lng: fallback[0],
-          });
-        }
-      );
-    } else {
-      // Browser doesn't support geolocation
-      const fallback: [number, number] = [-122.4194, 37.7749];
-      setUserLocation(fallback);
-      setMapCenter({
-        lat: fallback[1],
-        lng: fallback[0],
-      });
-    }
+    if (!userLocationProp) return;
+    setUserLocation(userLocationProp);
+    setMapCenter({
+      lat: userLocationProp[1],
+      lng: userLocationProp[0],
+    });
   }, [userLocationProp]);
 
   const getDifficultyColor = (difficulty: string): string => {
@@ -339,7 +490,7 @@ export default function MapView({
         return '#22c55e';
       case 'moderate':
         return '#f59e0b';
-      case 'hard':
+      case 'challenging':
         return '#ef4444';
       default:
         return '#3b82f6';
@@ -361,15 +512,32 @@ export default function MapView({
   };
 
   if (loadError || runtimeMapError) {
+    // The diagnostics below name env vars, referrer allowlists and Cloud
+    // Console steps. That is exactly what a developer needs and exactly what a
+    // visitor should never see. Gate on the host rather than NODE_ENV so a
+    // production build served from a preview URL still shows visitor copy.
+    const showDiagnostics =
+      typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
     return (
-      <div className="relative flex h-full w-full items-center justify-center bg-slate-100">
+      <div className="relative flex h-full w-full items-center justify-center bg-slate-950">
         <div className="max-w-xl px-6 text-center">
-          <p className="font-semibold text-red-600">Error loading Google Maps</p>
-          <p className="mt-2 text-sm text-slate-600">
-            Verify your Maps API key, HTTP referrer allowlist, and enabled APIs.
+          <MapIcon aria-hidden="true" className="mx-auto mb-4 h-10 w-10 text-slate-600" />
+          <p className="text-base font-semibold text-white">We couldn&apos;t load the map</p>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-slate-400">
+            Reloading usually fixes it. Your saved places and activities are safe.
           </p>
-          {isMapAuthError && (
-            <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-left text-xs text-red-900">
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className={`${buttonPrimary} ${buttonSize.md} mt-5`}
+          >
+            Reload the map
+          </button>
+
+          {showDiagnostics && isMapAuthError && (
+            <div className="mt-4 rounded-md border border-red-500/25 bg-red-500/10 p-3 text-left text-xs text-red-200">
               <p className="font-semibold">Detected: Google Maps auth/referrer restriction</p>
               <p className="mt-1">
                 Your current origin is not authorized for this Google Maps key. Add these HTTP
@@ -384,28 +552,30 @@ export default function MapView({
               </ul>
             </div>
           )}
-          {effectiveMapErrorMessage && (
+          {showDiagnostics && effectiveMapErrorMessage && (
             <p className="mt-3 text-xs text-slate-500">
               Error detail: <span className="break-all font-mono">{effectiveMapErrorMessage}</span>
             </p>
           )}
-          {currentOrigin && (
+          {showDiagnostics && currentOrigin && (
             <p className="mt-3 text-xs text-slate-500">
               Current site origin: <span className="font-mono">{currentOrigin}</span>
             </p>
           )}
-          <div className="mt-4 rounded-md border border-slate-200 bg-white p-3 text-left text-xs text-slate-600">
-            <p className="font-semibold text-slate-700">Quick checks</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5">
-              <li>Enable Maps JavaScript API, Places API, and Elevation API.</li>
-              <li>
-                Add allowed referrers, including localhost dev ports (for example:
-                http://localhost:4790/*).
-              </li>
-              <li>Ensure billing is enabled for the Google Cloud project.</li>
-              <li>Set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in .env.local and restart Next.js.</li>
-            </ul>
-          </div>
+          {showDiagnostics && (
+            <div className="mt-4 rounded-md border border-white/10 bg-slate-900 p-3 text-left text-xs text-slate-400">
+              <p className="font-semibold text-slate-300">Quick checks (dev only)</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                <li>Enable Maps JavaScript API, Places API, and Elevation API.</li>
+                <li>
+                  Add allowed referrers, including localhost dev ports (for example:
+                  http://localhost:4790/*).
+                </li>
+                <li>Ensure billing is enabled for the Google Cloud project.</li>
+                <li>Set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in .env.local and restart Next.js.</li>
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -413,10 +583,10 @@ export default function MapView({
 
   if (!isLoaded) {
     return (
-      <div className="relative flex h-full w-full items-center justify-center bg-slate-100">
+      <div className="relative flex h-full w-full items-center justify-center bg-slate-950">
         <div className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
-          <p className="text-slate-500">Loading map...</p>
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-blue-500/25 border-t-blue-500" />
+          <p className="text-sm text-slate-400">Loading map…</p>
         </div>
       </div>
     );
@@ -435,16 +605,43 @@ export default function MapView({
           zoom={initialZoom}
           onLoad={onLoad}
           onUnmount={onUnmount}
+          onClick={(e) => {
+            if (!onMapClick || !e.latLng) return;
+            onMapClick([e.latLng.lng(), e.latLng.lat()]);
+          }}
           options={{
             mapTypeId: 'terrain',
-            zoomControl: true,
+            // Google's own POI pins compete directly with ours for attention,
+            // and at trail scale they are mostly shops and restaurants.
+            styles: showNativePoi
+              ? undefined
+              : [
+                  {
+                    featureType: 'poi',
+                    elementType: 'labels',
+                    stylers: [{ visibility: 'off' }],
+                  },
+                  {
+                    featureType: 'transit',
+                    elementType: 'labels.icon',
+                    stylers: [{ visibility: 'off' }],
+                  },
+                ],
+            draggableCursor: onMapClick ? 'crosshair' : undefined,
+            zoomControl: showNativeControls,
+            // Google puts zoom bottom-right by default, directly underneath the
+            // chat FAB. Moving it to the right edge, vertically centred, frees
+            // that corner without pushing it into the bottom-left legend.
+            zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_CENTER },
             streetViewControl: false,
-            mapTypeControl: true,
-            fullscreenControl: true,
+            mapTypeControl: showNativeControls,
+            // Default is top-left, where it sat underneath our own count card.
+            mapTypeControlOptions: { position: google.maps.ControlPosition.TOP_RIGHT },
+            fullscreenControl: showNativeControls,
           }}
         >
-          {/* User Location — animated GPS pulse overlay */}
-          {userLocation && (
+          {/* User Location — animated GPS pulse overlay, real fixes only */}
+          {userLocation && hasPreciseLocation && (
             <OverlayView
               position={{ lat: userLocation[1], lng: userLocation[0] }}
               mapPaneName="overlayMouseTarget"
@@ -486,7 +683,7 @@ export default function MapView({
           )}
 
           {/* Route Polylines */}
-          {routes
+          {visibleRoutes
             .filter((route) => route.polyline && route.polyline.length > 0)
             .map((route) => (
               <Polyline
@@ -501,7 +698,7 @@ export default function MapView({
             ))}
 
           {/* Activity Polylines (from Strava / COROS / Garmin / Komoot) */}
-          {activityPolylines
+          {(isLayerVisible('activities') ? activityPolylines : [])
             .filter((ap) => ap.coords.length > 0)
             .map((ap) => (
               <Polyline
@@ -516,8 +713,107 @@ export default function MapView({
               />
             ))}
 
+          {/* Advisories. Drawn last of the data layers and in the loudest
+              colour available: a closure or a rescue outranks discovery. */}
+          {isLayerVisible('advisories') &&
+            advisories
+              .filter((a) => a.coordinates)
+              .map((advisory) => (
+                <OverlayView
+                  key={`advisory-${advisory.id}`}
+                  position={{
+                    lat: advisory.coordinates![1],
+                    lng: advisory.coordinates![0],
+                  }}
+                  mapPaneName="overlayMouseTarget"
+                  getPixelPositionOffset={() => ({ x: -14, y: -14 })}
+                >
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${advisory.kind}: ${advisory.title}`}
+                    title={advisory.title}
+                    onClick={() => onAdvisoryClick?.(advisory.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onAdvisoryClick?.(advisory.id);
+                      }
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      backgroundColor: URGENT_ADVISORY_KINDS.has(advisory.kind)
+                        ? '#e11d48'
+                        : '#f59e0b',
+                      border: '2px solid white',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.45)',
+                    }}
+                  >
+                    <TriangleAlert aria-hidden="true" size={14} color="white" />
+                  </div>
+                </OverlayView>
+              ))}
+
+          {/* Planned route — drawn above everything so the line being built is
+              never lost under the discovery markers. */}
+          {plannerWaypoints.length > 1 && (
+            <Polyline
+              path={(plannerPath && plannerPath.length > 1
+                ? plannerPath
+                : plannerWaypoints.map((w) => w.coordinates)
+              ).map(([lng, lat]) => ({ lat, lng }))}
+              options={{
+                strokeColor: '#f97316',
+                strokeOpacity: 0.95,
+                strokeWeight: 4,
+                zIndex: 999,
+                icons: [
+                  {
+                    icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 3 },
+                    offset: '0',
+                    repeat: '14px',
+                  },
+                ],
+              }}
+            />
+          )}
+          {plannerWaypoints.map((w, index) => (
+            <OverlayView
+              key={w.id}
+              position={{ lat: w.coordinates[1], lng: w.coordinates[0] }}
+              mapPaneName="overlayMouseTarget"
+              getPixelPositionOffset={() => ({ x: -12, y: -12 })}
+            >
+              <div
+                title={w.name}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 24,
+                  height: 24,
+                  borderRadius: '50%',
+                  backgroundColor: '#f97316',
+                  border: '2px solid white',
+                  color: 'white',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                }}
+              >
+                {index + 1}
+              </div>
+            </OverlayView>
+          ))}
+
           {/* Route Markers */}
-          {routes
+          {visibleRoutes
             .filter(
               (route) =>
                 route.coordinates &&
@@ -535,9 +831,24 @@ export default function MapView({
                   mapPaneName="overlayMouseTarget"
                   getPixelPositionOffset={() => ({ x: -16, y: -44 })}
                 >
+                  {/* A `title` is not an accessible name and never appears on
+                      touch. Markers were `div onClick` with no role and no tab
+                      stop, so the whole POI layer was mouse-only. */}
                   <div
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${route.name}, ${route.difficulty} ${route.activity_type} route`}
                     title={route.name}
-                    onClick={() => onRouteClick?.(route)}
+                    onClick={() =>
+                      onMapClick ? onMapClick(route.coordinates, route.name) : onRouteClick?.(route)
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (onMapClick) onMapClick(route.coordinates, route.name);
+                        else onRouteClick?.(route);
+                      }
+                    }}
                     style={{
                       display: 'inline-flex',
                       flexDirection: 'column',
@@ -576,7 +887,7 @@ export default function MapView({
             })}
 
           {/* Mountain/Peak Markers */}
-          {mountains
+          {(isLayerVisible('mountains') ? mountains : [])
             .filter(
               (mountain) =>
                 mountain.coordinates &&
@@ -592,8 +903,30 @@ export default function MapView({
                 getPixelPositionOffset={() => ({ x: -16, y: -44 })}
               >
                 <div
-                  title={`${mountain.name} (${mountain.elevation_m}m)`}
-                  onClick={() => onMountainClick?.(mountain)}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={
+                    mountain.elevation_m == null
+                      ? `${mountain.name}, elevation unknown`
+                      : `${mountain.name}, ${mountain.elevation_m} metres`
+                  }
+                  title={
+                    mountain.elevation_m == null
+                      ? mountain.name
+                      : `${mountain.name} (${mountain.elevation_m}m)`
+                  }
+                  onClick={() =>
+                    onMapClick
+                      ? onMapClick(mountain.coordinates, mountain.name)
+                      : onMountainClick?.(mountain)
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (onMapClick) onMapClick(mountain.coordinates, mountain.name);
+                      else onMountainClick?.(mountain);
+                    }
+                  }}
                   style={{
                     display: 'inline-flex',
                     flexDirection: 'column',
@@ -614,7 +947,7 @@ export default function MapView({
                       justifyContent: 'center',
                     }}
                   >
-                    <MountainIcon size={15} color="white" />
+                    <MountainIcon aria-hidden="true" size={15} color="white" />
                   </div>
                   <div
                     style={{
@@ -631,7 +964,7 @@ export default function MapView({
             ))}
 
           {/* Campsite Markers */}
-          {campsites
+          {(isLayerVisible('campsites') ? campsites : [])
             .filter(
               (campsite) =>
                 campsite.coordinates &&
@@ -647,8 +980,22 @@ export default function MapView({
                 getPixelPositionOffset={() => ({ x: -16, y: -44 })}
               >
                 <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${campsite.name} campsite${campsite.rating ? `, rated ${campsite.rating} out of 5` : ''}`}
                   title={`${campsite.name}${campsite.rating ? ` (★${campsite.rating})` : ''}`}
-                  onClick={() => onCampsiteClick?.(campsite)}
+                  onClick={() =>
+                    onMapClick
+                      ? onMapClick(campsite.coordinates, campsite.name)
+                      : onCampsiteClick?.(campsite)
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (onMapClick) onMapClick(campsite.coordinates, campsite.name);
+                      else onCampsiteClick?.(campsite);
+                    }
+                  }}
                   style={{
                     display: 'inline-flex',
                     flexDirection: 'column',
@@ -669,7 +1016,7 @@ export default function MapView({
                       justifyContent: 'center',
                     }}
                   >
-                    <Tent size={15} color="white" />
+                    <Tent aria-hidden="true" size={15} color="white" />
                   </div>
                   <div
                     style={{
@@ -686,7 +1033,7 @@ export default function MapView({
             ))}
 
           {/* Saved Place Star Markers */}
-          {savedPlaces
+          {(isLayerVisible('saved') ? savedPlaces : [])
             .filter(
               (place) =>
                 place.coordinates &&
@@ -723,7 +1070,7 @@ export default function MapView({
                       justifyContent: 'center',
                     }}
                   >
-                    <Bookmark size={12} color="white" fill="white" />
+                    <Bookmark aria-hidden="true" size={12} color="white" fill="white" />
                   </div>
                   <div
                     style={{
@@ -743,92 +1090,77 @@ export default function MapView({
 
       {/* Legend — bottom-left, so it doesn't stack under Google Maps' native
           zoom control or the ChatBot floating button, which both sit bottom-right */}
-      <div className="absolute bottom-4 left-4 rounded-lg border border-slate-200 bg-white p-4 shadow-lg">
-        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-          Legend
-        </h3>
-        <div className="space-y-2">
-          <div>
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-              Route Difficulty
-            </p>
-            <div className="space-y-1 text-xs">
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-green-500" />
-                <span className="text-slate-600">Easy</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-orange-500" />
-                <span className="text-slate-600">Moderate</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-red-500" />
-                <span className="text-slate-600">Hard</span>
-              </div>
-            </div>
-          </div>
-          {(mountains.length > 0 || campsites.length > 0) && (
-            <div className="border-t border-slate-200 pt-2">
+      {showLegend && (
+        <div className="absolute bottom-24 left-4 hidden rounded-xl border border-white/10 bg-slate-900/90 p-4 shadow-xl backdrop-blur sm:block">
+          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            Legend
+          </h3>
+          <div className="space-y-2">
+            <div>
               <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                Points of Interest
+                Route Difficulty
               </p>
               <div className="space-y-1 text-xs">
-                {mountains.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-900">
-                      <MountainIcon size={10} color="white" />
-                    </div>
-                    <span className="text-slate-600">Mountain/Peak</span>
-                  </div>
-                )}
-                {campsites.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-4 w-4 items-center justify-center rounded-full bg-green-700">
-                      <Tent size={10} color="white" />
-                    </div>
-                    <span className="text-slate-600">Campsite</span>
-                  </div>
-                )}
-                {savedPlaces.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-600">
-                      <Bookmark size={9} color="white" fill="white" />
-                    </div>
-                    <span className="text-slate-600">Saved</span>
-                  </div>
-                )}
                 <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-blue-500" />
-                  <span className="text-slate-600">Your Location</span>
+                  <div className="h-3 w-3 rounded-full bg-green-500" />
+                  <span className="text-slate-300">Easy</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-3 w-3 rounded-full bg-orange-500" />
+                  <span className="text-slate-300">Moderate</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-3 w-3 rounded-full bg-red-500" />
+                  <span className="text-slate-300">Hard</span>
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Route, Mountain, and Campsite Count */}
-      {(routes.length > 0 || mountains.length > 0 || campsites.length > 0) && (
-        <div className="absolute left-4 top-4 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 shadow-lg">
-          <div className="space-y-1">
-            {routes.length > 0 && (
-              <div className="text-[13px] font-semibold text-slate-900">
-                {routes.length} {routes.length === 1 ? 'Route' : 'Routes'}
-              </div>
-            )}
-            {mountains.length > 0 && (
-              <div className="text-[13px] text-slate-500">
-                {mountains.length} {mountains.length === 1 ? 'Mountain' : 'Mountains'}
-              </div>
-            )}
-            {campsites.length > 0 && (
-              <div className="text-[13px] text-slate-500">
-                {campsites.length} {campsites.length === 1 ? 'Campsite' : 'Campsites'}
+            {(mountains.length > 0 || campsites.length > 0) && (
+              <div className="border-t border-white/10 pt-2">
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  Points of Interest
+                </p>
+                <div className="space-y-1 text-xs">
+                  {mountains.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-900">
+                        <MountainIcon aria-hidden="true" size={10} color="white" />
+                      </div>
+                      <span className="text-slate-300">Mountain/Peak</span>
+                    </div>
+                  )}
+                  {campsites.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-4 w-4 items-center justify-center rounded-full bg-green-700">
+                        <Tent aria-hidden="true" size={10} color="white" />
+                      </div>
+                      <span className="text-slate-300">Campsite</span>
+                    </div>
+                  )}
+                  {savedPlaces.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-600">
+                        <Bookmark aria-hidden="true" size={9} color="white" fill="white" />
+                      </div>
+                      <span className="text-slate-300">Saved</span>
+                    </div>
+                  )}
+                  {hasPreciseLocation && (
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-blue-500" />
+                      <span className="text-slate-300">Your Location</span>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
         </div>
       )}
+
+      {/* The layer toggles that lived here as a floating card are now in the
+          navigation dock, so there is one place to control what the map draws
+          rather than two that could disagree. */}
     </div>
   );
 }

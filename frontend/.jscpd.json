@@ -1,0 +1,20 @@
+{
+  "path": ["src"],
+  "format": ["typescript", "tsx"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/.next/**",
+    "**/.stryker-tmp/**",
+    "**/coverage/**",
+    "**/reports/**",
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ],
+  "minLines": 12,
+  "minTokens": 100,
+  "threshold": 3,
+  "reporters": ["console", "json"],
+  "output": "reports/jscpd",
+  "absolute": false,
+  "gitignore": true
+}

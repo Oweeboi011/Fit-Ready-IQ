@@ -6,3 +6,7 @@ reports/
 .stryker-tmp/
 test-results/
 playwright-report/
+
+# Scraped advisories and the source list that drives the scraper
+/data/advisories.json
+/scripts/advisory-sources.json
