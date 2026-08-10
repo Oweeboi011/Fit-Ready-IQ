@@ -3,7 +3,7 @@
 import { AlertOctagon, Ban, Info, LifeBuoy, Megaphone, TriangleAlert } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-import type { Advisory, AdvisoryKind } from '@/app/api/advisories/route';
+import type { Advisory, AdvisoryKind } from '@/lib/advisories';
 
 const KIND_ICON: Record<AdvisoryKind, LucideIcon> = {
   closure: Ban,

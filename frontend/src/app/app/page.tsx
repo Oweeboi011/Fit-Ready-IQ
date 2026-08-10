@@ -62,7 +62,7 @@ import AdminModal from '@/components/admin/AdminModal';
 import RoadmapModal from '@/components/RoadmapModal';
 import type { PlannerWaypoint } from '@/lib/gpxBuilder';
 import { usePlannerRoute } from '@/lib/usePlannerRoute';
-import type { Advisory } from '@/app/api/advisories/route';
+import type { Advisory } from '@/lib/advisories';
 import {
   layerForActivityType,
   readHiddenLayers,
