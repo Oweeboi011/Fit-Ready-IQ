@@ -25,6 +25,12 @@
     },
     "src/app/api/health/route.ts": {
       "maxDuration": 15
+    },
+    "src/app/api/directions/route.ts": {
+      "maxDuration": 15
+    },
+    "src/app/api/elevation/route.ts": {
+      "maxDuration": 30
     }
   }
 }
