@@ -35,13 +35,14 @@ export default function MapLoadingOverlay({
   if (!isLoading || isDismissed) return null;
 
   return (
-    <div
-      className="pointer-events-none absolute inset-0 z-20 flex items-start justify-center pt-8"
-      aria-hidden={false}
-    >
+    <div className="pointer-events-none absolute inset-0 z-20 flex items-start justify-center pt-8">
+      {/* The map surface carries several status regions (location problems,
+          save failures); naming this one keeps it distinguishable to screen
+          readers and to tests. */}
       <div
         role="status"
         aria-live="polite"
+        aria-label="Map loading progress"
         className="pointer-events-auto flex items-center gap-3 rounded-full border border-white/10 bg-slate-900/90 py-2.5 pl-3 pr-2.5 shadow-xl backdrop-blur-md"
       >
         <span
@@ -58,9 +59,9 @@ export default function MapLoadingOverlay({
           type="button"
           onClick={() => setIsDismissed(true)}
           aria-label="Hide loading indicator"
-          className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          className="-my-2 -mr-1 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         >
-          <X className="h-3 w-3" />
+          <X aria-hidden="true" className="h-3 w-3" />
         </button>
       </div>
     </div>

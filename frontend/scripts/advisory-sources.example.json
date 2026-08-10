@@ -1,0 +1,38 @@
+{
+  "$comment": [
+    "Advisory sources to scrape. Copy to advisory-sources.json and edit.",
+    "",
+    "Only sources listed here are ever visited. Each needs CSS selectors because",
+    "there is no common markup between park authorities. Start with `enabled:",
+    "false`, run with --dry-run, and check the selectors pull what you expect",
+    "before turning a source on.",
+    "",
+    "Scrape public advisory pages only, and check each site's terms and",
+    "robots.txt first — the scraper honours robots.txt but that is a floor, not",
+    "permission."
+  ],
+  "sources": [
+    {
+      "id": "example-park-authority",
+      "name": "Example Park Authority",
+      "enabled": false,
+      "url": "https://example.org/advisories",
+      "areaName": "Example National Park",
+      "defaultKind": "announcement",
+      "selectors": {
+        "item": "article.advisory",
+        "title": "h2",
+        "body": ".summary",
+        "date": "time",
+        "link": "a"
+      },
+      "kindKeywords": {
+        "closure": ["closed", "closure", "suspended"],
+        "emergency": ["emergency", "evacuate"],
+        "rescue": ["rescue", "search and rescue", "missing"],
+        "hazard": ["landslide", "rockfall", "flash flood", "typhoon", "warning"],
+        "report": ["trail report", "conditions"]
+      }
+    }
+  ]
+}
