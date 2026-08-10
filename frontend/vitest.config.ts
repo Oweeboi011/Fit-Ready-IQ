@@ -23,6 +23,9 @@ export default defineConfig({
         'src/lib/savedPlans.ts',
         'src/lib/readiness.ts',
         'src/lib/trainingPlan.ts',
+        'src/lib/weatherAlerts.ts',
+        'src/lib/weatherAlertCache.ts',
+        'src/lib/radarLayer.ts',
       ],
       thresholds: {
         statements: 85,

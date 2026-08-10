@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { summarizeAlerts, type ForecastHour, type WeatherAlert } from '@/lib/weatherAlerts';
 
 export const runtime = 'nodejs';
 
@@ -174,6 +175,105 @@ async function fetchOpenWeather(
   };
 }
 
+// ── Forecast (feeds forward-looking alerts — storm, heavy rain, high wind) ───
+// Best-effort: a failed or unconfigured forecast call falls back to an empty
+// alert list rather than failing the whole request, since the current
+// conditions above are still useful on their own.
+type GoogleForecastHour = {
+  interval?: { startTime?: string };
+  temperature?: { degrees?: number };
+  wind?: { speed?: { value?: number; unit?: string } };
+  precipitation?: {
+    probability?: { percent?: number };
+    qpf?: { quantity?: number };
+  };
+  thunderstormProbability?: number;
+};
+
+async function fetchGoogleForecastHours(
+  apiKey: string,
+  lat: number,
+  lng: number
+): Promise<ForecastHour[]> {
+  const endpoint =
+    `https://weather.googleapis.com/v1/forecast/hours:lookup` +
+    `?key=${apiKey}&location.latitude=${lat}&location.longitude=${lng}&hours=48`;
+
+  const res = await fetch(endpoint, {
+    headers: { Accept: 'application/json' },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`Google Weather forecast ${res.status}`);
+
+  const raw = (await res.json()) as { forecastHours?: GoogleForecastHour[] };
+  return (raw.forecastHours ?? []).map((h) => ({
+    at: h.interval?.startTime ?? new Date().toISOString(),
+    windKph:
+      h.wind?.speed?.unit === 'KPH'
+        ? (h.wind.speed.value ?? 0)
+        : Math.round((h.wind?.speed?.value ?? 0) * 1.60934),
+    precipMm: h.precipitation?.qpf?.quantity ?? 0,
+    precipProbabilityPct: h.precipitation?.probability?.percent ?? 0,
+    thunderstormProbabilityPct: h.thunderstormProbability ?? 0,
+    tempC: h.temperature?.degrees ?? null,
+  }));
+}
+
+type OpenWeatherForecastEntry = {
+  dt: number;
+  main?: { temp?: number };
+  wind?: { speed?: number };
+  pop?: number;
+  rain?: { '3h'?: number };
+  snow?: { '3h'?: number };
+};
+
+async function fetchOpenWeatherForecastHours(
+  apiKey: string,
+  lat: number,
+  lng: number
+): Promise<ForecastHour[]> {
+  const baseUrl = process.env.OPENWEATHER_BASE_URL ?? 'https://api.openweathermap.org/data/2.5';
+  const endpoint = `${baseUrl}/forecast?lat=${lat}&lon=${lng}&appid=${apiKey}&units=metric`;
+
+  const res = await fetch(endpoint, {
+    headers: { Accept: 'application/json' },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`OpenWeather forecast ${res.status}`);
+
+  const raw = (await res.json()) as { list?: OpenWeatherForecastEntry[] };
+  // OpenWeather's free tier reports in 3-hour buckets; treat each bucket as
+  // the rate for its first hour so the same mm/kph thresholds still apply.
+  return (raw.list ?? []).map((e) => ({
+    at: new Date(e.dt * 1000).toISOString(),
+    windKph: e.wind?.speed ? Math.round(e.wind.speed * 3.6) : 0,
+    precipMm: (e.rain?.['3h'] ?? 0) + (e.snow?.['3h'] ?? 0),
+    precipProbabilityPct: Math.round((e.pop ?? 0) * 100),
+    thunderstormProbabilityPct: 0,
+    tempC: e.main?.temp ?? null,
+  }));
+}
+
+async function fetchForecastAlerts(
+  googleKey: string | undefined,
+  openWeatherKey: string | undefined,
+  lat: number,
+  lng: number
+): Promise<WeatherAlert[]> {
+  try {
+    const hours = googleKey
+      ? await fetchGoogleForecastHours(googleKey, lat, lng)
+      : openWeatherKey
+        ? await fetchOpenWeatherForecastHours(openWeatherKey, lat, lng)
+        : [];
+    return summarizeAlerts(hours);
+  } catch (err) {
+    console.warn('weather forecast fetch failed:', err);
+    return [];
+  }
+}
+
 // ── Route handler ─────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   const lat = toNumber(request.nextUrl.searchParams.get('lat'));
@@ -193,17 +293,16 @@ export async function GET(request: NextRequest) {
 
   try {
     // Prefer Google Weather API when its key is configured
-    if (googleKey) {
-      const result = await fetchGoogleWeather(googleKey, lat, lng, elevation);
-      return NextResponse.json(result, {
-        headers: { 'Cache-Control': 'public, max-age=1800, stale-while-revalidate=300' },
-      });
-    }
+    const result = googleKey
+      ? await fetchGoogleWeather(googleKey, lat, lng, elevation)
+      : await fetchOpenWeather(openWeatherKey!, lat, lng, elevation);
 
-    const result = await fetchOpenWeather(openWeatherKey!, lat, lng, elevation);
-    return NextResponse.json(result, {
-      headers: { 'Cache-Control': 'public, max-age=1800, stale-while-revalidate=300' },
-    });
+    const alerts = await fetchForecastAlerts(googleKey, openWeatherKey, lat, lng);
+
+    return NextResponse.json(
+      { ...result, alerts },
+      { headers: { 'Cache-Control': 'public, max-age=1800, stale-while-revalidate=300' } }
+    );
   } catch (error) {
     return NextResponse.json(
       {
