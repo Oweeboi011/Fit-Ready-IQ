@@ -58,7 +58,9 @@ The FastAPI backend is not called by the frontend in production; it is planned f
 | `/api/strava/activities` | Fetch activities from Strava API | — |
 | `/api/strava/sync` | Admin: sync Strava activities → Firestore | 60 s |
 | `/api/places/cache` | Grid-based places cache (0.5° cells, 24 h TTL) | 15 s |
-| `/api/weather` | Google Weather (primary) → OpenWeather fallback | 15 s |
+| `/api/weather` | Google Weather (primary) → OpenWeather fallback. Also returns forward-looking storm/rain/wind/temperature alerts derived from the hourly forecast. | 15 s |
+| `/api/directions` | Routes API (server-side; the legacy client-side `DirectionsService` is deprecated and REQUEST_DENIED on this project) | 15 s |
+| `/api/elevation` | Batch elevation lookup: Google Elevation (primary) → Open-Elevation (fallback, free, unauthenticated). Google is REQUEST_DENIED on this project today, so the fallback is what actually serves it. | 30 s |
 | `/api/health` | Credential-presence checks only (no live API calls). `s-maxage=30, stale-while-revalidate=10`. | 15 s |
 | `/api/admin/cache` | Inspect / purge places cache (batch 400 docs). Admin-gated. | 30 s |
 | `/api/admin/strava-sync` | Strava sync status across users. Admin-gated. | — |
@@ -172,8 +174,14 @@ the app degrades honestly without them:
 |---|---|---|
 | Maps JavaScript | The map | Error page with a retry |
 | Places (legacy) | Route/peak/campsite discovery | Empty lists with a retry |
-| Elevation | Relief, difficulty banding | "Relief unknown", difficulty "Unrated" |
+| Elevation | Relief, difficulty banding | Nothing — `/api/elevation` falls back to Open-Elevation, so this degrades to a different (free, less precise) data source rather than a blank |
 | **Routes** (not legacy Directions) | Directions, planner path snapping | Straight lines, labelled as such |
+
+Elevation and Routes both currently return REQUEST_DENIED / PERMISSION_DENIED on this
+project (`console.cloud.google.com`, project `fit-ready-iq`) — enabled in the Maps
+Platform product list but never turned on as standalone APIs. Elevation has a working
+fallback so this is cosmetic; Routes does not, so planned routes still fall back to a
+straight line until it is enabled.
 
 `GOOGLE_ROUTES_API_KEY` may hold a separate server-side key; it falls back to
 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`.
