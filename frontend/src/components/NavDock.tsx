@@ -28,7 +28,7 @@ import {
   type TerrainPulse,
 } from '@/components/dock/panels';
 import { AdvisoriesPanel } from '@/components/dock/AdvisoriesPanel';
-import type { Advisory } from '@/app/api/advisories/route';
+import type { Advisory } from '@/lib/advisories';
 import { MAP_LAYERS, type MapLayer } from '@/lib/mapLayers';
 
 export type { DockAlert, DockWeather, TerrainPulse };
