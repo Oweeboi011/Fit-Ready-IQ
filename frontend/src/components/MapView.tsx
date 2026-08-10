@@ -20,6 +20,7 @@ import { type SavedPlace } from '@/lib/useSavedPlaces';
 import type { Difficulty } from '@/lib/routeDifficulty';
 import { layerForActivityType, type MapLayer } from '@/lib/mapLayers';
 import { buttonPrimary, buttonSize } from '@/lib/ui';
+import { fetchLatestRadarFrame, radarTileUrl } from '@/lib/radarLayer';
 
 interface Route {
   id: string;
@@ -82,6 +83,8 @@ interface MapViewProps {
   hasPreciseLocation?: boolean;
   /** The dock owns legend visibility so both can't claim the same corner. */
   showLegend?: boolean;
+  /** Precipitation radar tiles (RainViewer), toggled from the dock's layers panel. */
+  showWeatherRadar?: boolean;
   isLoaded: boolean;
   loadError: Error | undefined;
   onRouteClick?: (route: Route) => void;
@@ -202,6 +205,7 @@ export default function MapView({
   userLocation: userLocationProp,
   hasPreciseLocation = false,
   showLegend = true,
+  showWeatherRadar = false,
   isLoaded,
   loadError,
   onRouteClick,
@@ -264,6 +268,36 @@ export default function MapView({
   const [map, setMap] = useState<google.maps.Map | null>(null);
   /** Auto-framing is a one-time courtesy; after that the viewport is theirs. */
   const hasAutoFittedRef = useRef(false);
+
+  // Precipitation radar overlay. Re-fetched each time it's switched on, since
+  // RainViewer publishes a new frame roughly every 10 minutes and the map can
+  // stay open far longer than that.
+  useEffect(() => {
+    if (!map || !showWeatherRadar) return;
+
+    let cancelled = false;
+    let overlay: google.maps.ImageMapType | null = null;
+
+    fetchLatestRadarFrame().then((frame) => {
+      if (cancelled || !frame) return;
+      overlay = new google.maps.ImageMapType({
+        getTileUrl: (coord, zoom) => radarTileUrl(frame, coord.x, coord.y, zoom),
+        tileSize: new google.maps.Size(256, 256),
+        opacity: 0.6,
+        name: 'Precipitation radar',
+      });
+      map.overlayMapTypes.push(overlay);
+    });
+
+    return () => {
+      cancelled = true;
+      if (!overlay) return;
+      const types = map.overlayMapTypes;
+      for (let i = types.getLength() - 1; i >= 0; i--) {
+        if (types.getAt(i) === overlay) types.removeAt(i);
+      }
+    };
+  }, [map, showWeatherRadar]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
