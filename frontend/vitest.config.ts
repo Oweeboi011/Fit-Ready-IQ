@@ -26,6 +26,7 @@ export default defineConfig({
         'src/lib/weatherAlerts.ts',
         'src/lib/weatherAlertCache.ts',
         'src/lib/radarLayer.ts',
+        'src/lib/elevation.ts',
       ],
       thresholds: {
         statements: 85,
