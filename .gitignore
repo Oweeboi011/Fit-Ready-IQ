@@ -65,6 +65,9 @@ coverage/
 htmlcov/
 .hypothesis/
 reports/
+playwright-report/
+test-results/
+.stryker-tmp/
 
 # Build artifacts
 *.tsbuildinfo

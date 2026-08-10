@@ -21,7 +21,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Frontend npm audit
         run: npm audit --audit-level=high
@@ -51,6 +51,44 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Pattern-level static analysis. Complements CodeQL: CodeQL does dataflow,
+  # Semgrep catches the shallower "never write it this way here" patterns
+  # (dangerouslySetInnerHTML, eval, hard-coded credentials) fast enough to run
+  # on every PR. Registry rulesets need no account or token.
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-latest
+    # Advisory for now. Semgrep has no supported Windows binary, so the ruleset
+    # could not be dry-run against this repo before landing and the first PR may
+    # surface a backlog of pre-existing findings. Triage that backlog, then drop
+    # this line to make Semgrep blocking (and add it to branch protection).
+    continue-on-error: true
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan
+        run: >
+          semgrep scan
+          --error
+          --sarif --output semgrep.sarif
+          --config p/typescript
+          --config p/react
+          --config p/secrets
+          --config p/owasp-top-ten
+          --exclude node_modules
+          --exclude .next
+          --exclude coverage
+          --exclude reports
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
 
   codeql:
     name: CodeQL

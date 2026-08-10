@@ -11,12 +11,12 @@ export interface SavedPlace {
   name: string;
   coordinates: [number, number];
   savedAt?: number;
-  elevation_m?: number;
+  elevation_m?: number | null;
   prominence_m?: number;
   difficulty?: string;
   activity_type?: string;
   distance_km?: number;
-  elevation_gain_m?: number;
+  elevation_gain_m?: number | null;
   mountain_type?: string;
   rating?: number;
   photos?: string[];
@@ -33,9 +33,40 @@ async function getFirestoreDb() {
   return getFirestore(getApp());
 }
 
+/** Optional fields that a place may or may not carry, depending on its type. */
+const OPTIONAL_FIELDS = [
+  'elevation_m',
+  'prominence_m',
+  'difficulty',
+  'activity_type',
+  'distance_km',
+  'elevation_gain_m',
+  'mountain_type',
+  'rating',
+  'photos',
+  'place_id',
+] as const satisfies readonly (keyof SavedPlace)[];
+
+/** Firestore rejects `undefined`, so only defined fields make it into the doc. */
+function toFirestoreFields(place: Omit<SavedPlace, 'savedAt'>): Record<string, unknown> {
+  const data: Record<string, unknown> = {
+    type: place.type,
+    name: place.name,
+    coordinates: place.coordinates,
+  };
+  for (const field of OPTIONAL_FIELDS) {
+    const value = place[field];
+    if (value !== undefined) data[field] = value;
+  }
+  return data;
+}
+
 export function useSavedPlaces(uid: string | null) {
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [loading, setLoading] = useState(false);
+  // A save that silently fails looks identical to a bookmark that never
+  // registered the tap, so failures have to be sayable.
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!uid) {
@@ -86,7 +117,9 @@ export function useSavedPlaces(uid: string | null) {
           setSavedPlaces(places);
           setLoading(false);
         },
-        () => {
+        (err) => {
+          console.error('Saved places listener failed:', err);
+          setSaveError("We couldn't load your saved places. Check your connection.");
           setLoading(false);
         }
       );
@@ -103,35 +136,36 @@ export function useSavedPlaces(uid: string | null) {
   const toggleSave = useCallback(
     async (place: Omit<SavedPlace, 'savedAt'>) => {
       if (!uid) return;
-      const db = await getFirestoreDb();
-      if (!db) return;
-      const { doc, setDoc, deleteDoc, serverTimestamp } = await import('firebase/firestore');
-      const ref = doc(db, 'users', uid, 'saved_places', place.id);
+      const wasSaved = isSaved(place.id);
+      setSaveError(null);
 
-      if (isSaved(place.id)) {
-        await deleteDoc(ref);
-      } else {
-        const data: Record<string, unknown> = {
-          type: place.type,
-          name: place.name,
-          coordinates: place.coordinates,
-          savedAt: serverTimestamp(),
-        };
-        if (place.elevation_m !== undefined) data.elevation_m = place.elevation_m;
-        if (place.prominence_m !== undefined) data.prominence_m = place.prominence_m;
-        if (place.difficulty !== undefined) data.difficulty = place.difficulty;
-        if (place.activity_type !== undefined) data.activity_type = place.activity_type;
-        if (place.distance_km !== undefined) data.distance_km = place.distance_km;
-        if (place.elevation_gain_m !== undefined) data.elevation_gain_m = place.elevation_gain_m;
-        if (place.mountain_type !== undefined) data.mountain_type = place.mountain_type;
-        if (place.rating !== undefined) data.rating = place.rating;
-        if (place.photos !== undefined) data.photos = place.photos;
-        if (place.place_id !== undefined) data.place_id = place.place_id;
-        await setDoc(ref, data);
+      try {
+        const db = await getFirestoreDb();
+        if (!db) {
+          setSaveError('Saving is unavailable right now.');
+          return;
+        }
+        const { doc, setDoc, deleteDoc, serverTimestamp } = await import('firebase/firestore');
+        const ref = doc(db, 'users', uid, 'saved_places', place.id);
+
+        if (wasSaved) {
+          await deleteDoc(ref);
+        } else {
+          await setDoc(ref, { ...toFirestoreFields(place), savedAt: serverTimestamp() });
+        }
+      } catch (err) {
+        // Previously an unhandled rejection: the write failed and the bookmark
+        // simply never filled, with nothing anywhere to explain why.
+        console.error('Saving place failed:', err);
+        setSaveError(
+          wasSaved ? "We couldn't remove that place." : "We couldn't save that place. Try again."
+        );
       }
     },
     [uid, isSaved]
   );
 
-  return { savedPlaces, loading, isSaved, toggleSave };
+  const dismissSaveError = useCallback(() => setSaveError(null), []);
+
+  return { savedPlaces, loading, isSaved, toggleSave, saveError, dismissSaveError };
 }
