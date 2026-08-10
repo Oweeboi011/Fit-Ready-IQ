@@ -53,6 +53,8 @@ import {
 import ChatBot from '@/components/ChatBot';
 import { ReadinessBadge } from '@/components/ReadinessPanel';
 import { computeReadiness } from '@/lib/readiness';
+import { WeatherAlertBadgeNear } from '@/components/WeatherAlertBadge';
+import { recordWeatherAlerts } from '@/lib/weatherAlertCache';
 import { NavDock, type DockAlert, type DockWeather } from '@/components/NavDock';
 import { MapDirections, type DirectionsTarget } from '@/components/MapDirections';
 import { RoutePlanner } from '@/components/RoutePlanner';
@@ -316,6 +318,7 @@ export default function Home() {
   const [showLegend, setShowLegend] = useState(false);
   const [showNativeControls, setShowNativeControls] = useState(true);
   const [showNativePoi, setShowNativePoi] = useState(true);
+  const [showWeatherRadar, setShowWeatherRadar] = useState(false);
   // Directions render on our own map; "Get Directions" no longer hands the
   // user to another product mid-task.
   const [directionsTarget, setDirectionsTarget] = useState<DirectionsTarget | null>(null);
@@ -682,13 +685,16 @@ export default function Home() {
       const res = await fetch(`/api/weather?lat=${userLocation.lat}&lng=${userLocation.lng}`);
       const data = await res.json();
       if (!res.ok || !data?.summary) throw new Error(data?.error ?? `HTTP ${res.status}`);
+      const alerts = Array.isArray(data.alerts) ? data.alerts : [];
       setDockWeather({
         status: 'ready',
         temp: data.summary.temp,
         best: data.summary.best,
         avoid: data.summary.avoid,
         risk: data.summary.risk,
+        alerts,
       });
+      recordWeatherAlerts(userLocation.lat, userLocation.lng, alerts);
     } catch (err) {
       console.error('Dock weather failed:', err);
       setDockWeather({ status: 'unavailable' });
@@ -2519,6 +2525,10 @@ export default function Home() {
                                 {/* Silent when there is no training data to score
                                   against, rather than showing a zero. */}
                                 <ReadinessBadge readiness={readinessByRoute[route.id]} />
+                                <WeatherAlertBadgeNear
+                                  lat={route.coordinates[1]}
+                                  lng={route.coordinates[0]}
+                                />
                               </div>
 
                               {/* A labelled list rather than a pipe-separated
@@ -2642,6 +2652,10 @@ export default function Home() {
                               {mountain.trail_class}
                             </span>
                           )}
+                          <WeatherAlertBadgeNear
+                            lat={mountain.coordinates[1]}
+                            lng={mountain.coordinates[0]}
+                          />
                         </div>
                         <div className="mt-2 flex items-center gap-3 text-[11px]">
                           <span className="font-tabular font-semibold text-slate-200">
@@ -2742,6 +2756,10 @@ export default function Home() {
                               * {campsite.rating.toFixed(1)}
                             </span>
                           )}
+                          <WeatherAlertBadgeNear
+                            lat={campsite.coordinates[1]}
+                            lng={campsite.coordinates[0]}
+                          />
                         </div>
                       </button>
                     ));
@@ -3069,6 +3087,8 @@ export default function Home() {
             }}
             layerCounts={layerCounts}
             onToggleLayer={toggleLayer}
+            weatherRadarVisible={showWeatherRadar}
+            onToggleWeatherRadar={() => setShowWeatherRadar((v) => !v)}
             onLocate={() => focusUserLocationRef.current?.()}
           />
 
@@ -3108,6 +3128,7 @@ export default function Home() {
             showLegend={showLegend}
             showNativeControls={showNativeControls}
             showNativePoi={showNativePoi}
+            showWeatherRadar={showWeatherRadar}
             advisories={advisories}
             onAdvisoryClick={(id) => {
               const advisory = advisories.find((a) => a.id === id);

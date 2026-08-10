@@ -65,8 +65,10 @@ interface NavDockProps {
   advisorySource: { configured: boolean; status: 'idle' | 'loading' | 'error' };
   onSelectAdvisory: (advisory: Advisory) => void;
   layerCounts: Record<MapLayer, number>;
+  weatherRadarVisible: boolean;
   onSelectTab: (tab: ContentTab) => void;
   onToggleLayer: (layer: MapLayer) => void;
+  onToggleWeatherRadar: () => void;
   onRequestWeather: () => void;
   onOpenPlanner: () => void;
   onOpenFitness: () => void;
@@ -125,6 +127,8 @@ function DockPanelBody({
           hiddenLayers={props.hiddenLayers}
           counts={props.layerCounts}
           onToggle={props.onToggleLayer}
+          weatherRadarVisible={props.weatherRadarVisible}
+          onToggleWeatherRadar={props.onToggleWeatherRadar}
         />
       );
     case 'links':

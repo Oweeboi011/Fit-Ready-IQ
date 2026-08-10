@@ -48,6 +48,9 @@ import type { Difficulty } from '@/lib/routeDifficulty';
 import { PhotoGallery } from '@/components/PhotoGallery';
 import { ShareButton } from '@/components/ShareButton';
 import { buttonPrimary, buttonSecondary, buttonSize } from '@/lib/ui';
+import { recordWeatherAlerts } from '@/lib/weatherAlertCache';
+import type { WeatherAlert } from '@/lib/weatherAlerts';
+import { WeatherAlertChips } from '@/components/WeatherAlertBadge';
 
 interface RouteDetails {
   type: 'route';
@@ -132,6 +135,7 @@ interface WeatherResult {
   temp: string;
   risk: string;
   live: boolean;
+  alerts: WeatherAlert[];
 }
 
 /**
@@ -154,6 +158,7 @@ const WEATHER_UNAVAILABLE: WeatherResult = {
   temp: '—',
   risk: 'Check a mountain forecast before you set out.',
   live: false,
+  alerts: [],
 };
 
 interface DetailsModalProps {
@@ -212,10 +217,12 @@ export default function DetailsModal({
             temp: json.summary.temp,
             risk: json.summary.risk,
             live: true,
+            alerts: Array.isArray(json.alerts) ? json.alerts : [],
           };
           weatherCache.set(cacheKey, result);
           weatherCacheTs.set(cacheKey, Date.now());
           setLiveWeather(result);
+          recordWeatherAlerts(lat, lng, result.alerts);
         }
       })
       .catch(() => {
@@ -936,6 +943,7 @@ export default function DetailsModal({
                                 <p className="mt-2 rounded-md bg-white/5 px-3 py-2 text-xs text-slate-300">
                                   RISK: {weatherNotes.risk}
                                 </p>
+                                <WeatherAlertChips alerts={weatherNotes.alerts} />
                               </div>
                             </div>
                           </div>
@@ -1408,6 +1416,7 @@ export default function DetailsModal({
                           <p className="mt-2 rounded-lg bg-slate-800/60 px-3 py-2 text-xs text-slate-400">
                             RISK: {weatherNotes.risk}
                           </p>
+                          <WeatherAlertChips alerts={weatherNotes.alerts} />
                         </div>
                       </div>
                     </div>
