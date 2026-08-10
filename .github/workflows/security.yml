@@ -33,6 +33,9 @@ jobs:
 
       - uses: abatilo/actions-poetry@v3
 
+      - run: poetry install
+        working-directory: backend
+
       - name: Backend pip audit
         run: poetry run pip-audit --vulnerability-service osv -l
         working-directory: backend
