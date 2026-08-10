@@ -43,7 +43,9 @@ docker-compose up -d   # starts Firestore (8080), Auth (9099), Emulator UI (4000
 
 ### Request flow
 
-Browser → Next.js page (`src/app/page.tsx`) → Next.js API routes (`src/app/api/`) → external services (Firestore, Strava, Google APIs, Gemini).
+`/` is the marketing landing page (`src/app/page.tsx`, static). The map product lives at `/app` (`src/app/app/page.tsx`). Keep them separate — `/` must stay static and fast, since it is the only surface that converts visitors.
+
+Browser → Next.js page → Next.js API routes (`src/app/api/`) → external services (Firestore, Strava, Google APIs, Gemini).
 
 The FastAPI backend is not called by the frontend in production; it is planned for future phases.
 
@@ -58,8 +60,9 @@ The FastAPI backend is not called by the frontend in production; it is planned f
 | `/api/places/cache` | Grid-based places cache (0.5° cells, 24 h TTL) | 15 s |
 | `/api/weather` | Google Weather (primary) → OpenWeather fallback | 15 s |
 | `/api/health` | Credential-presence checks only (no live API calls). `s-maxage=30, stale-while-revalidate=10`. | 15 s |
-| `/api/admin/cache` | Inspect / purge places cache (batch 400 docs) | 30 s |
-| `/api/admin/strava-sync` | Strava sync status across users | — |
+| `/api/admin/cache` | Inspect / purge places cache (batch 400 docs). Admin-gated. | 30 s |
+| `/api/admin/strava-sync` | Strava sync status across users. Admin-gated. | — |
+| `/api/admin/whoami` | Returns `{ isAdmin }` for the bearer token; lets the UI hide admin affordances without shipping the allowlist | — |
 
 ### Firestore data model
 
@@ -85,6 +88,16 @@ To avoid redundant paid API calls:
 - **Reverse geocode** (`page.tsx`): `sessionStorage` with 24 h TTL and 0.1° coordinate grid (`fri_geocode_*` key).
 - **Last user location** (`page.tsx`): persisted to `localStorage` (`fri_last_location`) and restored on page load so the map focuses instantly. Restore it in an effect, never in a `useState` initializer — reading storage during render makes the server and client disagree on first paint and React discards the server tree.
 
+### Admin access
+
+`/admin/settings` and every `/api/admin/*` route are gated on the `ADMIN_EMAILS` allowlist (comma-separated, **server-side only**). API routes call `requireAdmin(request)`, which verifies a Firebase ID token from the `Authorization: Bearer` header and checks the email against the list. An empty or missing `ADMIN_EMAILS` denies everyone — the gate fails closed.
+
+The client never sees the allowlist. `useAdminGate()` asks `/api/admin/whoami` and hides admin UI when the answer is no; that is presentation only, and the routes verify independently. Admin calls from the browser must go through `authedFetch` so the token is attached.
+
+### Design system
+
+One primary button treatment (`buttonPrimary` in `src/lib/ui.ts`), and never more than one per viewport — it marks the single action we most want. Navigation, tools and settings use `buttonGhost`. If a new button is neither the main action nor navigation, it is probably `buttonSecondary`.
+
 ### Credential split
 
 `NEXT_PUBLIC_*` variables are safe to expose to the browser. All other keys (`GEMINI_API_KEY`, `STRAVA_CLIENT_SECRET`, `FIREBASE_SERVICE_ACCOUNT_KEY_JSON`, `FIREBASE_PRIVATE_KEY`) are server-side only and must never appear in client-side code.
@@ -93,13 +106,26 @@ Firebase Admin SDK tries credentials in this order: `FIREBASE_SERVICE_ACCOUNT_KE
 
 ### Key frontend files
 
-- `src/app/page.tsx` — entire map UI, state management, filter logic, Strava/GPX integration (~79 KB)
+- `src/app/page.tsx` — marketing landing page: hero, features, pricing, trial CTA (server component)
+- `src/app/app/page.tsx` — entire map UI, state management, filter logic, Strava/GPX integration (~79 KB)
+- `src/components/marketing/` — landing-page client islands (`StartTrialButton`, `PricingTable`)
+- `src/lib/plans.ts` — plan tiers, prices and entitlements; the single source for pricing copy and paywall checks
+- `src/lib/ui.ts` — button vocabulary (`buttonPrimary` / `buttonSecondary` / `buttonGhost`)
+- `src/lib/adminAuth.ts` — server-side admin gate (`requireAdmin`, `isAdminEmail`)
+- `src/lib/useAdminGate.ts` — client hook that asks the server whether the user is an admin
 - `src/components/MapView.tsx` — Google Maps with custom markers, polylines, OverlayView popups
+- `src/components/NavDock.tsx` + `src/components/dock/` — the floating dock over the map: content tabs, weather, terrain, advisories, alerts, layers, quick links
+- `src/components/Modal.tsx` — the one dialog shell (role, Escape, focus trap, focus restore, scroll lock). Every modal uses it
+- `src/components/RoutePlanner.tsx` — waypoint planner with save/load and GPX export
+- `src/components/MapDirections.tsx` — directions drawn on our own map
+- `src/components/PhotoGallery.tsx` — place photos, with loading / empty / failed kept distinct
+- `src/components/RoadmapModal.tsx` — in-app release roadmap, driven by `src/lib/roadmap.ts`
+- `src/components/admin/` — admin modal: activity, cost, governance, caching, efficiency
 - `src/components/ChatBot.tsx` — floating chat widget with Firestore session persistence
 - `src/components/ConnectDevicesModal.tsx` — Strava OAuth + GPX/Apple Health file import
-- `src/components/DetailsModal.tsx` — route/mountain/campsite/activity details, elevation profiles, weather
+- `src/components/DetailsModal.tsx` — route/mountain/campsite/activity details and live weather
 - `src/components/ProfileModal.tsx` — user profile display
-- `src/components/RouteFilter.tsx` — filter controls for map markers
+- `src/components/RouteFilter.tsx` — filter controls, controlled by the page (never holds its own state)
 - `src/lib/firebaseAdmin.ts` — Admin SDK init (server-side only)
 - `src/lib/firebaseClient.ts` — client SDK init + Google/Apple auth (`signInWithGoogle`, `signInWithApple`)
 - `src/lib/gpxParser.ts` — GPX/TCX → activity objects (haversine, elevation gain, sport inference)
@@ -107,6 +133,58 @@ Firebase Admin SDK tries credentials in this order: `FIREBASE_SERVICE_ACCOUNT_KE
 - `src/lib/polylineDecoder.ts` — precision-5 polyline decode → `[lng, lat]` pairs (test file is `decodePolyline.test.ts`)
 - `src/lib/activityTypes.ts` — activity interfaces, localStorage persistence (`fri_activities` key), dedup. Sources: `strava | coros | garmin | komoot | apple_health`
 - `src/lib/useSavedPlaces.ts` — real-time Firestore listener hook for saved places
+- `src/lib/useUserLocation.ts` — the *only* geolocation call in the app. Reports `source` so a fallback is never drawn as the user's position
+- `src/lib/routeDifficulty.ts` — difficulty from distance and ascent (NPS formula), with an `unknown` band
+- `src/lib/fitnessScore.ts` — month-to-date fitness score, targets pro-rated across days elapsed
+- `src/lib/mapLayers.ts` — map layer vocabulary and persistence
+- `src/lib/gpxBuilder.ts` — planner → GPX (round-trips through `gpxParser`)
+- `src/lib/savedPlans.ts` — device-local planned routes
+- `src/lib/usePlannerRoute.ts` — snaps planner waypoints to walking paths via `/api/directions`
+- `src/lib/placeUrl.ts` — `?place=` deep links, used by Share and by reload restore
+- `src/lib/roadmap.ts` — roadmap content, kept beside the code it describes
+
+### Rules this codebase holds to
+
+**Never render a number the data does not support.** Elevation, difficulty,
+weather and advisories all have an explicit unknown state and use it. There is
+no sample data anywhere: an invented trail closure or a guessed elevation is
+worse than a blank, because it gets acted on.
+
+**One primary action per viewport** (`src/lib/ui.ts`). Every button routes
+through that vocabulary so it inherits the focus ring.
+
+**Failures are sayable.** No silent catch. If a fetch fails the UI says which
+one and offers a retry.
+
+### Cache versioning
+
+`PLACES_CACHE_VERSION` in `src/app/app/page.tsx` gates both cache tiers. The
+Firestore tier is shared across users, so an entry written before a field
+changed meaning will otherwise feed every visitor to that region for 24 hours.
+**Bump it whenever the shape or the meaning of a cached field changes.**
+
+### Google APIs actually required
+
+Legacy Places is enough for discovery, but these are separate enablements and
+the app degrades honestly without them:
+
+| API | Powers | Without it |
+|---|---|---|
+| Maps JavaScript | The map | Error page with a retry |
+| Places (legacy) | Route/peak/campsite discovery | Empty lists with a retry |
+| Elevation | Relief, difficulty banding | "Relief unknown", difficulty "Unrated" |
+| **Routes** (not legacy Directions) | Directions, planner path snapping | Straight lines, labelled as such |
+
+`GOOGLE_ROUTES_API_KEY` may hold a separate server-side key; it falls back to
+`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`.
+
+### Advisories
+
+`/api/advisories` reads `data/advisories.json` (written by `npm run
+scrape:advisories`), then `ADVISORY_FEED_URL`. With neither it returns
+`configured: false` and the UI says no source is connected — it never claims
+trails are clear. Scraper sources live in `scripts/advisory-sources.json`
+(copy the `.example`); it honours robots.txt and rate-limits itself.
 
 ### Polyline convention
 

@@ -43,6 +43,14 @@ jobs:
       - name: Type check
         run: npm run type-check
 
+      # Layering, circular imports and the server-only credential boundary.
+      # Rules live in frontend/.dependency-cruiser.cjs.
+      - name: Architecture rules
+        run: npm run lint:deps
+
+      - name: Duplication
+        run: npm run lint:dup
+
       - name: Unit tests
         run: npm run test:unit
 

@@ -53,17 +53,6 @@
     animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
-  /* Ambient orb float — gentle drift */
-  .orb-float {
-    animation: orbFloat 9s ease-in-out infinite;
-  }
-  .orb-float-slow {
-    animation: orbFloat 13s ease-in-out infinite reverse;
-  }
-  .orb-float-alt {
-    animation: orbFloatAlt 11s ease-in-out infinite;
-  }
-
   /* Modal scale-in entrance */
   .modal-enter {
     animation: modalEnter 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -74,11 +63,6 @@
     animation: sheetEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
-  /* Glow pulse — used on the logo icon */
-  .glow-pulse {
-    animation: glowPulse 3s ease-in-out infinite;
-  }
-
   /* Location pulse rings — used in GPS overlay */
   .loc-ring {
     animation: locPulse 2.2s ease-out infinite;
@@ -87,15 +71,6 @@
     animation: locPulse 2.2s ease-out 0.75s infinite;
   }
 
-  /* Header scan line shimmer */
-  .brand-shimmer {
-    background: linear-gradient(90deg, #fff 0%, #bfdbfe 40%, #fff 60%, #bfdbfe 100%);
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    animation: brandShimmer 4s linear infinite;
-  }
 }
 
 /* ── Keyframes ───────────────────────────────────────────── */
@@ -115,18 +90,6 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes orbFloat {
-  0%, 100% { transform: translateY(0px)   translateX(0px)   scale(1);    }
-  33%       { transform: translateY(-22px) translateX(12px)  scale(1.04); }
-  66%       { transform: translateY(12px)  translateX(-10px) scale(0.97); }
-}
-
-@keyframes orbFloatAlt {
-  0%, 100% { transform: translateY(0px)  translateX(0px)   scale(1);    }
-  33%       { transform: translateY(16px) translateX(-14px) scale(0.96); }
-  66%       { transform: translateY(-12px) translateX(9px) scale(1.03); }
-}
-
 @keyframes modalEnter {
   from { opacity: 0; transform: scale(0.95) translateY(12px); }
   to   { opacity: 1; transform: scale(1)    translateY(0); }
@@ -137,17 +100,45 @@
   to   { transform: translateY(0); }
 }
 
-@keyframes glowPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
-  50%       { box-shadow: 0 0 20px 4px rgba(59, 130, 246, 0.25); }
-}
-
 @keyframes locPulse {
   0%   { transform: scale(1);   opacity: 0.75; }
   80%  { transform: scale(3.5); opacity: 0; }
   100% { transform: scale(3.5); opacity: 0; }
 }
 
-@keyframes brandShimmer {
-  to { background-position: 200% center; }
+
+/**
+ * Respect a reduced-motion preference.
+ *
+ * Every animation above — the location pulse, card and modal entrances, the
+ * skeleton shimmer — plus the smooth scroll on the landing page's anchor links
+ * ran unconditionally. For people who set this preference because motion makes
+ * them ill, that is not a stylistic detail.
+ *
+ * Animations are neutralised rather than removed so anything relying on an
+ * `animationend` event still fires.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* The sidebar tab strip scrolls when the tabs do not fit. A visible scrollbar
+   inside a 44px-tall control eats the hit area, so hide it — the row is short
+   enough that partial tabs are self-evidently scrollable. */
+.sidebar-tabs {
+  scrollbar-width: none;
+}
+.sidebar-tabs::-webkit-scrollbar {
+  display: none;
 }

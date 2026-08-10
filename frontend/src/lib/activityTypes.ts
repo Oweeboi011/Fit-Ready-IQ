@@ -89,3 +89,22 @@ export function mergeActivities(existing: Activity[], incoming: Activity[]): Act
     (a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
   );
 }
+
+/**
+ * Human label for a route's `activity_type`.
+ *
+ * These values arrive as raw enum strings (`rock_climb`) and were rendered
+ * straight into the UI, producing "Rock_climb" in headings and "ROCK_CLIMB" in
+ * subtitles.
+ */
+export function formatActivityType(type: string): string {
+  const labels: Record<string, string> = {
+    hike: 'Hiking',
+    bike: 'Cycling',
+    run: 'Running',
+    rock_climb: 'Rock climbing',
+    tour: 'Touring',
+    walk: 'Walking',
+  };
+  return labels[type] ?? type.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+}
