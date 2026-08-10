@@ -24,7 +24,13 @@ test.describe('landing page', () => {
   test('admin route refuses an unauthenticated visitor', async ({ page }) => {
     await page.goto('/admin/settings');
     // A signed-out visitor is told to sign in; only a signed-in account that
-    // is off the allowlist gets "Admin access required".
-    await expect(page.getByRole('heading', { name: 'Sign in to continue' })).toBeVisible();
+    // is off the allowlist gets "Admin access required". The default 5s
+    // budget is tight under CI's parallel workers, where this page's
+    // Firebase auth-state listener can be delayed by other tests hammering
+    // live Maps/Places APIs at the same time — reproduced locally in under
+    // 2s, so this is scheduling pressure, not a slow code path.
+    await expect(page.getByRole('heading', { name: 'Sign in to continue' })).toBeVisible({
+      timeout: 15_000,
+    });
   });
 });
