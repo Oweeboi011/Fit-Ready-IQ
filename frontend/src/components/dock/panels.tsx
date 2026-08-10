@@ -5,6 +5,8 @@ import Link from 'next/link';
 
 import { MAP_LAYERS, MAP_LAYER_LABELS, MAP_LAYER_SWATCH, type MapLayer } from '@/lib/mapLayers';
 import { buttonGhost, buttonSecondary, buttonSize } from '@/lib/ui';
+import { WeatherAlertChips } from '@/components/WeatherAlertBadge';
+import type { WeatherAlert } from '@/lib/weatherAlerts';
 
 export interface DockAlert {
   id: string;
@@ -28,6 +30,7 @@ export interface DockWeather {
   best?: string;
   avoid?: string;
   risk?: string;
+  alerts?: WeatherAlert[];
 }
 
 export function PanelShell({
@@ -87,6 +90,7 @@ export function WeatherPanel({ weather }: { weather: DockWeather }) {
       <Row label="Best window" value={weather.best ?? '—'} />
       <Row label="Avoid" value={weather.avoid ?? '—'} />
       {weather.risk && <p className="pt-2 text-[11px] text-slate-400">{weather.risk}</p>}
+      <WeatherAlertChips alerts={weather.alerts ?? []} />
     </div>
   );
 }
@@ -244,13 +248,42 @@ export function LayersPanel({
   hiddenLayers,
   counts,
   onToggle,
+  weatherRadarVisible,
+  onToggleWeatherRadar,
 }: {
   hiddenLayers: MapLayer[];
   counts: Record<MapLayer, number>;
   onToggle: (layer: MapLayer) => void;
+  weatherRadarVisible: boolean;
+  onToggleWeatherRadar: () => void;
 }) {
   return (
     <div className="space-y-0.5">
+      <button
+        type="button"
+        onClick={onToggleWeatherRadar}
+        aria-pressed={weatherRadarVisible}
+        className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-xs transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+          weatherRadarVisible ? 'text-white' : 'text-slate-500'
+        }`}
+      >
+        <span
+          aria-hidden="true"
+          className={`h-2.5 w-2.5 flex-shrink-0 rounded-full bg-sky-400 ${
+            weatherRadarVisible ? '' : 'opacity-25'
+          }`}
+        />
+        <span className="flex-1">
+          <span className="block truncate">Precipitation radar</span>
+          <span className="block text-[10px] text-slate-500">Live · via RainViewer</span>
+        </span>
+        {weatherRadarVisible ? (
+          <Eye aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 opacity-60" />
+        ) : (
+          <EyeOff aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 opacity-60" />
+        )}
+      </button>
+      <div className="my-1 border-t border-white/10" />
       {MAP_LAYERS.map((layer) => {
         const visible = !hiddenLayers.includes(layer);
         const count = counts[layer];
