@@ -1,10 +1,19 @@
-"use client";
+'use client';
 
-import React, { useEffect, useState, useCallback } from "react";
-import { GoogleMap, Polyline, OverlayView } from "@react-google-maps/api";
-import { Mountain as MountainIcon, Tent, Footprints, Bike, Map as MapIcon, MapPin, Bookmark, type LucideIcon } from "lucide-react";
-import { type ActivityPolyline } from "@/lib/activityTypes";
-import { type SavedPlace } from "@/lib/useSavedPlaces";
+import React, { useEffect, useState, useCallback } from 'react';
+import { GoogleMap, Polyline, OverlayView } from '@react-google-maps/api';
+import {
+  Mountain as MountainIcon,
+  Tent,
+  Footprints,
+  Bike,
+  Map as MapIcon,
+  MapPin,
+  Bookmark,
+  type LucideIcon,
+} from 'lucide-react';
+import { type ActivityPolyline } from '@/lib/activityTypes';
+import { type SavedPlace } from '@/lib/useSavedPlaces';
 
 interface Route {
   id: string;
@@ -54,15 +63,15 @@ interface MapViewProps {
 }
 
 const mapContainerStyle = {
-  width: "100%",
-  height: "100%",
+  width: '100%',
+  height: '100%',
 };
 
 const SOURCE_POLYLINE_COLOR: Record<string, string> = {
-  strava: "#fc4c02",
-  coros: "#2563eb",
-  garmin: "#0ea5e9",
-  komoot: "#16a34a",
+  strava: '#fc4c02',
+  coros: '#2563eb',
+  garmin: '#0ea5e9',
+  komoot: '#16a34a',
 };
 
 class MapRenderErrorBoundary extends React.Component<
@@ -106,14 +115,21 @@ export default function MapView({
   onCampsiteClick,
   onFocusUserLocation,
 }: MapViewProps) {
-  const currentOrigin = typeof window !== "undefined" ? window.location.origin : "";
+  const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
   const [runtimeMapError, setRuntimeMapError] = useState<string | null>(null);
-  const loadErrorMessage = loadError?.message ?? "";
+  const loadErrorMessage = loadError?.message ?? '';
   const effectiveMapErrorMessage = runtimeMapError ?? loadErrorMessage;
-  const isMapAuthError = /RefererNotAllowedMapError|gm_authFailure|authentication failed/i.test(effectiveMapErrorMessage);
+  const isMapAuthError = /RefererNotAllowedMapError|gm_authFailure|authentication failed/i.test(
+    effectiveMapErrorMessage
+  );
   const allowedReferrers = (() => {
     if (!currentOrigin) {
-      return ["http://localhost:4790/*", "http://127.0.0.1:4790/*", "http://localhost/*", "http://127.0.0.1/*"];
+      return [
+        'http://localhost:4790/*',
+        'http://127.0.0.1:4790/*',
+        'http://localhost/*',
+        'http://127.0.0.1/*',
+      ];
     }
 
     try {
@@ -121,17 +137,24 @@ export default function MapView({
       return Array.from(
         new Set([
           `${url.protocol}//${url.host}/*`,
-          `http://localhost${url.port ? `:${url.port}` : ""}/*`,
-          `http://127.0.0.1${url.port ? `:${url.port}` : ""}/*`,
-          "http://localhost/*",
-          "http://127.0.0.1/*",
+          `http://localhost${url.port ? `:${url.port}` : ''}/*`,
+          `http://127.0.0.1${url.port ? `:${url.port}` : ''}/*`,
+          'http://localhost/*',
+          'http://127.0.0.1/*',
         ])
       );
     } catch {
-      return ["http://localhost:4790/*", "http://127.0.0.1:4790/*", "http://localhost/*", "http://127.0.0.1/*"];
+      return [
+        'http://localhost:4790/*',
+        'http://127.0.0.1:4790/*',
+        'http://localhost/*',
+        'http://127.0.0.1/*',
+      ];
     }
   })();
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(userLocationProp || null);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(
+    userLocationProp || null
+  );
   const [mapCenter, setMapCenter] = useState({
     lat: initialCenter[1],
     lng: initialCenter[0],
@@ -139,10 +162,10 @@ export default function MapView({
   const [map, setMap] = useState<google.maps.Map | null>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return;
 
     const onWindowError = (event: ErrorEvent) => {
-      const text = `${event.message ?? ""} ${event.error?.message ?? ""} ${event.error?.stack ?? ""}`;
+      const text = `${event.message ?? ''} ${event.error?.message ?? ''} ${event.error?.stack ?? ''}`;
       if (
         /Google Maps JavaScript API error/i.test(text) ||
         /RefererNotAllowedMapError/i.test(text) ||
@@ -154,9 +177,8 @@ export default function MapView({
 
     const onUnhandledRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason;
-      const text = typeof reason === "string"
-        ? reason
-        : `${reason?.message ?? ""} ${reason?.stack ?? ""}`;
+      const text =
+        typeof reason === 'string' ? reason : `${reason?.message ?? ''} ${reason?.stack ?? ''}`;
 
       if (
         /maps\.googleapis\.com/i.test(text) ||
@@ -164,7 +186,7 @@ export default function MapView({
         /RefererNotAllowedMapError/i.test(text) ||
         /IntersectionObserver/i.test(text)
       ) {
-        setRuntimeMapError(text || "Google Maps initialization failed.");
+        setRuntimeMapError(text || 'Google Maps initialization failed.');
       }
     };
 
@@ -172,17 +194,17 @@ export default function MapView({
     const previousAuthFailure = windowWithMapsAuth.gm_authFailure;
 
     windowWithMapsAuth.gm_authFailure = () => {
-      setRuntimeMapError("Google Maps authentication failed (gm_authFailure)");
-      if (typeof previousAuthFailure === "function") {
+      setRuntimeMapError('Google Maps authentication failed (gm_authFailure)');
+      if (typeof previousAuthFailure === 'function') {
         previousAuthFailure();
       }
     };
 
-    window.addEventListener("error", onWindowError);
-    window.addEventListener("unhandledrejection", onUnhandledRejection);
+    window.addEventListener('error', onWindowError);
+    window.addEventListener('unhandledrejection', onUnhandledRejection);
     return () => {
-      window.removeEventListener("error", onWindowError);
-      window.removeEventListener("unhandledrejection", onUnhandledRejection);
+      window.removeEventListener('error', onWindowError);
+      window.removeEventListener('unhandledrejection', onUnhandledRejection);
       windowWithMapsAuth.gm_authFailure = previousAuthFailure;
     };
   }, []);
@@ -282,10 +304,7 @@ export default function MapView({
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const coords: [number, number] = [
-            position.coords.longitude,
-            position.coords.latitude,
-          ];
+          const coords: [number, number] = [position.coords.longitude, position.coords.latitude];
           setUserLocation(coords);
           setMapCenter({
             lat: coords[1],
@@ -293,7 +312,7 @@ export default function MapView({
           });
         },
         (error) => {
-          console.debug("Location unavailable, using fallback coordinates.", error);
+          console.debug('Location unavailable, using fallback coordinates.', error);
           // Fallback to default location (San Francisco)
           const fallback: [number, number] = [-122.4194, 37.7749];
           setUserLocation(fallback);
@@ -316,25 +335,25 @@ export default function MapView({
 
   const getDifficultyColor = (difficulty: string): string => {
     switch (difficulty.toLowerCase()) {
-      case "easy":
-        return "#22c55e";
-      case "moderate":
-        return "#f59e0b";
-      case "hard":
-        return "#ef4444";
+      case 'easy':
+        return '#22c55e';
+      case 'moderate':
+        return '#f59e0b';
+      case 'hard':
+        return '#ef4444';
       default:
-        return "#3b82f6";
+        return '#3b82f6';
     }
   };
 
   const getActivityIconComponent = (activityType: string): LucideIcon => {
     switch (activityType.toLowerCase()) {
-      case "bike":
-      case "ride":
+      case 'bike':
+      case 'ride':
         return Bike;
-      case "rock_climb":
+      case 'rock_climb':
         return MountainIcon;
-      case "tour":
+      case 'tour':
         return MapIcon;
       default:
         return Footprints;
@@ -343,28 +362,31 @@ export default function MapView({
 
   if (loadError || runtimeMapError) {
     return (
-      <div className="relative h-full w-full flex items-center justify-center bg-slate-100">
-        <div className="max-w-xl text-center px-6">
-          <p className="text-red-600 font-semibold">Error loading Google Maps</p>
-          <p className="text-sm text-slate-600 mt-2">
+      <div className="relative flex h-full w-full items-center justify-center bg-slate-100">
+        <div className="max-w-xl px-6 text-center">
+          <p className="font-semibold text-red-600">Error loading Google Maps</p>
+          <p className="mt-2 text-sm text-slate-600">
             Verify your Maps API key, HTTP referrer allowlist, and enabled APIs.
           </p>
           {isMapAuthError && (
             <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-left text-xs text-red-900">
               <p className="font-semibold">Detected: Google Maps auth/referrer restriction</p>
               <p className="mt-1">
-                Your current origin is not authorized for this Google Maps key. Add these HTTP referrers in Google Cloud Console.
+                Your current origin is not authorized for this Google Maps key. Add these HTTP
+                referrers in Google Cloud Console.
               </p>
               <ul className="mt-2 space-y-1">
                 {allowedReferrers.map((ref) => (
-                  <li key={ref} className="font-mono text-[11px]">{ref}</li>
+                  <li key={ref} className="font-mono text-[11px]">
+                    {ref}
+                  </li>
                 ))}
               </ul>
             </div>
           )}
           {effectiveMapErrorMessage && (
             <p className="mt-3 text-xs text-slate-500">
-              Error detail: <span className="font-mono break-all">{effectiveMapErrorMessage}</span>
+              Error detail: <span className="break-all font-mono">{effectiveMapErrorMessage}</span>
             </p>
           )}
           {currentOrigin && (
@@ -374,9 +396,12 @@ export default function MapView({
           )}
           <div className="mt-4 rounded-md border border-slate-200 bg-white p-3 text-left text-xs text-slate-600">
             <p className="font-semibold text-slate-700">Quick checks</p>
-            <ul className="mt-2 list-disc pl-5 space-y-1">
+            <ul className="mt-2 list-disc space-y-1 pl-5">
               <li>Enable Maps JavaScript API, Places API, and Elevation API.</li>
-              <li>Add allowed referrers, including localhost dev ports (for example: http://localhost:4790/*).</li>
+              <li>
+                Add allowed referrers, including localhost dev ports (for example:
+                http://localhost:4790/*).
+              </li>
               <li>Ensure billing is enabled for the Google Cloud project.</li>
               <li>Set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in .env.local and restart Next.js.</li>
             </ul>
@@ -388,9 +413,9 @@ export default function MapView({
 
   if (!isLoaded) {
     return (
-      <div className="relative h-full w-full flex items-center justify-center bg-slate-100">
+      <div className="relative flex h-full w-full items-center justify-center bg-slate-100">
         <div className="text-center">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent mx-auto mb-4" />
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
           <p className="text-slate-500">Loading map...</p>
         </div>
       </div>
@@ -411,252 +436,322 @@ export default function MapView({
           onLoad={onLoad}
           onUnmount={onUnmount}
           options={{
-            mapTypeId: "terrain",
+            mapTypeId: 'terrain',
             zoomControl: true,
             streetViewControl: false,
             mapTypeControl: true,
             fullscreenControl: true,
           }}
         >
-        {/* User Location — animated GPS pulse overlay */}
-        {userLocation && (
-          <OverlayView
-            position={{ lat: userLocation[1], lng: userLocation[0] }}
-            mapPaneName="overlayMouseTarget"
-            getPixelPositionOffset={() => ({ x: -14, y: -14 })}
-          >
-            <div style={{ position: 'relative', width: 28, height: 28, pointerEvents: 'none' }}>
-              <div
-                className="loc-ring"
-                style={{
-                  position: 'absolute', inset: 0,
-                  borderRadius: '50%',
-                  backgroundColor: 'rgba(59,130,246,0.45)',
-                  transformOrigin: 'center',
+          {/* User Location — animated GPS pulse overlay */}
+          {userLocation && (
+            <OverlayView
+              position={{ lat: userLocation[1], lng: userLocation[0] }}
+              mapPaneName="overlayMouseTarget"
+              getPixelPositionOffset={() => ({ x: -14, y: -14 })}
+            >
+              <div style={{ position: 'relative', width: 28, height: 28, pointerEvents: 'none' }}>
+                <div
+                  className="loc-ring"
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(59,130,246,0.45)',
+                    transformOrigin: 'center',
+                  }}
+                />
+                <div
+                  className="loc-ring-2"
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(59,130,246,0.3)',
+                    transformOrigin: 'center',
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 5,
+                    borderRadius: '50%',
+                    backgroundColor: '#3b82f6',
+                    border: '2.5px solid white',
+                    boxShadow: '0 0 14px rgba(59,130,246,0.8), 0 2px 6px rgba(0,0,0,0.3)',
+                  }}
+                />
+              </div>
+            </OverlayView>
+          )}
+
+          {/* Route Polylines */}
+          {routes
+            .filter((route) => route.polyline && route.polyline.length > 0)
+            .map((route) => (
+              <Polyline
+                key={`polyline-${route.id}`}
+                path={route.polyline!.map(([lng, lat]) => ({ lat, lng }))}
+                options={{
+                  strokeColor: getDifficultyColor(route.difficulty),
+                  strokeOpacity: 0.8,
+                  strokeWeight: 4,
                 }}
               />
-              <div
-                className="loc-ring-2"
-                style={{
-                  position: 'absolute', inset: 0,
-                  borderRadius: '50%',
-                  backgroundColor: 'rgba(59,130,246,0.3)',
-                  transformOrigin: 'center',
+            ))}
+
+          {/* Activity Polylines (from Strava / COROS / Garmin / Komoot) */}
+          {activityPolylines
+            .filter((ap) => ap.coords.length > 0)
+            .map((ap) => (
+              <Polyline
+                key={`activity-${ap.id}`}
+                path={ap.coords.map(([lng, lat]) => ({ lat, lng }))}
+                options={{
+                  strokeColor: SOURCE_POLYLINE_COLOR[ap.source] ?? '#8b5cf6',
+                  strokeOpacity: 0.75,
+                  strokeWeight: 3,
+                  geodesic: true,
                 }}
               />
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 5,
-                  borderRadius: '50%',
-                  backgroundColor: '#3b82f6',
-                  border: '2.5px solid white',
-                  boxShadow: '0 0 14px rgba(59,130,246,0.8), 0 2px 6px rgba(0,0,0,0.3)',
-                }}
-              />
-            </div>
-          </OverlayView>
-        )}
+            ))}
 
-        {/* Route Polylines */}
-        {routes
-          .filter((route) => route.polyline && route.polyline.length > 0)
-          .map((route) => (
-            <Polyline
-              key={`polyline-${route.id}`}
-              path={route.polyline!.map(([lng, lat]) => ({ lat, lng }))}
-              options={{
-                strokeColor: getDifficultyColor(route.difficulty),
-                strokeOpacity: 0.8,
-                strokeWeight: 4,
-              }}
-            />
-          ))}
+          {/* Route Markers */}
+          {routes
+            .filter(
+              (route) =>
+                route.coordinates &&
+                route.coordinates.length === 2 &&
+                typeof route.coordinates[0] === 'number' &&
+                typeof route.coordinates[1] === 'number'
+            )
+            .map((route) => {
+              const color = getDifficultyColor(route.difficulty);
+              const ActivityIcon = getActivityIconComponent(route.activity_type);
+              return (
+                <OverlayView
+                  key={route.id}
+                  position={{ lat: route.coordinates[1], lng: route.coordinates[0] }}
+                  mapPaneName="overlayMouseTarget"
+                  getPixelPositionOffset={() => ({ x: -16, y: -44 })}
+                >
+                  <div
+                    title={route.name}
+                    onClick={() => onRouteClick?.(route)}
+                    style={{
+                      display: 'inline-flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      cursor: 'pointer',
+                      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.35))',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        backgroundColor: color,
+                        border: '2.5px solid white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <ActivityIcon size={15} color="white" />
+                    </div>
+                    <div
+                      style={{
+                        width: 0,
+                        height: 0,
+                        borderLeft: '5px solid transparent',
+                        borderRight: '5px solid transparent',
+                        borderTop: `7px solid ${color}`,
+                        marginTop: -1,
+                      }}
+                    />
+                  </div>
+                </OverlayView>
+              );
+            })}
 
-        {/* Activity Polylines (from Strava / COROS / Garmin / Komoot) */}
-        {activityPolylines
-          .filter((ap) => ap.coords.length > 0)
-          .map((ap) => (
-            <Polyline
-              key={`activity-${ap.id}`}
-              path={ap.coords.map(([lng, lat]) => ({ lat, lng }))}
-              options={{
-                strokeColor: SOURCE_POLYLINE_COLOR[ap.source] ?? "#8b5cf6",
-                strokeOpacity: 0.75,
-                strokeWeight: 3,
-                geodesic: true,
-              }}
-            />
-          ))}
-
-        {/* Route Markers */}
-        {routes
-          .filter(
-            (route) =>
-              route.coordinates &&
-              route.coordinates.length === 2 &&
-              typeof route.coordinates[0] === "number" &&
-              typeof route.coordinates[1] === "number"
-          )
-          .map((route) => {
-            const color = getDifficultyColor(route.difficulty);
-            const ActivityIcon = getActivityIconComponent(route.activity_type);
-            return (
+          {/* Mountain/Peak Markers */}
+          {mountains
+            .filter(
+              (mountain) =>
+                mountain.coordinates &&
+                mountain.coordinates.length === 2 &&
+                typeof mountain.coordinates[0] === 'number' &&
+                typeof mountain.coordinates[1] === 'number'
+            )
+            .map((mountain) => (
               <OverlayView
-                key={route.id}
-                position={{ lat: route.coordinates[1], lng: route.coordinates[0] }}
+                key={mountain.id}
+                position={{ lat: mountain.coordinates[1], lng: mountain.coordinates[0] }}
                 mapPaneName="overlayMouseTarget"
                 getPixelPositionOffset={() => ({ x: -16, y: -44 })}
               >
                 <div
-                  title={route.name}
-                  onClick={() => onRouteClick?.(route)}
-                  style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", cursor: "pointer", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.35))" }}
+                  title={`${mountain.name} (${mountain.elevation_m}m)`}
+                  onClick={() => onMountainClick?.(mountain)}
+                  style={{
+                    display: 'inline-flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.35))',
+                  }}
                 >
-                  <div style={{
-                    width: 32, height: 32, borderRadius: "50%",
-                    backgroundColor: color, border: "2.5px solid white",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    <ActivityIcon size={15} color="white" />
+                  <div
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      backgroundColor: '#78350f',
+                      border: '2.5px solid white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <MountainIcon size={15} color="white" />
                   </div>
-                  <div style={{
-                    width: 0, height: 0,
-                    borderLeft: "5px solid transparent",
-                    borderRight: "5px solid transparent",
-                    borderTop: `7px solid ${color}`,
-                    marginTop: -1,
-                  }} />
+                  <div
+                    style={{
+                      width: 0,
+                      height: 0,
+                      borderLeft: '5px solid transparent',
+                      borderRight: '5px solid transparent',
+                      borderTop: '7px solid #78350f',
+                      marginTop: -1,
+                    }}
+                  />
                 </div>
               </OverlayView>
-            );
-          })}
+            ))}
 
-        {/* Mountain/Peak Markers */}
-        {mountains
-          .filter(
-            (mountain) =>
-              mountain.coordinates &&
-              mountain.coordinates.length === 2 &&
-              typeof mountain.coordinates[0] === "number" &&
-              typeof mountain.coordinates[1] === "number"
-          )
-          .map((mountain) => (
-            <OverlayView
-              key={mountain.id}
-              position={{ lat: mountain.coordinates[1], lng: mountain.coordinates[0] }}
-              mapPaneName="overlayMouseTarget"
-              getPixelPositionOffset={() => ({ x: -16, y: -44 })}
-            >
-              <div
-                title={`${mountain.name} (${mountain.elevation_m}m)`}
-                onClick={() => onMountainClick?.(mountain)}
-                style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", cursor: "pointer", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.35))" }}
+          {/* Campsite Markers */}
+          {campsites
+            .filter(
+              (campsite) =>
+                campsite.coordinates &&
+                campsite.coordinates.length === 2 &&
+                typeof campsite.coordinates[0] === 'number' &&
+                typeof campsite.coordinates[1] === 'number'
+            )
+            .map((campsite) => (
+              <OverlayView
+                key={campsite.id}
+                position={{ lat: campsite.coordinates[1], lng: campsite.coordinates[0] }}
+                mapPaneName="overlayMouseTarget"
+                getPixelPositionOffset={() => ({ x: -16, y: -44 })}
               >
-                <div style={{
-                  width: 32, height: 32, borderRadius: "50%",
-                  backgroundColor: "#78350f", border: "2.5px solid white",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  <MountainIcon size={15} color="white" />
+                <div
+                  title={`${campsite.name}${campsite.rating ? ` (★${campsite.rating})` : ''}`}
+                  onClick={() => onCampsiteClick?.(campsite)}
+                  style={{
+                    display: 'inline-flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.35))',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      backgroundColor: '#15803d',
+                      border: '2.5px solid white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Tent size={15} color="white" />
+                  </div>
+                  <div
+                    style={{
+                      width: 0,
+                      height: 0,
+                      borderLeft: '5px solid transparent',
+                      borderRight: '5px solid transparent',
+                      borderTop: '7px solid #15803d',
+                      marginTop: -1,
+                    }}
+                  />
                 </div>
-                <div style={{
-                  width: 0, height: 0,
-                  borderLeft: "5px solid transparent",
-                  borderRight: "5px solid transparent",
-                  borderTop: "7px solid #78350f",
-                  marginTop: -1,
-                }} />
-              </div>
-            </OverlayView>
-          ))}
+              </OverlayView>
+            ))}
 
-        {/* Campsite Markers */}
-        {campsites
-          .filter(
-            (campsite) =>
-              campsite.coordinates &&
-              campsite.coordinates.length === 2 &&
-              typeof campsite.coordinates[0] === "number" &&
-              typeof campsite.coordinates[1] === "number"
-          )
-          .map((campsite) => (
-            <OverlayView
-              key={campsite.id}
-              position={{ lat: campsite.coordinates[1], lng: campsite.coordinates[0] }}
-              mapPaneName="overlayMouseTarget"
-              getPixelPositionOffset={() => ({ x: -16, y: -44 })}
-            >
-              <div
-                title={`${campsite.name}${campsite.rating ? ` (★${campsite.rating})` : ""}`}
-                onClick={() => onCampsiteClick?.(campsite)}
-                style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", cursor: "pointer", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.35))" }}
+          {/* Saved Place Star Markers */}
+          {savedPlaces
+            .filter(
+              (place) =>
+                place.coordinates &&
+                place.coordinates.length === 2 &&
+                typeof place.coordinates[0] === 'number' &&
+                typeof place.coordinates[1] === 'number'
+            )
+            .map((place) => (
+              <OverlayView
+                key={`saved-${place.id}`}
+                position={{ lat: place.coordinates[1], lng: place.coordinates[0] }}
+                mapPaneName="overlayMouseTarget"
+                getPixelPositionOffset={() => ({ x: -12, y: -38 })}
               >
-                <div style={{
-                  width: 32, height: 32, borderRadius: "50%",
-                  backgroundColor: "#15803d", border: "2.5px solid white",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  <Tent size={15} color="white" />
+                <div
+                  title={`Saved: ${place.name}`}
+                  style={{
+                    display: 'inline-flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.45))',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: '50%',
+                      backgroundColor: '#d97706',
+                      border: '2.5px solid white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Bookmark size={12} color="white" fill="white" />
+                  </div>
+                  <div
+                    style={{
+                      width: 0,
+                      height: 0,
+                      borderLeft: '4px solid transparent',
+                      borderRight: '4px solid transparent',
+                      borderTop: '6px solid #d97706',
+                      marginTop: -1,
+                    }}
+                  />
                 </div>
-                <div style={{
-                  width: 0, height: 0,
-                  borderLeft: "5px solid transparent",
-                  borderRight: "5px solid transparent",
-                  borderTop: "7px solid #15803d",
-                  marginTop: -1,
-                }} />
-              </div>
-            </OverlayView>
-          ))}
-
-        {/* Saved Place Star Markers */}
-        {savedPlaces
-          .filter(
-            (place) =>
-              place.coordinates &&
-              place.coordinates.length === 2 &&
-              typeof place.coordinates[0] === "number" &&
-              typeof place.coordinates[1] === "number"
-          )
-          .map((place) => (
-            <OverlayView
-              key={`saved-${place.id}`}
-              position={{ lat: place.coordinates[1], lng: place.coordinates[0] }}
-              mapPaneName="overlayMouseTarget"
-              getPixelPositionOffset={() => ({ x: -12, y: -38 })}
-            >
-              <div
-                title={`Saved: ${place.name}`}
-                style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", cursor: "pointer", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.45))" }}
-              >
-                <div style={{
-                  width: 26, height: 26, borderRadius: "50%",
-                  backgroundColor: "#d97706", border: "2.5px solid white",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  <Bookmark size={12} color="white" fill="white" />
-                </div>
-                <div style={{
-                  width: 0, height: 0,
-                  borderLeft: "4px solid transparent",
-                  borderRight: "4px solid transparent",
-                  borderTop: "6px solid #d97706",
-                  marginTop: -1,
-                }} />
-              </div>
-            </OverlayView>
-          ))}
-
+              </OverlayView>
+            ))}
         </GoogleMap>
       </MapRenderErrorBoundary>
 
-      {/* Legend */}
-      <div className="absolute bottom-4 right-4 rounded-lg border border-slate-200 bg-white p-4 shadow-lg">
-        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Legend</h3>
+      {/* Legend — bottom-left, so it doesn't stack under Google Maps' native
+          zoom control or the ChatBot floating button, which both sit bottom-right */}
+      <div className="absolute bottom-4 left-4 rounded-lg border border-slate-200 bg-white p-4 shadow-lg">
+        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+          Legend
+        </h3>
         <div className="space-y-2">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Route Difficulty</p>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              Route Difficulty
+            </p>
             <div className="space-y-1 text-xs">
               <div className="flex items-center gap-2">
                 <div className="h-3 w-3 rounded-full bg-green-500" />
@@ -673,8 +768,10 @@ export default function MapView({
             </div>
           </div>
           {(mountains.length > 0 || campsites.length > 0) && (
-            <div className="pt-2 border-t border-slate-200">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Points of Interest</p>
+            <div className="border-t border-slate-200 pt-2">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                Points of Interest
+              </p>
               <div className="space-y-1 text-xs">
                 {mountains.length > 0 && (
                   <div className="flex items-center gap-2">
@@ -712,21 +809,21 @@ export default function MapView({
 
       {/* Route, Mountain, and Campsite Count */}
       {(routes.length > 0 || mountains.length > 0 || campsites.length > 0) && (
-        <div className="absolute top-4 left-4 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 shadow-lg">
+        <div className="absolute left-4 top-4 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 shadow-lg">
           <div className="space-y-1">
             {routes.length > 0 && (
               <div className="text-[13px] font-semibold text-slate-900">
-                {routes.length} {routes.length === 1 ? "Route" : "Routes"}
+                {routes.length} {routes.length === 1 ? 'Route' : 'Routes'}
               </div>
             )}
             {mountains.length > 0 && (
               <div className="text-[13px] text-slate-500">
-                {mountains.length} {mountains.length === 1 ? "Mountain" : "Mountains"}
+                {mountains.length} {mountains.length === 1 ? 'Mountain' : 'Mountains'}
               </div>
             )}
             {campsites.length > 0 && (
               <div className="text-[13px] text-slate-500">
-                {campsites.length} {campsites.length === 1 ? "Campsite" : "Campsites"}
+                {campsites.length} {campsites.length === 1 ? 'Campsite' : 'Campsites'}
               </div>
             )}
           </div>

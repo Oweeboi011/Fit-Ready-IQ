@@ -173,12 +173,12 @@ class IFitnessPlatformClient(ABC):
         pass
 
     @abstractmethod
-    def exchange_token(self, code: str) -> dict[str, Any]:
+    async def exchange_token(self, code: str) -> dict[str, Any]:
         """Exchange authorization code for access token."""
         pass
 
     @abstractmethod
-    def refresh_token(self, refresh_token: str) -> dict[str, Any]:
+    async def refresh_token(self, refresh_token: str) -> dict[str, Any]:
         """Refresh an expired access token."""
         pass
 

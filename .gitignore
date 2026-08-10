@@ -30,7 +30,6 @@ venv/
 ENV/
 env/
 .venv
-.env.example
 
 # PyCharm
 .idea/
@@ -59,11 +58,16 @@ out/
 
 # Testing
 .coverage
+coverage.xml
 .pytest_cache/
 coverage/
 *.cover
 htmlcov/
 .hypothesis/
+reports/
+
+# Build artifacts
+*.tsbuildinfo
 
 # Database
 *.db

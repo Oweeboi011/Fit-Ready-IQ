@@ -1,6 +1,7 @@
 """Strava API client implementation."""
 
 from datetime import datetime
+from types import TracebackType
 from typing import Any
 from urllib.parse import urlencode
 
@@ -85,7 +86,7 @@ class StravaAPIClient(IFitnessPlatformClient):
             response = await self._http_client.post(self.TOKEN_URL, json=payload)
             response.raise_for_status()
 
-            data = response.json()
+            data: dict[str, Any] = response.json()
             logger.info(
                 "strava_token_exchanged", athlete_id=data.get("athlete", {}).get("id")
             )
@@ -116,7 +117,7 @@ class StravaAPIClient(IFitnessPlatformClient):
             response = await self._http_client.post(self.TOKEN_URL, json=payload)
             response.raise_for_status()
 
-            data = response.json()
+            data: dict[str, Any] = response.json()
             logger.info("strava_token_refreshed")
 
             return data
@@ -142,7 +143,8 @@ class StravaAPIClient(IFitnessPlatformClient):
             )
             response.raise_for_status()
 
-            return response.json()
+            profile: dict[str, Any] = response.json()
+            return profile
         except httpx.HTTPError as e:
             logger.error("strava_profile_fetch_failed", error=str(e))
             raise
@@ -173,7 +175,8 @@ class StravaAPIClient(IFitnessPlatformClient):
             )
             response.raise_for_status()
 
-            return response.json()
+            stats: dict[str, Any] = response.json()
+            return stats
         except httpx.HTTPError as e:
             logger.error("strava_stats_fetch_failed", error=str(e))
             raise
@@ -216,7 +219,7 @@ class StravaAPIClient(IFitnessPlatformClient):
             )
             response.raise_for_status()
 
-            activities = response.json()
+            activities: list[dict[str, Any]] = response.json()
             logger.info("strava_activities_fetched", count=len(activities), page=page)
 
             return activities
@@ -245,7 +248,8 @@ class StravaAPIClient(IFitnessPlatformClient):
             )
             response.raise_for_status()
 
-            return response.json()
+            detail: dict[str, Any] = response.json()
+            return detail
         except httpx.HTTPError as e:
             logger.error(
                 "strava_activity_detail_fetch_failed",
@@ -258,10 +262,15 @@ class StravaAPIClient(IFitnessPlatformClient):
         """Close HTTP client connection."""
         await self._http_client.aclose()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "StravaAPIClient":
         """Async context manager entry."""
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         """Async context manager exit."""
         await self.close()

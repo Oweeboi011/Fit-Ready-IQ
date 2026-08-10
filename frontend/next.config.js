@@ -2,6 +2,10 @@
 const nextConfig = {
   reactStrictMode: true,
 
+  // Playwright drives the dev server over 127.0.0.1 while Next binds
+  // localhost; Next 16 blocks that as cross-origin without this. Dev only.
+  allowedDevOrigins: ['127.0.0.1'],
+
   // Environment variables available to the browser
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4790',
@@ -53,17 +57,6 @@ const nextConfig = {
         pathname: '/**',
       },
     ],
-  },
-  
-  // Configure webpack for mapbox-gl
-  webpack: (config) => {
-    config.module.rules.push({
-      test: /\.mjs$/,
-      include: /node_modules/,
-      type: 'javascript/auto',
-    });
-    
-    return config;
   },
 };
 
