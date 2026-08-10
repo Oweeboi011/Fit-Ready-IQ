@@ -6,6 +6,7 @@ For now, it returns placeholder data and can be extended when access is availabl
 """
 
 import structlog
+from types import TracebackType
 from typing import Any, Optional
 
 import httpx
@@ -163,14 +164,19 @@ class KomootClient(IRoutingClient):
             logger.error("komoot_elevation_error", error=str(e))
             return []
 
-    async def close(self):
+    async def close(self) -> None:
         """Close the HTTP client."""
         await self.client.aclose()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "KomootClient":
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         await self.close()
 
     @staticmethod

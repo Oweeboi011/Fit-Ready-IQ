@@ -154,7 +154,7 @@ class RouteDifficulty:
             )
 
     @classmethod
-    def from_score(cls, score: float, **kwargs) -> "RouteDifficulty":
+    def from_score(cls, score: float, **kwargs: float) -> "RouteDifficulty":
         """Create RouteDifficulty from score, auto-determining level."""
         if score < 25:
             level = DifficultyLevel.EASY

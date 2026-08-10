@@ -1,7 +1,9 @@
 """FastAPI application entry point."""
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import sentry_sdk
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from .config.settings import get_settings
 from .infrastructure.database.connection import initialize_firebase
+from .presentation.routes import routes
 
 # Configure structured logging
 structlog.configure(
@@ -22,9 +25,12 @@ structlog.configure(
 logger = structlog.get_logger()
 settings = get_settings()
 
+if settings.sentry_dsn:
+    sentry_sdk.init(dsn=settings.sentry_dsn, environment=settings.environment)
+
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan events."""
     # Startup
     logger.info("starting_application", environment=settings.environment)
@@ -63,7 +69,7 @@ app.add_middleware(
 
 
 @app.get("/health", tags=["Health"])
-async def health_check():
+async def health_check() -> JSONResponse:
     """Health check endpoint for monitoring."""
     return JSONResponse(
         content={
@@ -75,7 +81,7 @@ async def health_check():
 
 
 @app.get("/", tags=["Root"])
-async def root():
+async def root() -> dict[str, str]:
     """Root endpoint with API information."""
     return {
         "message": "Welcome to Fit-Ready-IQ API",
@@ -85,11 +91,12 @@ async def root():
     }
 
 
-# Import and include routers (will be created)
-# from .presentation.routes import auth, fitness, routes, itinerary
+app.include_router(routes.router, prefix="/api/routes", tags=["Routes"])
+
+# Additional routers, not yet built:
+# from .presentation.routes import auth, fitness, itinerary
 # app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 # app.include_router(fitness.router, prefix="/api/fitness", tags=["Fitness"])
-# app.include_router(routes.router, prefix="/api/routes", tags=["Routes"])
 # app.include_router(itinerary.router, prefix="/api/itinerary", tags=["Itinerary"])
 
 
