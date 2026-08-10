@@ -55,6 +55,7 @@ import { ReadinessBadge } from '@/components/ReadinessPanel';
 import { computeReadiness } from '@/lib/readiness';
 import { WeatherAlertBadgeNear } from '@/components/WeatherAlertBadge';
 import { recordWeatherAlerts } from '@/lib/weatherAlertCache';
+import { fetchElevationBatch } from '@/lib/elevation';
 import { NavDock, type DockAlert, type DockWeather } from '@/components/NavDock';
 import { MapDirections, type DirectionsTarget } from '@/components/MapDirections';
 import { RoutePlanner } from '@/components/RoutePlanner';
@@ -341,16 +342,11 @@ export default function Home() {
     // Fill in the real height behind the drop, so the plan reports ascent and
     // the exported GPX carries <ele>. Without this the field was never set and
     // every export was flat.
-    if (typeof window === 'undefined' || !window.google?.maps) return;
-    const service = new google.maps.ElevationService();
-    service.getElevationForLocations(
-      { locations: [{ lat: coordinates[1], lng: coordinates[0] }] },
-      (results, status) => {
-        if (status !== google.maps.ElevationStatus.OK || !results?.[0]) return;
-        const elevation = Math.round(results[0].elevation);
-        setPlannerWaypoints((prev) => prev.map((w) => (w.id === id ? { ...w, elevation } : w)));
-      }
-    );
+    fetchElevationBatch([{ lat: coordinates[1], lng: coordinates[0] }]).then(({ values }) => {
+      const elevation = values[0];
+      if (elevation == null) return;
+      setPlannerWaypoints((prev) => prev.map((w) => (w.id === id ? { ...w, elevation } : w)));
+    });
   }, []);
 
   const plannerRoute = usePlannerRoute(plannerWaypoints, plannerOpen);
@@ -927,58 +923,9 @@ export default function Home() {
   // `strava_segment` field remains on the types so genuine Strava segment data can
   // populate it later; nothing writes it today.
 
-  // Batch-fetch real elevations from Google ElevationService (max 512 locations per request)
-  /**
-   * Look up ground elevation for a batch of points.
-   *
-   * A `null` entry means "we do not know", and callers must treat it that way —
-   * never as zero, and never as a licence to substitute a plausible-looking
-   * number. Silently swallowing a failed status here is what previously made
-   * every route report exactly 50 m of gain and emptied the peaks tab, because
-   * downstream code coerced the nulls into 0 and then floored or filtered them.
-   */
-  const fetchElevations = (
-    locations: google.maps.LatLngLiteral[]
-  ): Promise<{ values: (number | null)[]; failed: boolean }> => {
-    return new Promise((resolve) => {
-      if (!locations.length) {
-        resolve({ values: [], failed: false });
-        return;
-      }
-      const elevationService = new google.maps.ElevationService();
-      const CHUNK = 512;
-      const chunks: google.maps.LatLngLiteral[][] = [];
-      for (let i = 0; i < locations.length; i += CHUNK) chunks.push(locations.slice(i, i + CHUNK));
-      Promise.all(
-        chunks.map(
-          (chunk) =>
-            new Promise<{ values: (number | null)[]; failed: boolean }>((res) => {
-              elevationService.getElevationForLocations({ locations: chunk }, (results, status) => {
-                if (status === google.maps.ElevationStatus.OK && results) {
-                  res({
-                    values: results.map((r) =>
-                      r.elevation != null ? Math.round(r.elevation) : null
-                    ),
-                    failed: false,
-                  });
-                } else {
-                  // OVER_QUERY_LIMIT / REQUEST_DENIED / INVALID_REQUEST all land
-                  // here. Surface it — an unenabled or over-quota Elevation API
-                  // is a configuration problem, not missing terrain.
-                  console.error(`ElevationService failed: ${status}`);
-                  res({ values: chunk.map(() => null), failed: true });
-                }
-              });
-            })
-        )
-      ).then((all) =>
-        resolve({
-          values: all.flatMap((r) => r.values),
-          failed: all.some((r) => r.failed),
-        })
-      );
-    });
-  };
+  // Batch-fetch real elevations via /api/elevation (Google, falling back to
+  // Open-Elevation — see src/lib/elevation.ts for why).
+  const fetchElevations = fetchElevationBatch;
 
   const haversineKm = (a: [number, number], b: [number, number]): number => {
     const toRad = (v: number) => (v * Math.PI) / 180;

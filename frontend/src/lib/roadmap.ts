@@ -77,6 +77,12 @@ export const ROADMAP: RoadmapPhase[] = [
           'Was read off the Google star rating. Now the NPS formula over distance and ascent, with an Unrated band.',
       },
       {
+        title: 'Elevation has a working fallback',
+        status: 'done',
+        detail:
+          'Google Elevation is REQUEST_DENIED on this project, so relief and difficulty banding were silently null. /api/elevation now falls back to Open-Elevation, so real numbers show up either way.',
+      },
+      {
         title: 'Real spend reporting',
         status: 'pending',
         detail:
@@ -150,6 +156,18 @@ export const ROADMAP: RoadmapPhase[] = [
         detail: 'Google Weather with an OpenWeather fallback, or an explicit "unavailable".',
       },
       {
+        title: 'Forward-looking hazard alerts',
+        status: 'done',
+        detail:
+          'Storm, heavy rain, high wind and temperature-extreme alerts derived from the hourly forecast, badged on cards, in the dock and in Details.',
+      },
+      {
+        title: 'Precipitation radar on the map',
+        status: 'partial',
+        detail:
+          'A togglable RainViewer overlay ships. Animated wind particles — the rest of a windy.com-style layer — do not yet.',
+      },
+      {
         title: 'Advisory layer and scraper',
         status: 'partial',
         detail:
@@ -212,8 +230,8 @@ export const CHALLENGES: RoadmapNote[] = [
 
 export const RECOMMENDATIONS: RoadmapNote[] = [
   {
-    title: 'Enable the Routes and Elevation APIs',
-    body: 'Both return REQUEST_DENIED on the current project. That is why relief reads "unknown", difficulty reads "Unrated", and planned routes fall back to straight lines. The code is in place; these are console toggles.',
+    title: 'Enable the Routes API',
+    body: 'Returns PERMISSION_DENIED on the current project, so planned routes fall back to a straight line, labelled as such. The code is in place; this is a console toggle. Elevation has the same problem but no longer needs the toggle — /api/elevation now falls back to Open-Elevation.',
   },
   {
     title: 'Add a trail data source',
