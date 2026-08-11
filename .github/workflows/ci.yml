@@ -27,7 +27,7 @@ jobs:
       NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: dummy-project.appspot.com
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v6
         with:
@@ -81,7 +81,7 @@ jobs:
         working-directory: src/backend
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v6
         with:
