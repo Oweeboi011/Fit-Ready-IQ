@@ -56,7 +56,7 @@ graph TB
 
 ### 2.2 Deploy Flow
 
-Changes reach production only after all CI, E2E, security, and (when `frontend/src/lib/` changes) mutation gates pass on the PR to `main`. Direct pushes to `main` are blocked by branch protection.
+Changes reach production only after all CI, E2E, security, and (when `src/frontend/src/lib/` changes) mutation gates pass on the PR to `main`. Direct pushes to `main` are blocked by branch protection.
 
 ```mermaid
 sequenceDiagram
@@ -101,7 +101,7 @@ flowchart LR
 | --- | --- | --- |
 | `ci.yml` | PR to `main`, push to `main` | Lint + type-check + unit tests + build (frontend); ruff + mypy + pytest (backend) |
 | `e2e.yml` | PR to `main` | Playwright E2E tests on Chromium (uses real secrets from GitHub Secrets) |
-| `mutation.yml` | PR to `main` when `frontend/src/lib/**` changed | Stryker mutation tests |
+| `mutation.yml` | PR to `main` when `src/frontend/src/lib/**` changed | Stryker mutation tests |
 | `security.yml` | PR to `main`, push to `main`, weekly Monday | npm audit + pip-audit + gitleaks secret scan + CodeQL |
 | `agent-review.yml` | Any PR opened / synchronized / ready | Posts AI code review comment via Claude Haiku. Needs `ANTHROPIC_API_KEY` secret. Add `[skip review]` to PR title to suppress. |
 
@@ -147,7 +147,7 @@ Configure branch protection for `main` in **Settings → Branches** after pushin
 | Setting | Value | Notes |
 | --- | --- | --- |
 | Framework Preset | Next.js | Auto-detected from `next.config.js` |
-| Root Directory | `frontend` | Vercel builds from this subdirectory |
+| Root Directory | `src/frontend` | Vercel builds from this subdirectory |
 | Build Command | `npm run build` | Runs `next build` |
 | Install Command | `npm install` | Installs all dependencies |
 | Output Directory | (default) | Next.js manages `.next/` output |
@@ -155,7 +155,7 @@ Configure branch protection for `main` in **Settings → Branches** after pushin
 
 ### 3.2 Function Configuration
 
-Server routes are configured in `frontend/vercel.json`:
+Server routes are configured in `src/frontend/vercel.json`:
 
 ```json
 {
@@ -225,7 +225,7 @@ flowchart TD
 
 **Via Vercel CLI:**
 ```bash
-cd frontend
+cd src/frontend
 npx vercel env add GEMINI_API_KEY production
 npx vercel env add GEMINI_API_KEY preview
 ```
@@ -259,7 +259,7 @@ Changes reach `main` only after the full gate sequence: feature PR to `main` →
 ### 5.2 Manual Deployment
 
 ```bash
-cd frontend
+cd src/frontend
 
 # Deploy to production
 npx vercel --prod
@@ -278,7 +278,7 @@ npm install -g vercel
 vercel login
 
 # Link project (from frontend/ directory)
-cd frontend
+cd src/frontend
 vercel link
 
 # Set environment variables
@@ -339,7 +339,7 @@ graph TB
 docker-compose up -d
 
 # Terminal 2: Start frontend
-cd frontend
+cd src/frontend
 npm run dev
 ```
 
@@ -372,7 +372,7 @@ flowchart TD
 
 ```bash
 # Verify build passes (run before deploying)
-cd frontend
+cd src/frontend
 npm run lint
 npm run build
 npm run test:unit

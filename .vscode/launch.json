@@ -10,9 +10,9 @@
       "request": "launch",
       "module": "uvicorn",
       "args": ["src.main:app", "--host", "127.0.0.1", "--port", "6790", "--log-level", "debug", "--reload"],
-      "cwd": "${workspaceFolder}/backend",
+      "cwd": "${workspaceFolder}/src/backend",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/backend",
+        "PYTHONPATH": "${workspaceFolder}/src/backend",
         "ENVIRONMENT": "development",
         "PYTHONUNBUFFERED": "1",
         "UVICORN_LOG_LEVEL": "debug",
@@ -35,7 +35,7 @@
       "type": "chrome",
       "request": "launch",
       "url": "http://localhost:4790",
-      "webRoot": "${workspaceFolder}/frontend",
+      "webRoot": "${workspaceFolder}/src/frontend",
       "env": {
         "NODE_ENV": "development",
         "DEBUG": "*"
@@ -59,7 +59,7 @@
       "type": "node-terminal",
       "request": "launch",
       "command": "npm run dev",
-      "cwd": "${workspaceFolder}/frontend",
+      "cwd": "${workspaceFolder}/src/frontend",
       "preLaunchTask": "Kill Frontend Port",
       "env": {
         "NODE_ENV": "development",
@@ -90,9 +90,9 @@
         "debug"
       ],
       "jinja": true,
-      "cwd": "${workspaceFolder}/backend",
+      "cwd": "${workspaceFolder}/src/backend",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/backend",
+        "PYTHONPATH": "${workspaceFolder}/src/backend",
         "PYTHONUNBUFFERED": "1",
         "ENVIRONMENT": "development",
         "UVICORN_LOG_LEVEL": "debug",
@@ -121,9 +121,9 @@
       "request": "launch",
       "module": "pytest",
       "args": ["tests/", "-v", "--tb=short"],
-      "cwd": "${workspaceFolder}/backend",
+      "cwd": "${workspaceFolder}/src/backend",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/backend",
+        "PYTHONPATH": "${workspaceFolder}/src/backend",
         "ENVIRONMENT": "test"
       },
       "console": "integratedTerminal",
@@ -142,9 +142,9 @@
       "request": "launch",
       "module": "pytest",
       "args": ["${file}", "-v", "--tb=short"],
-      "cwd": "${workspaceFolder}/backend",
+      "cwd": "${workspaceFolder}/src/backend",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/backend",
+        "PYTHONPATH": "${workspaceFolder}/src/backend",
         "ENVIRONMENT": "test"
       },
       "console": "integratedTerminal",
@@ -169,9 +169,9 @@
         "--cov-report=term",
         "-v"
       ],
-      "cwd": "${workspaceFolder}/backend",
+      "cwd": "${workspaceFolder}/src/backend",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/backend",
+        "PYTHONPATH": "${workspaceFolder}/src/backend",
         "ENVIRONMENT": "test"
       },
       "console": "integratedTerminal",
@@ -212,7 +212,7 @@
       "type": "node-terminal",
       "request": "launch",
       "command": "npm test",
-      "cwd": "${workspaceFolder}/frontend",
+      "cwd": "${workspaceFolder}/src/frontend",
       "presentation": {
         "group": "Tests (Frontend)",
         "order": 1
@@ -223,7 +223,7 @@
       "type": "node-terminal",
       "request": "launch",
       "command": "npm run test:watch",
-      "cwd": "${workspaceFolder}/frontend",
+      "cwd": "${workspaceFolder}/src/frontend",
       "presentation": {
         "group": "Tests (Frontend)",
         "order": 2
@@ -234,7 +234,7 @@
       "type": "node-terminal",
       "request": "launch",
       "command": "npm run test:coverage",
-      "cwd": "${workspaceFolder}/frontend",
+      "cwd": "${workspaceFolder}/src/frontend",
       "presentation": {
         "group": "Tests (Frontend)",
         "order": 3
@@ -249,14 +249,14 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${file}",
-      "cwd": "${workspaceFolder}/backend",
+      "cwd": "${workspaceFolder}/src/backend",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/backend",
+        "PYTHONPATH": "${workspaceFolder}/src/backend",
         "ENVIRONMENT": "development"
       },
       "console": "integratedTerminal",
       "justMyCode": false,
-      "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+      "python": "${workspaceFolder}/src/backend/.venv/Scripts/python.exe",
       "logToFile": true,
       "showReturnValue": true,
       "presentation": {

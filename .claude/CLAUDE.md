@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Fit-Ready-IQ is an outdoor fitness platform that combines route discovery (mountains, trails, campsites), Strava integration, GPX import, AI-powered chat, and real-time weather. The production surface is a **Next.js 16 App Router** frontend deployed on Vercel. A **FastAPI Python backend** exists in `backend/` but is not yet deployed.
+Fit-Ready-IQ is an outdoor fitness platform that combines route discovery (mountains, trails, campsites), Strava integration, GPX import, AI-powered chat, and real-time weather. The production surface is a **Next.js 16 App Router** frontend deployed on Vercel. A **FastAPI Python backend** exists in `src/backend/` but is not yet deployed.
 
 ## Commands
 
-### Frontend (all run from `frontend/`)
+### Frontend (all run from `src/frontend/`)
 
 ```bash
 npm run dev          # Dev server on port 4790
@@ -25,7 +25,7 @@ Run a single Vitest test file:
 npx vitest run src/lib/gpxParser.test.ts
 ```
 
-### Backend (run from `backend/`)
+### Backend (run from `src/backend/`)
 
 ```bash
 poetry run uvicorn src.main:app --reload --port 8000
@@ -192,7 +192,7 @@ Decoded polylines are stored as `[lng, lat]` pairs (GeoJSON order), not `[lat, l
 
 ### Backend architecture
 
-The FastAPI backend (`backend/`) follows Clean Architecture — dependencies point inward only:
+The FastAPI backend (`src/backend/`) follows Clean Architecture — dependencies point inward only:
 
 ```
 Infrastructure → Presentation → Application → Domain
@@ -265,7 +265,7 @@ Add these in **Settings → Secrets and variables → Actions**:
 
 ### Pre-commit hooks (Husky)
 
-After cloning, run once from `frontend/`:
+After cloning, run once from `src/frontend/`:
 ```bash
 npm install   # installs husky, lint-staged, commitlint
 ```
@@ -285,7 +285,7 @@ Commit format: `type(scope): subject` — types: `feat fix docs style refactor p
 
 ## Environment variables
 
-Copy `frontend/.env.example` to `frontend/.env.local`. Required keys that will break functionality if missing:
+Copy `src/frontend/.env.example` to `src/frontend/.env.local`. Required keys that will break functionality if missing:
 
 - `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
 - `GEMINI_API_KEY`

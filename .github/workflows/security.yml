@@ -25,7 +25,7 @@ jobs:
 
       - name: Frontend npm audit
         run: npm audit --audit-level=high
-        working-directory: frontend
+        working-directory: src/frontend
 
       - uses: actions/setup-python@v6
         with:
@@ -34,11 +34,11 @@ jobs:
       - uses: abatilo/actions-poetry@v3
 
       - run: poetry install
-        working-directory: backend
+        working-directory: src/backend
 
       - name: Backend pip audit
         run: poetry run pip-audit --vulnerability-service osv -l
-        working-directory: backend
+        working-directory: src/backend
 
   secret-scan:
     name: Secret Scan

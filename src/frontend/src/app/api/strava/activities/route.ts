@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * GET /api/strava/activities?token=<access_token>&page=1
@@ -6,12 +6,12 @@ import { NextRequest, NextResponse } from "next/server";
  * The token is passed as a query param so it never needs to be in server config.
  */
 export async function GET(request: NextRequest) {
-  const token = request.nextUrl.searchParams.get("token");
-  const page = request.nextUrl.searchParams.get("page") ?? "1";
-  const perPage = "30";
+  const token = request.nextUrl.searchParams.get('token');
+  const page = request.nextUrl.searchParams.get('page') ?? '1';
+  const perPage = '30';
 
   if (!token) {
-    return NextResponse.json({ error: "Missing access token" }, { status: 401 });
+    return NextResponse.json({ error: 'Missing access token' }, { status: 401 });
   }
 
   const res = await fetch(
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   if (!res.ok) {
     return NextResponse.json(
-      { error: "Failed to fetch activities from Strava" },
+      { error: 'Failed to fetch activities from Strava' },
       { status: res.status }
     );
   }

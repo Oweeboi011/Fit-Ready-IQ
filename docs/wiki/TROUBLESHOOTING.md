@@ -58,7 +58,7 @@ flowchart TD
 **Checks:**
 1. Port 4790 may be in use: `Get-NetTCPConnection -LocalPort 4790` (PowerShell)
 2. Kill existing process: Use the "Kill Frontend Port" VS Code task
-3. Verify `.env.local` exists in `frontend/` with required variables
+3. Verify `.env.local` exists in `src/frontend/` with required variables
 4. Run `npm install` to ensure all dependencies are present
 5. Delete `.next/` and restart: `Remove-Item .next -Recurse -Force; npm run dev`
 
@@ -442,7 +442,7 @@ flowchart TD
 ### 11.1 Local Development Commands
 
 ```bash
-cd frontend
+cd src/frontend
 
 # Check for build errors
 npm run build

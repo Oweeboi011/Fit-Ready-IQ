@@ -6,8 +6,8 @@ applyTo: "**"
 
 ## Repository Structure
 
-- `backend/`: Logic related to the agentic AI python backend services
-- `frontend/`: Typescript & React frontend components and pages
+- `src/backend/`: Logic related to the agentic AI python backend services
+- `src/frontend/`: Typescript & React frontend components and pages
 - `docs/`: Documentation
 - `docs/product_requirements_document.md`: Product requirements document
 - `docs/technical_specifications.md`: Technical specifications

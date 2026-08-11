@@ -34,7 +34,7 @@ services:
   # FastAPI Backend
   backend:
     build:
-      context: ./backend
+      context: ./src/backend
       dockerfile: Dockerfile
     container_name: fit-ready-iq-api
     environment:
@@ -54,7 +54,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
+      - ./src/backend:/app
       - /app/__pycache__
     depends_on:
       firebase-emulator:
@@ -64,7 +64,7 @@ services:
   # Next.js Frontend
   frontend:
     build:
-      context: ./frontend
+      context: ./src/frontend
       dockerfile: Dockerfile.dev
     container_name: fit-ready-iq-web
     environment:
@@ -75,7 +75,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./frontend:/app
+      - ./src/frontend:/app
       - /app/node_modules
       - /app/.next
     depends_on:
