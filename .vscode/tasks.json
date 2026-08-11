@@ -31,7 +31,7 @@
       "label": "npm: dev - frontend",
       "type": "npm",
       "script": "dev",
-      "path": "frontend",
+      "path": "src/frontend",
       "isBackground": true,
       "dependsOn": ["Kill Frontend Port"],
       "problemMatcher": {
@@ -56,21 +56,21 @@
       "label": "npm: build - frontend",
       "type": "npm",
       "script": "build",
-      "path": "frontend",
+      "path": "src/frontend",
       "problemMatcher": ["$tsc"]
     },
     {
       "label": "npm: install - frontend",
       "type": "npm",
       "script": "install",
-      "path": "frontend"
+      "path": "src/frontend"
     },
     {
       "label": "pip: install - backend",
       "type": "shell",
       "command": "$env:PATH = 'C:\\Users\\cromwel.m.penaranda\\AppData\\Local\\Programs\\Python\\Python312;C:\\Users\\cromwel.m.penaranda\\AppData\\Local\\Programs\\Python\\Python312\\Scripts;' + $env:PATH; poetry install",
       "options": {
-        "cwd": "${workspaceFolder}/backend"
+        "cwd": "${workspaceFolder}/src/backend"
       }
     },
     {
@@ -78,7 +78,7 @@
       "type": "shell",
       "command": "$env:PATH = 'C:\\Users\\cromwel.m.penaranda\\AppData\\Local\\Programs\\Python\\Python312;C:\\Users\\cromwel.m.penaranda\\AppData\\Local\\Programs\\Python\\Python312\\Scripts;' + $env:PATH; poetry install",
       "options": {
-        "cwd": "${workspaceFolder}/backend"
+        "cwd": "${workspaceFolder}/src/backend"
       },
       "presentation": {
         "reveal": "always",
@@ -92,7 +92,7 @@
       "type": "shell",
       "command": "npm install",
       "options": {
-        "cwd": "${workspaceFolder}/frontend"
+        "cwd": "${workspaceFolder}/src/frontend"
       },
       "presentation": {
         "reveal": "always",

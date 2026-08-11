@@ -1,5 +1,5 @@
 {
-    "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+    "python.defaultInterpreterPath": "${workspaceFolder}/src/backend/.venv/Scripts/python.exe",
     "python.terminal.activateEnvironment": true,
     "python.linting.enabled": true,
     "python.linting.pylintEnabled": false,
@@ -15,7 +15,7 @@
         "**/*.pyc": true
     },
     "python.analysis.extraPaths": [
-        "${workspaceFolder}/backend"
+        "${workspaceFolder}/src/backend"
     ],
     "python-envs.defaultEnvManager": "ms-python.python:system"
 }
