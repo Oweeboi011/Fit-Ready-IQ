@@ -2,7 +2,6 @@
 
 // Fit Ready IQ - Main Page
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { useJsApiLoader } from '@react-google-maps/api';
 import {
@@ -11,26 +10,22 @@ import {
   Route,
   Search,
   X,
-  Watch,
-  User as UserIcon,
   ChevronRight,
   MapPin,
   TrendingUp,
   ArrowUpDown,
   Clock,
-  Menu,
   Bookmark,
-  Shield,
   MapPinOff,
 } from 'lucide-react';
 import Link from 'next/link';
+import AppHeader from '@/components/AppHeader';
 import RouteFilter, { DEFAULT_FILTERS, type FilterState } from '@/components/RouteFilter';
 import ConnectDevicesModal from '@/components/ConnectDevicesModal';
 import DetailsModal from '@/components/DetailsModal';
 import ProfileModal from '@/components/ProfileModal';
 import { haversineDistanceKm } from '@/lib/gpxParser';
 import { saveActivities, mergeActivities, formatActivityType } from '@/lib/activityTypes';
-import { isFirebaseAuthConfigured } from '@/lib/firebaseClient';
 import ChatBot from '@/components/ChatBot';
 import { ReadinessBadge } from '@/components/ReadinessPanel';
 import { computeReadiness } from '@/lib/readiness';
@@ -655,102 +650,16 @@ export default function Home() {
         <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-blue-600/10 blur-3xl" />
       </div>
       {/* Header */}
-      <header className="relative z-20 flex h-14 flex-shrink-0 items-center justify-between border-b border-white/[0.06] bg-slate-950/95 px-5 backdrop-blur">
-        {/* Brand */}
-        <Link href="/" className="flex items-center gap-2.5">
-          <img src="/icon.svg" alt="" aria-hidden="true" className="h-8 w-8" />
-          <span className="text-[15px] font-bold tracking-tight text-white">Fit Ready IQ</span>
-        </Link>
-
-        {/* Nav actions */}
-        <div className="flex items-center gap-2">
-          <button
-            aria-label="Toggle sidebar"
-            onClick={() => setSidebarOpen((s) => !s)}
-            className={`${buttonGhost} h-8 w-8 !px-0 md:hidden`}
-          >
-            <Menu aria-hidden="true" className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => setIsDeviceModalOpen(true)}
-            className={`${buttonGhost} ${buttonSize.sm}`}
-          >
-            <Watch aria-hidden="true" className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Connect Devices</span>
-          </button>
-          {adminGate === 'allowed' && (
-            <Link
-              href="/admin/settings"
-              className={`${buttonGhost} h-8 w-8 !px-0`}
-              aria-label="Admin settings"
-              title="Admin settings"
-            >
-              <Shield aria-hidden="true" className="h-4 w-4" />
-            </Link>
-          )}
-
-          {isFirebaseAuthConfigured() ? (
-            authUser ? (
-              <button
-                onClick={() => setIsProfileModalOpen(true)}
-                disabled={authBusy}
-                className={`${buttonGhost} ${buttonSize.sm}`}
-                title="View profile"
-              >
-                {authUser.photoURL ? (
-                  <Image
-                    src={authUser.photoURL}
-                    alt="Profile"
-                    width={20}
-                    height={20}
-                    className="h-5 w-5 rounded-full border border-white/20"
-                    unoptimized
-                  />
-                ) : (
-                  <UserIcon aria-hidden="true" className="h-4 w-4" />
-                )}
-                <span className="hidden sm:inline">{authUser.displayName ?? 'Signed in'}</span>
-              </button>
-            ) : (
-              <div className="flex items-center gap-1.5">
-                {/* The only primary button on this screen. Named for the outcome
-                    the user wants, not for the identity provider behind it. */}
-                <button
-                  onClick={signInGoogle}
-                  disabled={authBusy}
-                  className={`${buttonPrimary} ${buttonSize.sm}`}
-                  title="Continue with Google"
-                >
-                  <UserIcon aria-hidden="true" className="h-3.5 w-3.5" />
-                  <span className="whitespace-nowrap">{authBusy ? 'Opening…' : 'Start free'}</span>
-                </button>
-                <button
-                  onClick={signInApple}
-                  disabled={authBusy}
-                  className={`${buttonGhost} h-8 w-8 !px-0`}
-                  title="Continue with Apple"
-                  aria-label="Continue with Apple"
-                >
-                  <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5">
-                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
-                  </svg>
-                </button>
-              </div>
-            )
-          ) : (
-            /* Not a button — there is nothing to click. A focusable control that
-               does nothing is a dead end for keyboard users, so this is a status
-               indicator that still announces why sign-in is missing. */
-            <span
-              className="flex h-8 w-8 items-center justify-center text-slate-600"
-              title="Sign-in unavailable — Firebase Auth is not configured"
-            >
-              <UserIcon aria-hidden="true" className="h-4 w-4" />
-              <span className="sr-only">Sign-in unavailable — Firebase Auth is not configured</span>
-            </span>
-          )}
-        </div>
-      </header>
+      <AppHeader
+        isAdmin={adminGate === 'allowed'}
+        authUser={authUser}
+        authBusy={authBusy}
+        onSignInGoogle={signInGoogle}
+        onSignInApple={signInApple}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
+        onOpenConnectDevices={() => setIsDeviceModalOpen(true)}
+        onToggleSidebar={() => setSidebarOpen((s) => !s)}
+      />
 
       {/* Connect Devices Modal */}
       <ConnectDevicesModal
