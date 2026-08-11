@@ -1,4 +1,6 @@
 import RouteFilter, { type FilterState } from '@/components/RouteFilter';
+import LoadingSkeletonList from '@/components/sidebar/LoadingSkeletonList';
+import CollectionStatusNotices from '@/components/sidebar/CollectionStatusNotices';
 import RoutesTabPanel from '@/components/sidebar/RoutesTabPanel';
 import MountainsTabPanel from '@/components/sidebar/MountainsTabPanel';
 import CampsitesTabPanel from '@/components/sidebar/CampsitesTabPanel';
@@ -10,7 +12,7 @@ import type { Activity } from '@/lib/activityTypes';
 import type { Route as RouteData, Mountain as MountainData, Campsite } from '@/lib/placesTypes';
 import type { SavedPlace } from '@/lib/useSavedPlaces';
 import type { CollectionName } from '@/lib/usePlacesData';
-import { buttonGhost, buttonSecondary, buttonSize } from '@/lib/ui';
+import { buttonSecondary, buttonSize } from '@/lib/ui';
 
 interface SidebarTabPanelsProps {
   activeTab: TabId;
@@ -81,20 +83,7 @@ export default function SidebarTabPanels(props: SidebarTabPanelsProps) {
       {activeTab === 'routes' && <RouteFilter filters={filters} onFilterChange={onFiltersChange} />}
 
       {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="rounded-xl border border-white/[0.06] bg-white/5 p-3.5">
-              <div className="flex items-start gap-3">
-                <div className="skeleton h-14 w-14 flex-shrink-0 rounded-lg" />
-                <div className="flex-1 space-y-2">
-                  <div className="skeleton h-3.5 w-3/4 rounded-md" />
-                  <div className="skeleton h-2.5 w-1/2 rounded-md" />
-                  <div className="skeleton h-2.5 w-2/3 rounded-md" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        <LoadingSkeletonList />
       ) : error ? (
         <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
           <p className="text-xs font-medium text-red-300">{error}</p>
@@ -108,38 +97,12 @@ export default function SidebarTabPanels(props: SidebarTabPanelsProps) {
         </div>
       ) : (
         <div className="space-y-1.5">
-          {elevationUnavailable && (
-            <div
-              role="status"
-              className="mb-1.5 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2.5"
-            >
-              <p className="text-[11px] leading-relaxed text-amber-100">
-                Elevation data is unavailable right now, so climbs and gains are shown as
-                &ldquo;—&rdquo; rather than guessed.
-              </p>
-            </div>
-          )}
-
-          {/* Partial failure: some collections came back, some did not.
-            Without this the empty tab reads as "nothing here". */}
-          {failedCollections.length > 0 && (
-            <div
-              role="status"
-              className="mb-1.5 flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2.5"
-            >
-              <p className="flex-1 text-[11px] text-amber-100">
-                We couldn&apos;t load{' '}
-                {failedCollections.map((c) => collectionLabels[c]).join(' or ')}.
-              </p>
-              <button
-                type="button"
-                onClick={onRetryPlaces}
-                className={`${buttonGhost} ${buttonSize.sm}`}
-              >
-                Retry
-              </button>
-            </div>
-          )}
+          <CollectionStatusNotices
+            elevationUnavailable={elevationUnavailable}
+            failedCollections={failedCollections}
+            collectionLabels={collectionLabels}
+            onRetry={onRetryPlaces}
+          />
 
           {activeTab === 'routes' && (
             <RoutesTabPanel

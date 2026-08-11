@@ -2,23 +2,11 @@
 
 // Fit Ready IQ - Main Page
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import dynamic from 'next/dynamic';
 import { useJsApiLoader } from '@react-google-maps/api';
-import {
-  Mountain,
-  Tent,
-  Route,
-  Search,
-  X,
-  ChevronRight,
-  MapPin,
-  Clock,
-  Bookmark,
-  MapPinOff,
-} from 'lucide-react';
 import Link from 'next/link';
 import AppHeader from '@/components/AppHeader';
 import PlacesSidebar from '@/components/PlacesSidebar';
+import MapArea from '@/components/MapArea';
 import { DEFAULT_FILTERS, type FilterState } from '@/components/RouteFilter';
 import ConnectDevicesModal from '@/components/ConnectDevicesModal';
 import DetailsModal from '@/components/DetailsModal';
@@ -28,9 +16,8 @@ import { saveActivities, mergeActivities } from '@/lib/activityTypes';
 import ChatBot from '@/components/ChatBot';
 import { computeReadiness } from '@/lib/readiness';
 import { recordWeatherAlerts } from '@/lib/weatherAlertCache';
-import { NavDock, type DockAlert, type DockWeather } from '@/components/NavDock';
-import { MapDirections, type DirectionsTarget } from '@/components/MapDirections';
-import { RoutePlanner } from '@/components/RoutePlanner';
+import type { DockAlert, DockWeather } from '@/components/NavDock';
+import type { DirectionsTarget } from '@/components/MapDirections';
 import AdminModal from '@/components/admin/AdminModal';
 import RoadmapModal from '@/components/RoadmapModal';
 import type { PlannerWaypoint } from '@/lib/gpxBuilder';
@@ -42,13 +29,11 @@ import {
   writeHiddenLayers,
   type MapLayer,
 } from '@/lib/mapLayers';
-import MapLoadingOverlay from '@/components/MapLoadingOverlay';
 import { useSavedPlaces, type SavedPlace } from '@/lib/useSavedPlaces';
 import { useAdminGate } from '@/lib/useAdminGate';
 import { isPlanId, rememberSelectedPlan } from '@/lib/plans';
 import { decodePlaceRef, encodePlaceRef, type PlaceRef } from '@/lib/placeUrl';
 import { locationProblemMessage, useUserLocation } from '@/lib/useUserLocation';
-import { buttonGhost, buttonSecondary, buttonSize } from '@/lib/ui';
 import type { Route as RouteData, Mountain as MountainData, Campsite } from '@/lib/placesTypes';
 import { toDetailsModalData, type SelectedDetails } from '@/lib/detailsModalMapper';
 import { useFirebaseAuth } from '@/lib/useFirebaseAuth';
@@ -56,23 +41,6 @@ import { useStravaSync } from '@/lib/useStravaSync';
 import { usePlacesData, COLLECTION_LABELS } from '@/lib/usePlacesData';
 
 const libraries: ('places' | 'geometry')[] = ['places', 'geometry'];
-
-// Dynamically import MapView to avoid SSR issues with the Google Maps SDK
-const MapView = dynamic(() => import('@/components/MapView'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-full flex-col items-center justify-center gap-4 bg-slate-950">
-      <div className="relative h-14 w-14">
-        <div className="h-14 w-14 animate-spin rounded-full border-4 border-blue-500/20 border-t-blue-500" />
-        <div className="absolute inset-0 m-auto h-6 w-6 animate-pulse rounded-full bg-blue-500/20" />
-      </div>
-      <div className="text-center">
-        <p className="text-sm font-semibold text-slate-300">Loading map…</p>
-        <p className="mt-1 text-xs text-slate-500">Discovering nearby adventures</p>
-      </div>
-    </div>
-  ),
-});
 
 type TabId = 'routes' | 'mountains' | 'campsites' | 'history' | 'saved';
 
@@ -743,192 +711,87 @@ export default function Home() {
         />
 
         {/* Map View */}
-        <div className="relative flex-1">
-          <MapLoadingOverlay
-            isLoading={isLoading || isLocating}
-            message={isLocating ? 'Locating you' : 'Finding routes near you'}
-            detail={!isLocating ? userLocation?.address : undefined}
-          />
-
-          {/* There is no onboarding anywhere in the product: a first-time
-              visitor on a phone sees a spinning map, a hamburger and nothing
-              else. One dismissible line, shown once, is the smallest thing that
-              fixes that without becoming a tour. */}
-          {showFirstRunHint && !isLoading && !saveError && !authError && (
-            <div className="pointer-events-none absolute inset-x-0 top-6 z-20 flex justify-center px-4">
-              <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-white/10 bg-slate-900/95 py-2 pl-4 pr-2 shadow-xl backdrop-blur">
-                <p className="text-xs text-slate-300">
-                  <span className="font-semibold text-white md:hidden">Tap the menu</span>
-                  <span className="hidden font-semibold text-white md:inline">
-                    Pick a route from the list
-                  </span>{' '}
-                  to see readiness, weather and gear for any trail.
-                </p>
-                <button
-                  type="button"
-                  onClick={dismissFirstRunHint}
-                  aria-label="Dismiss tip"
-                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white"
-                >
-                  <X aria-hidden="true" className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Saving and signing in can both be triggered from the sidebar, the
-              map or a modal, so their failure notices live somewhere all three
-              can be seen. One slot, so they never stack up and compete. */}
-          {(saveError || authError) && (
-            <div
-              role="alert"
-              className="absolute inset-x-0 top-6 z-30 mx-auto flex w-fit max-w-[calc(100%-2rem)] items-center gap-3 rounded-full border border-amber-500/30 bg-slate-900/95 py-2 pl-4 pr-2 shadow-xl backdrop-blur"
-            >
-              <span className="text-xs text-amber-100">{saveError ?? authError}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  dismissSaveError();
-                  setAuthError(null);
-                }}
-                aria-label="Dismiss"
-                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white"
-              >
-                <X aria-hidden="true" className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
-
-          {/* Save confirmation with a way back. Yields to the error toast,
-              which is the more urgent thing to say. */}
-          {saveToast && !saveError && !authError && (
-            <div
-              role="status"
-              className="absolute inset-x-0 top-6 z-30 mx-auto flex w-fit max-w-[calc(100%-2rem)] items-center gap-1 rounded-full border border-white/10 bg-slate-900/95 py-2 pl-4 pr-2 shadow-xl backdrop-blur"
-            >
-              <span className="text-xs text-slate-200">{saveToast.message}</span>
-              <button
-                type="button"
-                onClick={saveToast.undo}
-                className={`${buttonGhost} ${buttonSize.sm} text-blue-400 hover:text-blue-300`}
-              >
-                Undo
-              </button>
-            </div>
-          )}
-          <NavDock
-            areaLabel={userLocation?.address ?? null}
-            savedCount={savedPlaces.length}
-            isSignedIn={Boolean(authUser)}
-            isAdmin={adminGate === 'allowed'}
-            alerts={dockAlerts}
-            pulse={terrainPulse}
-            weather={dockWeather}
-            onRequestWeather={loadDockWeather}
-            onOpenPlanner={() => {
-              setPlannerOpen((v) => !v);
-              setSidebarOpen(false);
-            }}
-            onOpenFitness={() => setIsProfileModalOpen(true)}
-            onOpenConnectDevices={() => setIsDeviceModalOpen(true)}
-            onOpenAdmin={() => setAdminModalOpen(true)}
-            onOpenRoadmap={() => setRoadmapOpen(true)}
-            legendVisible={showLegend}
-            onToggleLegend={() => setShowLegend((v) => !v)}
-            nativeControlsVisible={showNativeControls}
-            onToggleNativeControls={() => setShowNativeControls((v) => !v)}
-            nativePoiVisible={showNativePoi}
-            onToggleNativePoi={() => setShowNativePoi((v) => !v)}
-            activeTab={activeTab}
-            tabCounts={{
-              routes: filteredRoutes.length,
-              mountains: mountains.length,
-              campsites: campsites.length,
-              saved: savedPlaces.length,
-            }}
-            onSelectTab={(tab) => {
-              if (tab === 'saved' && !authUser) {
-                setAuthError('Sign in to keep a shortlist of places.');
-                return;
-              }
-              setActiveTab(tab);
-              setSidebarOpen(true);
-            }}
-            hiddenLayers={hiddenLayers}
-            advisories={advisories}
-            advisorySource={advisorySource}
-            onSelectAdvisory={(a) => {
-              if (!a.coordinates) return;
-              mapInstance?.panTo({ lat: a.coordinates[1], lng: a.coordinates[0] });
-              mapInstance?.setZoom(12);
-            }}
-            layerCounts={layerCounts}
-            onToggleLayer={toggleLayer}
-            weatherRadarVisible={showWeatherRadar}
-            onToggleWeatherRadar={() => setShowWeatherRadar((v) => !v)}
-            onLocate={() => focusUserLocationRef.current?.()}
-          />
-
-          <MapDirections
-            map={mapInstance}
-            origin={userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : null}
-            target={directionsTarget}
-            onClear={() => setDirectionsTarget(null)}
-          />
-
-          <RoutePlanner
-            isOpen={plannerOpen}
-            waypoints={plannerWaypoints}
-            onClose={() => setPlannerOpen(false)}
-            onRemove={(id) => setPlannerWaypoints((prev) => prev.filter((w) => w.id !== id))}
-            onMove={moveWaypoint}
-            route={plannerRoute}
-            onClear={() => setPlannerWaypoints([])}
-            onLoadPlan={(waypoints) => {
-              setPlannerWaypoints(waypoints);
-              // Frame the loaded plan so it is not off-screen.
-              if (mapInstance && waypoints.length > 0) {
-                const bounds = new google.maps.LatLngBounds();
-                waypoints.forEach((w) =>
-                  bounds.extend({ lat: w.coordinates[1], lng: w.coordinates[0] })
-                );
-                mapInstance.fitBounds(bounds, 80);
-              }
-            }}
-          />
-
-          <MapView
-            onMapReady={setMapInstance}
-            plannerWaypoints={plannerWaypoints}
-            plannerPath={plannerRoute.path}
-            onMapClick={plannerOpen ? addWaypoint : undefined}
-            showLegend={showLegend}
-            showNativeControls={showNativeControls}
-            showNativePoi={showNativePoi}
-            showWeatherRadar={showWeatherRadar}
-            advisories={advisories}
-            onAdvisoryClick={(id) => {
-              const advisory = advisories.find((a) => a.id === id);
-              if (advisory?.url) window.open(advisory.url, '_blank', 'noopener,noreferrer');
-            }}
-            hiddenLayers={hiddenLayers}
-            routes={filteredRoutes}
-            mountains={mountains}
-            campsites={campsites}
-            savedPlaces={savedPlaces}
-            userLocation={userLocation ? [userLocation.lng, userLocation.lat] : undefined}
-            hasPreciseLocation={hasPreciseLocation}
-            isLoaded={isLoaded}
-            loadError={loadError}
-            onRouteClick={handleRouteClick}
-            onMountainClick={handleMountainClick}
-            onCampsiteClick={handleCampsiteClick}
-            onFocusUserLocation={(fn) => {
-              focusUserLocationRef.current = fn;
-            }}
-            activityPolylines={activityPolylines}
-          />
-        </div>
+        <MapArea
+          isLoading={isLoading}
+          isLocating={isLocating}
+          userLocation={userLocation}
+          showFirstRunHint={showFirstRunHint}
+          onDismissFirstRunHint={dismissFirstRunHint}
+          saveError={saveError}
+          authError={authError}
+          onDismissSaveError={dismissSaveError}
+          onDismissAuthError={() => setAuthError(null)}
+          saveToast={saveToast}
+          savedCount={savedPlaces.length}
+          isSignedIn={Boolean(authUser)}
+          isAdmin={adminGate === 'allowed'}
+          dockAlerts={dockAlerts}
+          terrainPulse={terrainPulse}
+          dockWeather={dockWeather}
+          onRequestWeather={loadDockWeather}
+          onOpenPlanner={() => {
+            setPlannerOpen((v) => !v);
+            setSidebarOpen(false);
+          }}
+          onOpenFitness={() => setIsProfileModalOpen(true)}
+          onOpenConnectDevices={() => setIsDeviceModalOpen(true)}
+          onOpenAdmin={() => setAdminModalOpen(true)}
+          onOpenRoadmap={() => setRoadmapOpen(true)}
+          showLegend={showLegend}
+          onToggleLegend={() => setShowLegend((v) => !v)}
+          showNativeControls={showNativeControls}
+          onToggleNativeControls={() => setShowNativeControls((v) => !v)}
+          showNativePoi={showNativePoi}
+          onToggleNativePoi={() => setShowNativePoi((v) => !v)}
+          activeTab={activeTab}
+          tabCounts={{
+            routes: filteredRoutes.length,
+            mountains: mountains.length,
+            campsites: campsites.length,
+            saved: savedPlaces.length,
+          }}
+          onSelectTab={(tab) => {
+            setActiveTab(tab);
+            setSidebarOpen(true);
+          }}
+          onSelectTabAuthRequired={() => setAuthError('Sign in to keep a shortlist of places.')}
+          hiddenLayers={hiddenLayers}
+          advisories={advisories}
+          advisorySource={advisorySource}
+          layerCounts={layerCounts}
+          onToggleLayer={toggleLayer}
+          showWeatherRadar={showWeatherRadar}
+          onToggleWeatherRadar={() => setShowWeatherRadar((v) => !v)}
+          onLocate={() => focusUserLocationRef.current?.()}
+          mapInstance={mapInstance}
+          onMapReady={setMapInstance}
+          directionsTarget={directionsTarget}
+          onClearDirections={() => setDirectionsTarget(null)}
+          plannerOpen={plannerOpen}
+          plannerWaypoints={plannerWaypoints}
+          onClosePlanner={() => setPlannerOpen(false)}
+          onRemoveWaypoint={(id) => setPlannerWaypoints((prev) => prev.filter((w) => w.id !== id))}
+          onMoveWaypoint={moveWaypoint}
+          plannerRoute={plannerRoute}
+          onClearPlanner={() => setPlannerWaypoints([])}
+          onLoadPlan={setPlannerWaypoints}
+          onMapClick={plannerOpen ? addWaypoint : undefined}
+          hasPreciseLocation={hasPreciseLocation}
+          isLoaded={isLoaded}
+          loadError={loadError}
+          filteredRoutes={filteredRoutes}
+          mountains={mountains}
+          campsites={campsites}
+          savedPlaces={savedPlaces}
+          onRouteClick={handleRouteClick}
+          onMountainClick={handleMountainClick}
+          onCampsiteClick={handleCampsiteClick}
+          onFocusUserLocation={(fn) => {
+            focusUserLocationRef.current = fn;
+          }}
+          activityPolylines={activityPolylines}
+          onAdvisoryUrlOpen={(url) => window.open(url, '_blank', 'noopener,noreferrer')}
+        />
       </div>
 
       <AdminModal isOpen={adminModalOpen} onClose={() => setAdminModalOpen(false)} />
