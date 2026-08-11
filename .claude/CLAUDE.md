@@ -222,20 +222,23 @@ When writing tests for `useSavedPlaces.ts`, import the module after mocks are re
 ### Branch flow
 
 ```
-feature/* → main
+feature/* → develop → main
 ```
 
-- Direct pushes to `main` are blocked (set in GitHub branch protection).
-- All feature branches open a PR directly to `main`.
+- Direct pushes to `main` and `develop` are blocked (set in GitHub branch protection).
+- Feature branches open a PR into `develop`. Once `develop` is green and ready to ship,
+  open a PR from `develop` into `main` — that merge is the release.
+- Both `main` and `develop` require the same status checks (`Frontend Quality`,
+  `Backend Quality`, `Playwright E2E`, `Secret Scan`) and 1 approving review.
 
 ### Workflows
 
 | File | Triggers | What it does |
 |---|---|---|
-| `ci.yml` | PR to `main`, push to `main` | Lint + type-check + unit tests + build (frontend); ruff + mypy + pytest (backend) |
-| `e2e.yml` | PR to `main` | Playwright E2E (uses real secrets from GitHub Secrets) |
-| `mutation.yml` | PR to `main` when `src/lib/` changed | Stryker mutation tests |
-| `security.yml` | PRs + push to `main` + weekly Monday | npm audit (`--audit-level=high`) + gitleaks secret scan + CodeQL |
+| `ci.yml` | PR to `main`/`develop`, push to `main`/`develop` | Lint + type-check + unit tests + build (frontend); ruff + mypy + pytest (backend) |
+| `e2e.yml` | PR to `main`/`develop` | Playwright E2E (uses real secrets from GitHub Secrets) |
+| `mutation.yml` | PR to `main`/`develop` when `src/lib/` changed | Stryker mutation tests |
+| `security.yml` | PRs + push to `main`/`develop` + weekly Monday | npm audit (`--audit-level=high`) + gitleaks secret scan + CodeQL |
 | `agent-review.yml` | PR open/synchronize | Posts AI review comment via Claude Haiku. Needs `ANTHROPIC_API_KEY` secret. Add `[skip review]` to PR title to suppress. |
 | `uptime.yml` | Every 15 min, manual dispatch | Curls `{PRODUCTION_URL}/api/health`; fails the run (no auto-notification beyond GitHub's own workflow-failure alerts) if it doesn't return 2xx. Needs `PRODUCTION_URL` repo variable. |
 
@@ -256,7 +259,7 @@ Add these in **Settings → Secrets and variables → Actions**:
 
 ### Branch protection setup (one-time, GitHub UI)
 
-**`main` branch:**
+**`main` and `develop` branches (same rules on both):**
 - Require status checks: `Frontend Quality`, `Backend Quality`, `Playwright E2E`, `Secret Scan`
 - Enable merge queue (Settings → Branches → Edit → Merge queue)
 - Require 1 approving review
