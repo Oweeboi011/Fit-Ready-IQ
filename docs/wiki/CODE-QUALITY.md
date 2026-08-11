@@ -152,7 +152,7 @@ Baseline taken **2026-08-06**:
 
 | File                                     | Why it is exempt                                  |
 | ---------------------------------------- | ------------------------------------------------- |
-| `src/app/app/page.tsx`                   | 2,229 lines; `Home` is 1,911 lines, complexity 39 |
+| `src/app/app/page.tsx`                   | 818 lines; `Home` is 626 lines — down from 2,229/1,911 after PR #56 pulled the places pipeline, auth/Strava hooks and the sidebar/header/map JSX into `src/lib/` and `src/components/` |
 | `src/components/DetailsModal.tsx`        | 2,742 lines                                       |
 | `src/components/MapView.tsx`             | 834 lines                                         |
 | `src/app/admin/settings/page.tsx`        | 661 lines                                         |

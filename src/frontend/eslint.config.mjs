@@ -10,7 +10,11 @@ import tseslint from 'typescript-eslint';
  * docs/adr/0002-mechanical-code-quality-gates.md.
  */
 const LEGACY_OVERSIZED = [
-  'src/app/app/page.tsx', // 2229 lines — the whole map UI
+  // 818 lines, `Home` 626 — down from 2,229/1,911 after extracting the
+  // places pipeline, auth/Strava hooks and JSX (header, sidebar, map area)
+  // into src/lib/ and src/components/. What is left is state/effect
+  // wiring that is not yet worth splitting further; see PR #56.
+  'src/app/app/page.tsx',
   'src/app/admin/settings/page.tsx', // 661
   'src/components/DetailsModal.tsx', // 2742
   'src/components/MapView.tsx', // 834

@@ -2,7 +2,7 @@ name: Mutation Tests
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - "src/frontend/src/lib/**"
   workflow_dispatch:
