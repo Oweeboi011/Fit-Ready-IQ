@@ -12,8 +12,6 @@ import {
   X,
   ChevronRight,
   MapPin,
-  TrendingUp,
-  ArrowUpDown,
   Clock,
   Bookmark,
   MapPinOff,
@@ -24,12 +22,15 @@ import RouteFilter, { DEFAULT_FILTERS, type FilterState } from '@/components/Rou
 import ConnectDevicesModal from '@/components/ConnectDevicesModal';
 import DetailsModal from '@/components/DetailsModal';
 import ProfileModal from '@/components/ProfileModal';
+import RouteListItem from '@/components/RouteListItem';
+import MountainListItem from '@/components/MountainListItem';
+import CampsiteListItem from '@/components/CampsiteListItem';
+import ActivityListItem from '@/components/ActivityListItem';
+import SavedPlaceListItem from '@/components/SavedPlaceListItem';
 import { haversineDistanceKm } from '@/lib/gpxParser';
-import { saveActivities, mergeActivities, formatActivityType } from '@/lib/activityTypes';
+import { saveActivities, mergeActivities } from '@/lib/activityTypes';
 import ChatBot from '@/components/ChatBot';
-import { ReadinessBadge } from '@/components/ReadinessPanel';
 import { computeReadiness } from '@/lib/readiness';
-import { WeatherAlertBadgeNear } from '@/components/WeatherAlertBadge';
 import { recordWeatherAlerts } from '@/lib/weatherAlertCache';
 import { NavDock, type DockAlert, type DockWeather } from '@/components/NavDock';
 import { MapDirections, type DirectionsTarget } from '@/components/MapDirections';
@@ -50,9 +51,8 @@ import { useSavedPlaces, type SavedPlace } from '@/lib/useSavedPlaces';
 import { useAdminGate } from '@/lib/useAdminGate';
 import { isPlanId, rememberSelectedPlan } from '@/lib/plans';
 import { decodePlaceRef, encodePlaceRef, type PlaceRef } from '@/lib/placeUrl';
-import { DIFFICULTY_LABELS } from '@/lib/routeDifficulty';
 import { locationProblemMessage, useUserLocation } from '@/lib/useUserLocation';
-import { buttonGhost, buttonPrimary, buttonSecondary, buttonSize } from '@/lib/ui';
+import { buttonGhost, buttonSecondary, buttonSize } from '@/lib/ui';
 import type { Route as RouteData, Mountain as MountainData, Campsite } from '@/lib/placesTypes';
 import { toDetailsModalData, type SelectedDetails } from '@/lib/detailsModalMapper';
 import { useFirebaseAuth } from '@/lib/useFirebaseAuth';
@@ -1053,147 +1053,32 @@ export default function Home() {
                         </div>
                       );
                     }
-                    const difficultyStyle: Record<
-                      string,
-                      { pill: string; dot: string; bar: string }
-                    > = {
-                      easy: {
-                        pill: 'bg-emerald-500/15 text-emerald-400 ring-emerald-500/20',
-                        dot: 'bg-emerald-400',
-                        bar: 'bg-emerald-500',
-                      },
-                      moderate: {
-                        pill: 'bg-amber-500/15 text-amber-400 ring-amber-500/20',
-                        dot: 'bg-amber-400',
-                        bar: 'bg-amber-500',
-                      },
-                      hard: {
-                        pill: 'bg-red-500/15 text-red-400 ring-red-500/20',
-                        dot: 'bg-red-400',
-                        bar: 'bg-red-500',
-                      },
-                    };
-                    const activityIcons: Record<string, React.ReactNode> = {
-                      bike: <Route aria-hidden="true" className="h-3.5 w-3.5" />,
-                      hike: <Mountain aria-hidden="true" className="h-3.5 w-3.5" />,
-                      tour: <Route aria-hidden="true" className="h-3.5 w-3.5" />,
-                      run: <TrendingUp aria-hidden="true" className="h-3.5 w-3.5" />,
-                    };
-                    return list.map((route, idx) => {
-                      const ds = difficultyStyle[route.difficulty] ?? {
-                        pill: 'bg-white/10 text-slate-400 ring-white/10',
-                        dot: 'bg-slate-400',
-                        bar: 'bg-slate-500',
-                      };
-                      return (
-                        <button
-                          key={route.id}
-                          type="button"
-                          onClick={() => handleRouteClick(route)}
-                          className="card-enter group w-full rounded-xl border border-white/[0.07] bg-white/5 text-left transition-all hover:border-blue-500/30 hover:bg-blue-500/10 active:scale-[0.99]"
-                          style={{ animationDelay: `${idx * 30}ms` }}
-                        >
-                          <div className="flex items-stretch gap-0">
-                            {/* A 72px thumbnail that was empty on every card,
-                              because list results never carry photos — only the
-                              detail view fetches them. Replaced by a slim
-                              difficulty spine, which is the one thing that strip
-                              was actually communicating. */}
-                            <div
-                              aria-hidden="true"
-                              className={`w-1 flex-shrink-0 rounded-l-xl ${ds.bar} opacity-70`}
-                            />
-                            <div className="min-w-0 flex-1 px-3 py-2.5">
-                              <div className="flex items-start justify-between gap-1">
-                                <p className="line-clamp-1 text-[13px] font-semibold text-slate-100 group-hover:text-white">
-                                  {route.name}
-                                </p>
-                                {authUser && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleToggleSave({
-                                        id: route.id,
-                                        type: 'route',
-                                        name: route.name,
-                                        coordinates: route.coordinates,
-                                        difficulty: route.difficulty,
-                                        activity_type: route.activity_type,
-                                        distance_km: route.distance_km,
-                                        elevation_gain_m: route.elevation_gain_m ?? undefined,
-                                        photos: route.photos,
-                                        place_id: route.place_id,
-                                      });
-                                    }}
-                                    className="-m-2 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded text-slate-500 transition-colors hover:text-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                                    aria-label={isSaved(route.id) ? 'Unsave route' : 'Save route'}
-                                  >
-                                    <Bookmark
-                                      aria-hidden="true"
-                                      className={`h-3.5 w-3.5 ${isSaved(route.id) ? 'fill-amber-400 text-amber-400' : ''}`}
-                                    />
-                                  </button>
-                                )}
-                              </div>
-                              <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                                <span
-                                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ring-1 ${ds.pill}`}
-                                >
-                                  <span className={`h-1.5 w-1.5 rounded-full ${ds.dot}`} />
-                                  {DIFFICULTY_LABELS[route.difficulty]}
-                                </span>
-                                <span className="text-[9px] uppercase tracking-wider text-slate-500">
-                                  {formatActivityType(route.activity_type)}
-                                </span>
-                                {/* Silent when there is no training data to score
-                                  against, rather than showing a zero. */}
-                                <ReadinessBadge readiness={readinessByRoute[route.id]} />
-                                <WeatherAlertBadgeNear
-                                  lat={route.coordinates[1]}
-                                  lng={route.coordinates[0]}
-                                />
-                              </div>
-
-                              {/* A labelled list rather than a pipe-separated
-                                run-on: at 320px the old row wrapped mid-metric,
-                                so a value could land on its own line with no
-                                clue what it measured. */}
-                              <dl className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[11px]">
-                                <div className="flex items-baseline gap-1">
-                                  <dt className="text-slate-500">Distance</dt>
-                                  <dd className="font-tabular font-semibold text-slate-200">
-                                    {route.distance_km.toFixed(1)} km
-                                  </dd>
-                                </div>
-                                {/* Terrain relief sampled near the trailhead, not
-                                  ascent along the trail, so it must not be
-                                  labelled "gain". */}
-                                <div className="flex items-baseline gap-1">
-                                  <dt className="text-slate-500">Relief</dt>
-                                  <dd className="font-tabular font-semibold text-slate-200">
-                                    {route.elevation_gain_m == null
-                                      ? 'unknown'
-                                      : `${route.elevation_gain_m} m`}
-                                  </dd>
-                                </div>
-                                {/* "away" is only true relative to a place the
-                                  user is actually at — never a fallback. */}
-                                {route.distance_from_user_km !== undefined &&
-                                  locationSource !== 'fallback' && (
-                                    <div className="flex items-baseline gap-1">
-                                      <dt className="text-slate-500">Away</dt>
-                                      <dd className="font-tabular font-semibold text-blue-400">
-                                        {route.distance_from_user_km.toFixed(1)} km
-                                      </dd>
-                                    </div>
-                                  )}
-                              </dl>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    });
+                    return list.map((route, idx) => (
+                      <RouteListItem
+                        key={route.id}
+                        route={route}
+                        index={idx}
+                        showSave={Boolean(authUser)}
+                        isSaved={isSaved(route.id)}
+                        onToggleSave={() =>
+                          handleToggleSave({
+                            id: route.id,
+                            type: 'route',
+                            name: route.name,
+                            coordinates: route.coordinates,
+                            difficulty: route.difficulty,
+                            activity_type: route.activity_type,
+                            distance_km: route.distance_km,
+                            elevation_gain_m: route.elevation_gain_m ?? undefined,
+                            photos: route.photos,
+                            place_id: route.place_id,
+                          })
+                        }
+                        onClick={() => handleRouteClick(route)}
+                        readiness={readinessByRoute[route.id]}
+                        showDistanceFromUser={locationSource !== 'fallback'}
+                      />
+                    ));
                   })()}
 
                 {/* ── Mountains Tab ── */}
@@ -1224,79 +1109,27 @@ export default function Home() {
                         </div>
                       );
                     return list.map((mountain, idx) => (
-                      <button
+                      <MountainListItem
                         key={mountain.id}
-                        type="button"
+                        mountain={mountain}
+                        index={idx}
+                        showSave={Boolean(authUser)}
+                        isSaved={isSaved(mountain.id)}
+                        onToggleSave={() =>
+                          handleToggleSave({
+                            id: mountain.id,
+                            type: 'mountain',
+                            name: mountain.name,
+                            coordinates: mountain.coordinates,
+                            elevation_m: mountain.elevation_m ?? undefined,
+                            prominence_m: mountain.prominence_m,
+                            mountain_type: mountain.mountain_type,
+                            photos: mountain.photos,
+                            place_id: mountain.place_id,
+                          })
+                        }
                         onClick={() => handleMountainClick(mountain)}
-                        className="card-enter group w-full rounded-xl border border-white/[0.07] bg-white/5 px-3.5 py-3 text-left transition-all hover:border-slate-500/40 hover:bg-white/[0.08] active:scale-[0.99]"
-                        style={{ animationDelay: `${idx * 30}ms` }}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="line-clamp-1 text-[13px] font-semibold text-slate-100 group-hover:text-white">
-                            {mountain.name}
-                          </p>
-                          <div className="flex flex-shrink-0 items-center gap-1">
-                            {authUser && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleToggleSave({
-                                    id: mountain.id,
-                                    type: 'mountain',
-                                    name: mountain.name,
-                                    coordinates: mountain.coordinates,
-                                    elevation_m: mountain.elevation_m ?? undefined,
-                                    prominence_m: mountain.prominence_m,
-                                    mountain_type: mountain.mountain_type,
-                                    photos: mountain.photos,
-                                    place_id: mountain.place_id,
-                                  });
-                                }}
-                                className="-m-2 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded text-slate-500 transition-colors hover:text-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                                aria-label={isSaved(mountain.id) ? 'Unsave peak' : 'Save peak'}
-                              >
-                                <Bookmark
-                                  aria-hidden="true"
-                                  className={`h-3.5 w-3.5 ${isSaved(mountain.id) ? 'fill-amber-400 text-amber-400' : ''}`}
-                                />
-                              </button>
-                            )}
-                            <span className="flex h-5 w-5 items-center justify-center rounded bg-white/10">
-                              <Mountain aria-hidden="true" className="h-3.5 w-3.5 text-slate-400" />
-                            </span>
-                          </div>
-                        </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                          <span className="inline-flex items-center rounded-full bg-slate-700/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-300 ring-1 ring-white/10">
-                            {mountain.mountain_type}
-                          </span>
-                          {mountain.trail_class && (
-                            <span className="inline-flex items-center rounded-full bg-amber-900/40 px-2 py-0.5 text-[10px] font-medium text-amber-300 ring-1 ring-amber-500/30">
-                              {mountain.trail_class}
-                            </span>
-                          )}
-                          <WeatherAlertBadgeNear
-                            lat={mountain.coordinates[1]}
-                            lng={mountain.coordinates[0]}
-                          />
-                        </div>
-                        <div className="mt-2 flex items-center gap-3 text-[11px]">
-                          <span className="font-tabular font-semibold text-slate-200">
-                            {mountain.elevation_m == null
-                              ? 'Elevation unknown'
-                              : `${mountain.elevation_m} m`}
-                          </span>
-                          {mountain.prominence_m ? (
-                            <>
-                              <span className="text-white/20">·</span>
-                              <span className="font-tabular text-slate-400">
-                                {mountain.prominence_m} m prom
-                              </span>
-                            </>
-                          ) : null}
-                        </div>
-                      </button>
+                      />
                     ));
                   })()}
 
@@ -1328,64 +1161,25 @@ export default function Home() {
                         </div>
                       );
                     return list.map((campsite, idx) => (
-                      <button
+                      <CampsiteListItem
                         key={campsite.id}
-                        type="button"
+                        campsite={campsite}
+                        index={idx}
+                        showSave={Boolean(authUser)}
+                        isSaved={isSaved(campsite.id)}
+                        onToggleSave={() =>
+                          handleToggleSave({
+                            id: campsite.id,
+                            type: 'campsite',
+                            name: campsite.name,
+                            coordinates: campsite.coordinates,
+                            rating: campsite.rating,
+                            photos: campsite.photos,
+                            place_id: campsite.place_id,
+                          })
+                        }
                         onClick={() => handleCampsiteClick(campsite)}
-                        className="card-enter group w-full rounded-xl border border-white/[0.07] bg-white/5 px-3.5 py-3 text-left transition-all hover:border-emerald-500/30 hover:bg-emerald-500/[0.07] active:scale-[0.99]"
-                        style={{ animationDelay: `${idx * 30}ms` }}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="line-clamp-1 text-[13px] font-semibold text-slate-100 group-hover:text-emerald-300">
-                            {campsite.name}
-                          </p>
-                          <div className="flex flex-shrink-0 items-center gap-1">
-                            {authUser && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleToggleSave({
-                                    id: campsite.id,
-                                    type: 'campsite',
-                                    name: campsite.name,
-                                    coordinates: campsite.coordinates,
-                                    rating: campsite.rating,
-                                    photos: campsite.photos,
-                                    place_id: campsite.place_id,
-                                  });
-                                }}
-                                className="-m-2 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded text-slate-500 transition-colors hover:text-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                                aria-label={
-                                  isSaved(campsite.id) ? 'Unsave campsite' : 'Save campsite'
-                                }
-                              >
-                                <Bookmark
-                                  aria-hidden="true"
-                                  className={`h-3.5 w-3.5 ${isSaved(campsite.id) ? 'fill-amber-400 text-amber-400' : ''}`}
-                                />
-                              </button>
-                            )}
-                            <span className="flex h-5 w-5 items-center justify-center rounded bg-emerald-500/15">
-                              <Tent aria-hidden="true" className="h-3.5 w-3.5 text-emerald-400" />
-                            </span>
-                          </div>
-                        </div>
-                        <div className="mt-2 flex items-center gap-1.5">
-                          <span className="inline-flex items-center rounded-full bg-emerald-900/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-300 ring-1 ring-emerald-500/20">
-                            {campsite.type}
-                          </span>
-                          {campsite.rating && (
-                            <span className="font-tabular text-[10px] text-amber-400">
-                              * {campsite.rating.toFixed(1)}
-                            </span>
-                          )}
-                          <WeatherAlertBadgeNear
-                            lat={campsite.coordinates[1]}
-                            lng={campsite.coordinates[0]}
-                          />
-                        </div>
-                      </button>
+                      />
                     ));
                   })()}
 
@@ -1436,54 +1230,13 @@ export default function Home() {
                           </button>
                         </div>
                       );
-                    return list.map((activity) => {
-                      const sourceBadge: Record<string, string> = {
-                        strava: 'bg-orange-500/15 text-orange-300',
-                        coros: 'bg-blue-500/15 text-blue-300',
-                        garmin: 'bg-sky-500/15 text-sky-300',
-                        komoot: 'bg-green-500/15 text-green-300',
-                      };
-                      const sourceLabel: Record<string, string> = {
-                        strava: 'Strava',
-                        coros: 'COROS',
-                        garmin: 'Garmin',
-                        komoot: 'Komoot',
-                      };
-                      const h = Math.floor(activity.moving_time_s / 3600);
-                      const m = Math.floor((activity.moving_time_s % 3600) / 60);
-                      const duration = h > 0 ? `${h}h ${m}m` : `${m}m`;
-                      return (
-                        <button
-                          key={activity.id}
-                          type="button"
-                          onClick={() => setSelectedDetails({ type: 'activity', data: activity })}
-                          className="group w-full rounded-lg border border-white/[0.07] bg-white/5 px-3.5 py-3 text-left transition-colors hover:border-violet-500/40 hover:bg-violet-900/10"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="line-clamp-1 text-[13px] font-semibold text-slate-200 group-hover:text-violet-300">
-                              {activity.name}
-                            </p>
-                            <span
-                              className={`flex-shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${sourceBadge[activity.source] ?? 'bg-slate-700 text-slate-300'}`}
-                            >
-                              {sourceLabel[activity.source] ?? activity.source}
-                            </span>
-                          </div>
-                          <p className="mt-0.5 text-[10px] capitalize text-slate-500">
-                            {activity.sport_type} ·{' '}
-                            {new Date(activity.start_date).toLocaleDateString()}
-                          </p>
-                          <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-400">
-                            <span>{activity.distance_km.toFixed(1)} km</span>
-                            <span className="flex items-center gap-0.5">
-                              <TrendingUp aria-hidden="true" className="h-3 w-3" />{' '}
-                              {activity.elevation_gain_m} m
-                            </span>
-                            <span>{duration}</span>
-                          </div>
-                        </button>
-                      );
-                    });
+                    return list.map((activity) => (
+                      <ActivityListItem
+                        key={activity.id}
+                        activity={activity}
+                        onClick={() => setSelectedDetails({ type: 'activity', data: activity })}
+                      />
+                    ));
                   })()}
 
                 {/* ── Saved Tab ── */}
@@ -1504,24 +1257,11 @@ export default function Home() {
                           </p>
                         </div>
                       );
-                    const typeIcon: Record<string, React.ReactNode> = {
-                      route: <Route aria-hidden="true" className="h-3.5 w-3.5 text-blue-400" />,
-                      mountain: (
-                        <Mountain aria-hidden="true" className="h-3.5 w-3.5 text-slate-300" />
-                      ),
-                      campsite: (
-                        <Tent aria-hidden="true" className="h-3.5 w-3.5 text-emerald-400" />
-                      ),
-                    };
-                    const typeColor: Record<string, string> = {
-                      route: 'border-blue-500/30 hover:bg-blue-500/10',
-                      mountain: 'border-slate-500/30 hover:bg-white/[0.08]',
-                      campsite: 'border-emerald-500/30 hover:bg-emerald-500/[0.07]',
-                    };
                     return list.map((place, idx) => (
-                      <button
+                      <SavedPlaceListItem
                         key={place.id}
-                        type="button"
+                        place={place}
+                        index={idx}
                         onClick={() => {
                           if (place.type === 'route') {
                             const r = routes.find((x) => x.id === place.id);
@@ -1534,54 +1274,8 @@ export default function Home() {
                             if (c) handleCampsiteClick(c);
                           }
                         }}
-                        className={`card-enter group w-full rounded-xl border border-white/[0.07] bg-white/5 px-3.5 py-3 text-left transition-all active:scale-[0.99] ${typeColor[place.type] ?? ''}`}
-                        style={{ animationDelay: `${idx * 30}ms` }}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="line-clamp-1 text-[13px] font-semibold text-slate-100 group-hover:text-white">
-                            {place.name}
-                          </p>
-                          <div className="flex flex-shrink-0 items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleSave(place);
-                              }}
-                              className="rounded p-0.5 text-amber-400 transition-colors hover:text-slate-400"
-                              aria-label="Unsave"
-                            >
-                              <Bookmark aria-hidden="true" className="h-3.5 w-3.5 fill-amber-400" />
-                            </button>
-                            <span className="flex h-5 w-5 items-center justify-center rounded bg-white/10">
-                              {typeIcon[place.type]}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="mt-1.5 flex items-center gap-2 text-[11px] text-slate-400">
-                          <span className="capitalize">{place.type}</span>
-                          {place.elevation_m ? (
-                            <>
-                              <span className="text-white/20">·</span>
-                              <span className="font-tabular">{place.elevation_m} m</span>
-                            </>
-                          ) : null}
-                          {place.distance_km ? (
-                            <>
-                              <span className="text-white/20">·</span>
-                              <span className="font-tabular">
-                                {place.distance_km.toFixed(1)} km
-                              </span>
-                            </>
-                          ) : null}
-                          {place.difficulty ? (
-                            <>
-                              <span className="text-white/20">·</span>
-                              <span className="capitalize">{place.difficulty}</span>
-                            </>
-                          ) : null}
-                        </div>
-                      </button>
+                        onUnsave={() => handleToggleSave(place)}
+                      />
                     ));
                   })()}
               </div>
