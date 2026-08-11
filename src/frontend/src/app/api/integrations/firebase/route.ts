@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
 
-import { getFirebaseConnectionStatus, getFirestoreAdmin } from "@/lib/firebaseAdmin";
+import { getFirebaseConnectionStatus, getFirestoreAdmin } from '@/lib/firebaseAdmin';
 
-export const runtime = "nodejs";
+export const runtime = 'nodejs';
 
 export async function GET() {
   const status = getFirebaseConnectionStatus();
@@ -11,7 +11,7 @@ export async function GET() {
     return NextResponse.json(
       {
         connected: false,
-        provider: "firebase",
+        provider: 'firebase',
         gcpProjectId: process.env.FIREBASE_PROJECT_ID,
         error: status.error,
       },
@@ -21,17 +21,17 @@ export async function GET() {
 
   try {
     const db = getFirestoreAdmin();
-    await db.collection("_health").doc("chat-assistant").set(
+    await db.collection('_health').doc('chat-assistant').set(
       {
         updatedAt: new Date().toISOString(),
-        service: "chat-assistant",
+        service: 'chat-assistant',
       },
       { merge: true }
     );
 
     return NextResponse.json({
       connected: true,
-      provider: "firebase",
+      provider: 'firebase',
       gcpProjectId: status.projectId,
       firestoreWrite: true,
     });
@@ -39,10 +39,10 @@ export async function GET() {
     return NextResponse.json(
       {
         connected: true,
-        provider: "firebase",
+        provider: 'firebase',
         gcpProjectId: status.projectId,
         firestoreWrite: false,
-        error: error instanceof Error ? error.message : "Unknown Firestore error",
+        error: error instanceof Error ? error.message : 'Unknown Firestore error',
       },
       { status: 500 }
     );

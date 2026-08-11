@@ -445,7 +445,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
 ## Docker
 
-The real image is `backend/Dockerfile` (single-stage, Poetry-based, non-root user, `HEALTHCHECK` against `/health`). It's used for local dev via `docker-compose.yml`; the backend is not yet deployed to production. Don't add PostgreSQL/PostGIS/GDAL system packages — this backend has no dependency on them.
+The real image is `src/backend/Dockerfile` (single-stage, Poetry-based, non-root user, `HEALTHCHECK` against `/health`). It's used for local dev via `docker-compose.yml`; the backend is not yet deployed to production. Don't add PostgreSQL/PostGIS/GDAL system packages — this backend has no dependency on them.
 
 ---
 

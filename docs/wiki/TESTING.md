@@ -71,7 +71,7 @@ graph TB
 ### 3.1 Running Tests
 
 ```bash
-cd frontend
+cd src/frontend
 
 # Run all unit tests
 npm run test:unit
@@ -159,7 +159,7 @@ Mutation testing validates the quality of your test suite, not just its coverage
 ### 4.1 Running Mutation Tests
 
 ```bash
-cd frontend
+cd src/frontend
 
 # Run Stryker mutation tests
 npm run test:mutation
@@ -168,11 +168,11 @@ npm run test:mutation
 npx stryker run
 ```
 
-HTML report is generated at `frontend/reports/mutation/index.html`.
+HTML report is generated at `src/frontend/reports/mutation/index.html`.
 
 ### 4.2 Configuration
 
-Config file: `frontend/stryker.config.ts`
+Config file: `src/frontend/stryker.config.ts`
 
 Target files (mutated):
 - `src/lib/gpxParser.ts`
@@ -193,7 +193,7 @@ The mutation score is the percentage of mutations that were killed by the test s
 
 ### 4.4 When It Runs in CI
 
-`mutation.yml` triggers on PRs to `main` when any file under `frontend/src/lib/**` has changed. It does not run on every push to keep CI fast -- it is a targeted gate for the library code that is most critical to test quality.
+`mutation.yml` triggers on PRs to `main` when any file under `src/frontend/src/lib/**` has changed. It does not run on every push to keep CI fast -- it is a targeted gate for the library code that is most critical to test quality.
 
 ---
 
@@ -202,7 +202,7 @@ The mutation score is the percentage of mutations that were killed by the test s
 ### 5.1 Running Tests
 
 ```bash
-cd backend
+cd src/backend
 
 # Run unit tests only
 poetry run pytest -m unit -v --tb=short
@@ -242,7 +242,7 @@ os.environ.setdefault("ENVIRONMENT", "test")
 ### 6.1 Running Tests
 
 ```bash
-cd backend
+cd src/backend
 
 # Integration tests only
 poetry run pytest -m integration -v --tb=short
@@ -281,7 +281,7 @@ Integration tests use `httpx.AsyncClient` or `TestClient` with a `scope="module"
 ### 7.1 Setup
 
 ```bash
-cd frontend
+cd src/frontend
 
 # Install Playwright browsers (first time only)
 npx playwright install chromium
@@ -290,7 +290,7 @@ npx playwright install chromium
 ### 7.2 Running Tests
 
 ```bash
-cd frontend
+cd src/frontend
 
 # Run E2E tests
 npm run test:e2e
@@ -342,7 +342,7 @@ test('user can open route details', async ({ page }) => {
 ### 8.1 Frontend Load Test (Autocannon)
 
 ```bash
-cd frontend
+cd src/frontend
 
 # Run with defaults
 npm run test:load
@@ -360,12 +360,12 @@ npm run test:load
 | `LOAD_TEST_CONNECTIONS` | `10` | Concurrent connections |
 | `LOAD_TEST_DURATION` | `30` | Test duration in seconds |
 
-**Script:** `frontend/tests/performance/load-test.js`
+**Script:** `src/frontend/tests/performance/load-test.js`
 
 ### 8.2 Backend Load Test (Locust)
 
 ```bash
-cd backend
+cd src/backend
 
 # Headless mode (CI-friendly)
 poetry run locust -f tests/performance/locustfile.py \
@@ -381,7 +381,7 @@ poetry run locust -f tests/performance/locustfile.py \
 # Open http://localhost:8089
 ```
 
-**Script:** `backend/tests/performance/locustfile.py`
+**Script:** `src/backend/tests/performance/locustfile.py`
 
 ### 8.3 Performance Baselines
 
@@ -402,7 +402,7 @@ Each workflow in GitHub Actions runs a specific subset of the test suite:
 | --- | --- | --- |
 | `ci.yml` | Lint + type-check + unit tests (Vitest) + build | PR to `main`, push to `main` |
 | `e2e.yml` | Playwright E2E | PR to `main` |
-| `mutation.yml` | Stryker mutation tests | PR to `main` when `frontend/src/lib/**` changed |
+| `mutation.yml` | Stryker mutation tests | PR to `main` when `src/frontend/src/lib/**` changed |
 | `security.yml` | `npm audit` + `pip-audit` + gitleaks secret scan + CodeQL | PR to `main`, push to `main`, weekly Monday |
 | `agent-review.yml` | AI diff review via Claude Haiku | Any PR opened / synchronized / ready |
 
@@ -442,7 +442,7 @@ flowchart TD
 
 ```bash
 # Frontend validation (required)
-cd frontend
+cd src/frontend
 npm run lint              # ESLint -- zero errors
 npm run type-check        # TypeScript -- zero errors
 npm run build             # Next.js -- zero errors
@@ -462,7 +462,7 @@ poetry run pytest tests/ -v --tb=short  # All tests pass
 For documentation-only or config-only changes:
 
 ```bash
-cd frontend
+cd src/frontend
 npm run lint && npm run build
 ```
 

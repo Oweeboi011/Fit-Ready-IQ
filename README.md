@@ -171,7 +171,7 @@ npm install
 
 ### 2. Configure Environment
 
-Create a `.env.local` file in the `frontend/` directory:
+Create a `.env.local` file in the `src/frontend/` directory:
 
 ```bash
 # Required - Google Maps (enables map, places, elevation)
@@ -224,7 +224,7 @@ docker-compose up -d
 ### 5. Backend Development (Optional -- not deployed)
 
 ```bash
-cd backend
+cd src/backend
 poetry install
 poetry run uvicorn src.main:app --reload --port 8000
 ```
@@ -271,7 +271,7 @@ graph LR
         HK[".husky/"]
     end
 
-    subgraph FE["frontend/"]
+    subgraph FE["src/frontend/"]
         SRC["src/"]
         APP["app/ (pages + routes)"]
         COMP["components/"]
@@ -279,7 +279,7 @@ graph LR
         TESTS["tests/"]
     end
 
-    subgraph BE["backend/ (local only)"]
+    subgraph BE["src/backend/ (local only)"]
         BESRC["src/"]
         DOMAIN["domain/"]
         INFRA["infrastructure/"]
@@ -305,15 +305,15 @@ graph LR
 | --- | --- |
 | `.github/` | CI/CD workflows, CODEOWNERS, Dependabot config, PR template |
 | `.husky/` | Git hooks (pre-commit: lint-staged, commit-msg: commitlint) |
-| `frontend/src/app/` | Next.js App Router pages and API routes |
-| `frontend/src/app/api/chat/` | Gemini chat server route |
-| `frontend/src/app/api/strava/` | Strava OAuth exchange and activity routes |
-| `frontend/src/app/api/integrations/` | Firebase health check route |
-| `frontend/src/components/` | React components (MapView, DetailsModal, RouteFilter, etc.) |
-| `frontend/src/lib/` | Shared utilities (GPX parser, polyline decoder, activity types) |
-| `backend/src/domain/` | Domain entities, interfaces, services (local dev only) |
-| `backend/src/infrastructure/` | API clients and database layer (local dev only) |
-| `backend/src/config/` | Settings via pydantic-settings (local dev only) |
+| `src/frontend/src/app/` | Next.js App Router pages and API routes |
+| `src/frontend/src/app/api/chat/` | Gemini chat server route |
+| `src/frontend/src/app/api/strava/` | Strava OAuth exchange and activity routes |
+| `src/frontend/src/app/api/integrations/` | Firebase health check route |
+| `src/frontend/src/components/` | React components (MapView, DetailsModal, RouteFilter, etc.) |
+| `src/frontend/src/lib/` | Shared utilities (GPX parser, polyline decoder, activity types) |
+| `src/backend/src/domain/` | Domain entities, interfaces, services (local dev only) |
+| `src/backend/src/infrastructure/` | API clients and database layer (local dev only) |
+| `src/backend/src/config/` | Settings via pydantic-settings (local dev only) |
 | `docs/solution-plan/` | Master solution plan (source of truth) |
 | `docs/wiki/` | Architecture, API, Deployment, Security, Troubleshooting guides |
 
@@ -324,7 +324,7 @@ graph LR
 ### Unit Tests (Vitest)
 
 ```bash
-cd frontend
+cd src/frontend
 npm run test:unit
 ```
 
@@ -333,7 +333,7 @@ Covers `activityTypes.ts`, `gpxParser.ts`, and `polylineDecoder.ts`. Coverage th
 ### End-to-End Tests (Playwright)
 
 ```bash
-cd frontend
+cd src/frontend
 npm run test:e2e
 ```
 
@@ -342,7 +342,7 @@ Tests the full user journey including map rendering and component interactions. 
 ### Mutation Tests (Stryker)
 
 ```bash
-cd frontend
+cd src/frontend
 npm run test:mutation
 ```
 
@@ -351,7 +351,7 @@ Validates test quality by introducing faults in `gpxParser.ts`, `polylineDecoder
 ### Load Tests (Autocannon)
 
 ```bash
-cd frontend
+cd src/frontend
 npm run test:load
 ```
 
@@ -378,7 +378,7 @@ flowchart LR
 | --- | --- | --- |
 | `ci.yml` | PR to `main`, push to `main` | Lint + type-check + unit tests + build (frontend); ruff + mypy + pytest (backend) |
 | `e2e.yml` | PR to `main` | Playwright E2E tests on Chromium |
-| `mutation.yml` | PR to `main` when `frontend/src/lib/**` changed | Stryker mutation tests |
+| `mutation.yml` | PR to `main` when `src/frontend/src/lib/**` changed | Stryker mutation tests |
 | `security.yml` | PR to `main`, push to `main`, weekly Monday | npm audit + pip-audit + gitleaks secret scan + CodeQL |
 | `agent-review.yml` | Any PR opened/synchronize/ready | AI code review comment via Claude Haiku |
 
@@ -403,7 +403,7 @@ flowchart TD
 ### Deploy Manually
 
 ```bash
-cd frontend
+cd src/frontend
 npx vercel --prod
 ```
 

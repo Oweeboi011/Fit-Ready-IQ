@@ -53,7 +53,7 @@ See §5.3.
 
 ## 3. Running the gates
 
-Everything runs from `frontend/`.
+Everything runs from `src/frontend/`.
 
 ```bash
 npm run quality      # lint + type-check + lint:deps + lint:dup — the whole gate set
@@ -213,7 +213,7 @@ learns to silence. The PR checklist:
    using the word "usually", it belongs in §6, not here.
 2. Run the tool against the current tree **before** wiring it in. If it fails, decide
    consciously: fix, or baseline with a dated comment.
-3. Add the script to `frontend/package.json` and to the `quality` script.
+3. Add the script to `src/frontend/package.json` and to the `quality` script.
 4. Add the step to `.github/workflows/ci.yml` (or `security.yml` for security tools).
 5. Add the row to §2 here, and — if it changes how the repo is developed — record an ADR
    under [`docs/adr/`](../adr/).

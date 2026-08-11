@@ -13,5 +13,5 @@ Focus areas for this project:
 - What happens if `FIREBASE_PRIVATE_KEY` has literal `\n` instead of real newlines in Vercel env vars?
 - How does the 0.5° grid cell key for places cache prevent cache stampedes?
 - What does `[lng, lat]` order in polyline decoding break if reversed?
-- Why does Husky `commit-msg` do `cd frontend` before running commitlint?
+- Why does Husky `commit-msg` do `cd src/frontend` before running commitlint?
 - What mutation score threshold causes CI to fail, and why that number?

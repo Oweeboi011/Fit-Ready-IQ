@@ -1,1 +1,1 @@
-MSGFILE=$(realpath "$1") && cd frontend && npx commitlint --edit "$MSGFILE"
+MSGFILE=$(realpath "$1") && cd src/frontend && npx commitlint --edit "$MSGFILE"

@@ -48,12 +48,12 @@ If a tool/file is missing, mark gate as BLOCKED or N/A with exact reason.
 
 ### 2) Dependency Health
 
-- Backend: review `backend/pyproject.toml`; run `poetry check` if available
+- Backend: review `src/backend/pyproject.toml`; run `poetry check` if available
 - Frontend: run `npm audit --audit-level=high`; run `npm ci` when practical
 
 ### 3) Deployment Readiness
 
-- Validate `frontend/vercel.json`
+- Validate `src/frontend/vercel.json`
 - Validate `firebase.json`, `firestore.rules`, `firestore.indexes.json`, `storage.rules`
 - Check env-var docs alignment (Maps, Gemini, Firebase Admin, Strava)
 
@@ -91,8 +91,8 @@ Always report improvement opportunities:
 
 ## Post-Edit Validation
 
-- TS/TSX edits: `cd frontend && npm run lint && npm run build`
-- Python edits: `cd backend && poetry run ruff check . && poetry run ruff format --check .`
+- TS/TSX edits: `cd src/frontend && npm run lint && npm run build`
+- Python edits: `cd src/backend && poetry run ruff check . && poetry run ruff format --check .`
 - Docs edits: run one lightweight sanity check for affected runtime area
 
 ## Output Contract

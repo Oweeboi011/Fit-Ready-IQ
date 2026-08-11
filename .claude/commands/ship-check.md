@@ -1,6 +1,6 @@
 Pre-ship readiness check for the current branch. Run before opening a PR.
 
-Check all of the following from `frontend/` and report a punch list:
+Check all of the following from `src/frontend/` and report a punch list:
 
 1. `npm run lint` — must be clean
 2. `npm run type-check` — must be clean  

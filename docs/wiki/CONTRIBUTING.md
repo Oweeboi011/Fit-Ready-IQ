@@ -54,7 +54,7 @@ flowchart TD
 4. **Document** -- Update relevant docs if behavior changed (Section 7).
 5. **Commit** -- Use conventional commit messages (Section 4). The `commit-msg` hook enforces format automatically.
 6. **PR** -- Open a pull request directly to `main`. A PR template is pre-filled on GitHub -- complete all sections.
-7. **CI gates** -- `ci.yml` runs lint, type-check, unit tests, and build. `e2e.yml` runs Playwright. `security.yml` runs npm audit, pip-audit, gitleaks, and CodeQL. `mutation.yml` runs if `frontend/src/lib/**` changed. All must pass before merge.
+7. **CI gates** -- `ci.yml` runs lint, type-check, unit tests, and build. `e2e.yml` runs Playwright. `security.yml` runs npm audit, pip-audit, gitleaks, and CodeQL. `mutation.yml` runs if `src/frontend/src/lib/**` changed. All must pass before merge.
 8. **AI review** -- `agent-review.yml` posts an automated Claude Haiku review comment on every non-draft PR. Address any flagged issues.
 9. **Merge** -- After all gates pass and a reviewer approves, merge to `main`. Vercel deploys automatically.
 
@@ -172,7 +172,7 @@ These hooks run without any manual setup. If a commit is rejected by `commit-msg
 
 ```mermaid
 graph TD
-    subgraph Frontend["frontend/src/"]
+    subgraph Frontend["src/frontend/src/"]
         App["app/<br/>(Pages + API Routes)"]
         Comp["components/<br/>(UI Components)"]
         Lib["lib/<br/>(Shared Utilities)"]
@@ -200,7 +200,7 @@ graph TD
 All of these must pass with zero errors:
 
 ```bash
-cd frontend
+cd src/frontend
 
 # Lint check (ESLint)
 npm run lint
@@ -221,7 +221,7 @@ npm audit --audit-level=high
 ### 6.2 Backend Validation (if backend/ files changed)
 
 ```bash
-cd backend
+cd src/backend
 
 # Install dependencies
 poetry install
@@ -364,9 +364,9 @@ git clone https://github.com/Oweeboi011/Fit-Ready-IQ.git
 cd Fit-Ready-IQ
 
 # Frontend setup
-cd frontend
+cd src/frontend
 npm install  # Also installs Husky hooks automatically via the prepare script
-cp ../frontend/.env.example .env.local  # Copy from frontend/.env.example, then fill in API keys
+cp .env.example .env.local  # Copy from src/frontend/.env.example, then fill in API keys
 
 # Start development
 npm run dev

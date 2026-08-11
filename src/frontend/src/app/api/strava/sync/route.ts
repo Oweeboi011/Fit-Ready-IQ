@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getFirestoreAdmin } from "@/lib/firebaseAdmin";
+import { NextRequest, NextResponse } from 'next/server';
+import { getFirestoreAdmin } from '@/lib/firebaseAdmin';
 
-export const runtime = "nodejs";
+export const runtime = 'nodejs';
 
 /**
  * POST /api/strava/sync
@@ -54,7 +54,7 @@ interface StravaActivity {
 
 const MAX_PAGES = 10; // cap at 300 activities (10 × 30) per sync
 const PER_PAGE = 30;
-const COLLECTION = "strava_activities";
+const COLLECTION = 'strava_activities';
 
 export async function POST(request: NextRequest) {
   let token: string;
@@ -64,17 +64,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     token = body.token;
     uid = body.uid;
-    if (!token || typeof token !== "string") throw new Error("missing token");
-    if (!uid || typeof uid !== "string") throw new Error("missing uid");
+    if (!token || typeof token !== 'string') throw new Error('missing token');
+    if (!uid || typeof uid !== 'string') throw new Error('missing uid');
   } catch (err) {
     return NextResponse.json(
-      { error: `Invalid request body: ${err instanceof Error ? err.message : "unknown"}` },
+      { error: `Invalid request body: ${err instanceof Error ? err.message : 'unknown'}` },
       { status: 400 }
     );
   }
 
   const db = getFirestoreAdmin();
-  const collectionRef = db.collection("users").doc(uid).collection(COLLECTION);
+  const collectionRef = db.collection('users').doc(uid).collection(COLLECTION);
 
   let totalFetched = 0;
   let synced = 0;
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       );
 
       if (res.status === 401) {
-        return NextResponse.json({ error: "Strava token expired or invalid" }, { status: 401 });
+        return NextResponse.json({ error: 'Strava token expired or invalid' }, { status: 401 });
       }
 
       if (!res.ok) {
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
 
       activities = (await res.json()) as StravaActivity[];
     } catch (err) {
-      errors.push(`Page ${page}: fetch failed — ${err instanceof Error ? err.message : "unknown"}`);
+      errors.push(`Page ${page}: fetch failed — ${err instanceof Error ? err.message : 'unknown'}`);
       break;
     }
 
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
           summary_polyline: act.map?.summary_polyline ?? null,
           location_city: act.location_city ?? null,
           location_country: act.location_country ?? null,
-          visibility: act.visibility ?? "everyone",
+          visibility: act.visibility ?? 'everyone',
           trainer: act.trainer ?? false,
           commute: act.commute ?? false,
           manual: act.manual ?? false,
@@ -153,7 +153,9 @@ export async function POST(request: NextRequest) {
     try {
       await batch.commit();
     } catch (err) {
-      errors.push(`Batch write failed on page ${page}: ${err instanceof Error ? err.message : "unknown"}`);
+      errors.push(
+        `Batch write failed on page ${page}: ${err instanceof Error ? err.message : 'unknown'}`
+      );
       // Continue — partial sync is better than nothing
     }
 
@@ -163,17 +165,22 @@ export async function POST(request: NextRequest) {
 
   // Write a sync-manifest doc so the admin page can report sync status
   try {
-    await db.collection("users").doc(uid).set(
-      {
-        strava_sync: {
-          last_synced_at: new Date().toISOString(),
-          total_activities: synced,
-          errors: errors.length > 0 ? errors.slice(0, 5) : null,
+    await db
+      .collection('users')
+      .doc(uid)
+      .set(
+        {
+          strava_sync: {
+            last_synced_at: new Date().toISOString(),
+            total_activities: synced,
+            errors: errors.length > 0 ? errors.slice(0, 5) : null,
+          },
         },
-      },
-      { merge: true }
-    );
-  } catch { /* non-critical */ }
+        { merge: true }
+      );
+  } catch {
+    /* non-critical */
+  }
 
   return NextResponse.json({
     ok: true,
