@@ -6,6 +6,14 @@ Fit-Ready-IQ is a comprehensive web application that helps mountaineers, hikers,
 
 ![Fit Ready IQ landing page](docs/screenshots/landing.png)
 
+<details>
+<summary>More screenshots</summary>
+
+![How it works](docs/screenshots/landing-features.png)
+![Pricing](docs/screenshots/landing-pricing.png)
+
+</details>
+
 ---
 
 ## Overview
