@@ -1,4 +1,4 @@
-import type { DetailsData } from '@/components/DetailsModal';
+import type { DetailsData } from '@/lib/detailsData';
 import type { Activity } from '@/lib/activityTypes';
 import type { Route, Mountain, Campsite } from '@/lib/placesTypes';
 
