@@ -73,7 +73,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const db = getFirestoreAdmin();
+  let db: ReturnType<typeof getFirestoreAdmin>;
+  try {
+    db = getFirestoreAdmin();
+  } catch (err) {
+    console.error('strava/sync Firestore init failed:', err);
+    return NextResponse.json({ error: 'Firestore unavailable' }, { status: 500 });
+  }
   const collectionRef = db.collection('users').doc(uid).collection(COLLECTION);
 
   let totalFetched = 0;
