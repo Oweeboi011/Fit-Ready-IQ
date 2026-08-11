@@ -52,7 +52,7 @@ import { recordWeatherAlerts } from '@/lib/weatherAlertCache';
 import type { WeatherAlert } from '@/lib/weatherAlerts';
 import { WeatherAlertChips } from '@/components/WeatherAlertBadge';
 
-interface RouteDetails {
+export interface RouteDetails {
   type: 'route';
   id: string;
   name: string;
@@ -76,7 +76,7 @@ interface RouteDetails {
   };
 }
 
-interface MountainDetails {
+export interface MountainDetails {
   type: 'mountain';
   id: string;
   name: string;
@@ -99,7 +99,7 @@ interface MountainDetails {
   };
 }
 
-interface CampsiteDetails {
+export interface CampsiteDetails {
   type: 'campsite';
   id: string;
   name: string;
@@ -111,7 +111,7 @@ interface CampsiteDetails {
   place_id?: string;
 }
 
-interface ActivityDetails {
+export interface ActivityDetails {
   type: 'activity';
   id: string;
   name: string;
@@ -127,7 +127,7 @@ interface ActivityDetails {
   external_id?: string;
 }
 
-type DetailsData = RouteDetails | MountainDetails | CampsiteDetails | ActivityDetails;
+export type DetailsData = RouteDetails | MountainDetails | CampsiteDetails | ActivityDetails;
 
 interface WeatherResult {
   best: string;

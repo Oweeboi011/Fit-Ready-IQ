@@ -82,6 +82,16 @@ import {
 } from '@/lib/routeDifficulty';
 import { locationProblemMessage, useUserLocation } from '@/lib/useUserLocation';
 import { buttonGhost, buttonPrimary, buttonSecondary, buttonSize } from '@/lib/ui';
+import type { Route as RouteData, Mountain as MountainData, Campsite } from '@/lib/placesTypes';
+import {
+  haversineKm,
+  fetchElevations,
+  fetchTravelDistances,
+  trailClassFromElevation,
+} from '@/lib/mapsGeometry';
+import { signInErrorMessage } from '@/lib/firebaseAuthErrors';
+import { SEARCH_RADIUS_KM, withinSearchRadius } from '@/lib/placesGeometry';
+import { toDetailsModalData, type SelectedDetails } from '@/lib/detailsModalMapper';
 
 const libraries: ('places' | 'geometry')[] = ['places', 'geometry'];
 
@@ -101,129 +111,6 @@ const MapView = dynamic(() => import('@/components/MapView'), {
     </div>
   ),
 });
-
-interface Route {
-  id: string;
-  name: string;
-  coordinates: [number, number];
-  distance_km: number;
-  /** `null` when the Elevation API could not tell us. Never invent a value. */
-  elevation_gain_m: number | null;
-  difficulty: Difficulty;
-  activity_type: string;
-  polyline?: [number, number][];
-  photos?: string[];
-  place_id?: string;
-  distance_from_user_km?: number;
-  jumpoff_elevation?: number;
-  summit_elevation?: number;
-  strava_segment?: {
-    id: string;
-    name: string;
-    distance: number;
-    avg_grade: number;
-    kom_time?: string;
-    qom_time?: string;
-    total_efforts?: number;
-  };
-}
-
-// Yosemite Decimal System trail class derived from summit elevation. Without a
-// known elevation there is no class to give — say so rather than guess Class 1.
-function trailClassFromElevation(elevationM: number | null): string | undefined {
-  if (elevationM == null) return undefined;
-  if (elevationM >= 3000) return 'Class 4-5';
-  if (elevationM >= 2000) return 'Class 3-4';
-  if (elevationM >= 1000) return 'Class 2-3';
-  if (elevationM >= 500) return 'Class 2';
-  return 'Class 1';
-}
-
-interface Mountain {
-  id: string;
-  name: string;
-  coordinates: [number, number];
-  /** `null` when the Elevation API could not tell us. Never invent a value. */
-  elevation_m: number | null;
-  prominence_m?: number;
-  trail_class?: string;
-  mountain_type: string;
-  photos?: string[];
-  place_id?: string;
-  jumpoff_elevation?: number;
-  summit_elevation?: number;
-  strava_segment?: {
-    id: string;
-    name: string;
-    distance: number;
-    avg_grade: number;
-    kom_time?: string;
-    qom_time?: string;
-    total_efforts?: number;
-  };
-}
-
-interface Campsite {
-  id: string;
-  name: string;
-  coordinates: [number, number];
-  type: string;
-  rating?: number;
-  amenities?: string[];
-  photos?: string[];
-  place_id?: string;
-}
-
-/**
- * Firebase error codes → something a hiker can act on.
- *
- * The misconfiguration codes (`unauthorized-domain`, `operation-not-allowed`)
- * describe a mistake we made, not one the user can fix, so they get an apology
- * rather than instructions for a console they cannot open. The real cause still
- * reaches us through `console.error`.
- */
-function signInErrorMessage(code: string, provider: 'Google' | 'Apple'): string {
-  switch (code) {
-    case 'auth/popup-blocked':
-      return 'Your browser blocked the sign-in window. Allow pop-ups for this site and try again.';
-    case 'auth/network-request-failed':
-      return 'Network trouble during sign-in. Check your connection and try again.';
-    case 'auth/unauthorized-domain':
-    case 'auth/operation-not-allowed':
-      return `${provider} sign-in isn't available right now. We're on it — try another sign-in option.`;
-    case 'auth/account-exists-with-different-credential':
-      return 'That email is already registered with a different sign-in method.';
-    default:
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        return "You're offline. Reconnect and try again.";
-      }
-      return `${provider} sign-in didn't complete. Try again.`;
-  }
-}
-
-/**
- * How far from the user we are willing to call a place "nearby".
- *
- * Google's `textSearch` treats `location` + `radius` as a *bias*, not a filter,
- * so a query for hiking trails run from Manila reliably returns campgrounds in
- * California. Those results then landed in the sidebar and, worse, in the map's
- * `fitBounds`, which is why the map opened zoomed out to the whole planet.
- * Nothing upstream enforces this, so we enforce it here.
- */
-const SEARCH_RADIUS_KM = 80;
-
-/** Drop anything the Places API returned that is not actually near the user. */
-function withinSearchRadius<T extends { coordinates: [number, number] }>(
-  items: T[],
-  from: { lat: number; lng: number } | null
-): T[] {
-  if (!from) return items;
-  return items.filter((item) => {
-    const [lng, lat] = item.coordinates;
-    if (typeof lat !== 'number' || typeof lng !== 'number') return false;
-    return haversineDistanceKm(from.lat, from.lng, lat, lng) <= SEARCH_RADIUS_KM;
-  });
-}
 
 type TabId = 'routes' | 'mountains' | 'campsites' | 'history' | 'saved';
 
@@ -263,12 +150,12 @@ const COLLECTION_LABELS: Record<CollectionName, string> = {
 export default function Home() {
   // The shield only renders for allowlisted accounts; the API verifies again.
   const adminGate = useAdminGate();
-  const [routes, setRoutes] = useState<Route[]>([]);
+  const [routes, setRoutes] = useState<RouteData[]>([]);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   // Guards the save effect so it does not immediately overwrite stored
   // preferences with the defaults before the restore has run.
   const [preferencesRestored, setPreferencesRestored] = useState(false);
-  const [mountains, setMountains] = useState<Mountain[]>([]);
+  const [mountains, setMountains] = useState<MountainData[]>([]);
   const [campsites, setCampsites] = useState<Campsite[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -280,13 +167,7 @@ export default function Home() {
   const focusUserLocationRef = useRef<() => void>(() => {});
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [selectedDetails, setSelectedDetails] = useState<
-    | { type: 'route'; data: Route }
-    | { type: 'mountain'; data: Mountain }
-    | { type: 'campsite'; data: Campsite }
-    | { type: 'activity'; data: Activity }
-    | null
-  >(null);
+  const [selectedDetails, setSelectedDetails] = useState<SelectedDetails>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
@@ -405,9 +286,9 @@ export default function Home() {
   // Annotate each route with its distance from `from`, then sort nearest-first.
   // Route.coordinates is [lng, lat] (GeoJSON order); `from` is {lat, lng}.
   const sortRoutesByDistance = (
-    list: Route[],
+    list: RouteData[],
     from: { lat: number; lng: number } | null
-  ): Route[] => {
+  ): RouteData[] => {
     if (!from) return list;
     return list
       .map((route) => ({
@@ -601,7 +482,7 @@ export default function Home() {
   /** A read on the terrain around the user, from data already loaded. */
   const terrainPulse = useMemo(() => {
     const withElevation = mountains.filter((m) => m.elevation_m != null);
-    const highest = withElevation.reduce<Mountain | null>(
+    const highest = withElevation.reduce<MountainData | null>(
       (best, m) => (best == null || m.elevation_m! > best.elevation_m! ? m : best),
       null
     );
@@ -878,170 +759,6 @@ export default function Home() {
     }
   };
 
-  // Helper function to fetch place photos on demand (called lazily when detail modal opens)
-  const fetchPlaceDetails = async (placeId: string): Promise<{ photos: string[] }> => {
-    try {
-      if (!window.google || !window.google.maps || !window.google.maps.places) {
-        console.warn('Google Maps API not loaded — no details available');
-        return { photos: [] };
-      }
-
-      return new Promise((resolve) => {
-        const placesService = new google.maps.places.PlacesService(document.createElement('div'));
-
-        placesService.getDetails(
-          {
-            placeId,
-            fields: ['photos'],
-          },
-          (place, status) => {
-            if (status !== google.maps.places.PlacesServiceStatus.OK) {
-              resolve({ photos: [] });
-              return;
-            }
-
-            const photoUrls = (place?.photos || [])
-              .slice(0, 6)
-              .map((photo) => photo.getUrl({ maxWidth: 800, maxHeight: 600 }));
-
-            resolve({ photos: photoUrls });
-          }
-        );
-      });
-    } catch (error) {
-      console.error('Error in fetchPlaceDetails:', error);
-      return { photos: [] };
-    }
-  };
-
-  // Deterministic hash from a string — avoids Math.random() in render
-  const hashStr = (s: string): number => {
-    let h = 0;
-    for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
-    return Math.abs(h);
-  };
-
-  // `generateStravaSegment` used to live here. It fabricated segment ids, KOM/QOM
-  // times and effort counts from a hash of the place name and rendered them under
-  // Strava branding — invented athletic records attributed to real athletes. The
-  // `strava_segment` field remains on the types so genuine Strava segment data can
-  // populate it later; nothing writes it today.
-
-  // Batch-fetch real elevations from Google ElevationService (max 512 locations per request)
-  /**
-   * Look up ground elevation for a batch of points.
-   *
-   * A `null` entry means "we do not know", and callers must treat it that way —
-   * never as zero, and never as a licence to substitute a plausible-looking
-   * number. Silently swallowing a failed status here is what previously made
-   * every route report exactly 50 m of gain and emptied the peaks tab, because
-   * downstream code coerced the nulls into 0 and then floored or filtered them.
-   */
-  const fetchElevations = (
-    locations: google.maps.LatLngLiteral[]
-  ): Promise<{ values: (number | null)[]; failed: boolean }> => {
-    return new Promise((resolve) => {
-      if (!locations.length) {
-        resolve({ values: [], failed: false });
-        return;
-      }
-      const elevationService = new google.maps.ElevationService();
-      const CHUNK = 512;
-      const chunks: google.maps.LatLngLiteral[][] = [];
-      for (let i = 0; i < locations.length; i += CHUNK) chunks.push(locations.slice(i, i + CHUNK));
-      Promise.all(
-        chunks.map(
-          (chunk) =>
-            new Promise<{ values: (number | null)[]; failed: boolean }>((res) => {
-              elevationService.getElevationForLocations({ locations: chunk }, (results, status) => {
-                if (status === google.maps.ElevationStatus.OK && results) {
-                  res({
-                    values: results.map((r) =>
-                      r.elevation != null ? Math.round(r.elevation) : null
-                    ),
-                    failed: false,
-                  });
-                } else {
-                  // OVER_QUERY_LIMIT / REQUEST_DENIED / INVALID_REQUEST all land
-                  // here. Surface it — an unenabled or over-quota Elevation API
-                  // is a configuration problem, not missing terrain.
-                  console.error(`ElevationService failed: ${status}`);
-                  res({ values: chunk.map(() => null), failed: true });
-                }
-              });
-            })
-        )
-      ).then((all) =>
-        resolve({
-          values: all.flatMap((r) => r.values),
-          failed: all.some((r) => r.failed),
-        })
-      );
-    });
-  };
-
-  const haversineKm = (a: [number, number], b: [number, number]): number => {
-    const toRad = (v: number) => (v * Math.PI) / 180;
-    const R = 6371;
-    const dLat = toRad(b[1] - a[1]);
-    const dLng = toRad(b[0] - a[0]);
-    const lat1 = toRad(a[1]);
-    const lat2 = toRad(b[1]);
-    const h =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    return 2 * R * Math.asin(Math.sqrt(h));
-  };
-
-  const fetchTravelDistances = (
-    origin: google.maps.LatLngLiteral,
-    destinations: google.maps.LatLngLiteral[]
-  ): Promise<(number | null)[]> => {
-    return new Promise((resolve) => {
-      if (!destinations.length) {
-        resolve([]);
-        return;
-      }
-
-      const service = new google.maps.DistanceMatrixService();
-      const CHUNK = 25;
-      const chunks: google.maps.LatLngLiteral[][] = [];
-      for (let i = 0; i < destinations.length; i += CHUNK) {
-        chunks.push(destinations.slice(i, i + CHUNK));
-      }
-
-      Promise.all(
-        chunks.map(
-          (chunk) =>
-            new Promise<(number | null)[]>((res) => {
-              service.getDistanceMatrix(
-                {
-                  origins: [origin],
-                  destinations: chunk,
-                  travelMode: google.maps.TravelMode.WALKING,
-                  unitSystem: google.maps.UnitSystem.METRIC,
-                },
-                (result, status) => {
-                  if (
-                    status === google.maps.DistanceMatrixStatus.OK &&
-                    result?.rows?.[0]?.elements
-                  ) {
-                    res(
-                      result.rows[0].elements.map((el) =>
-                        el.status === 'OK' ? (el.distance?.value ?? null) : null
-                      )
-                    );
-                    return;
-                  }
-                  res(chunk.map(() => null));
-                }
-              );
-            })
-        )
-      ).then((all) => resolve(all.flat()));
-    });
-  };
-
   // Load activities from localStorage and refresh Strava on mount
   useEffect(() => {
     const stored = loadActivities();
@@ -1174,8 +891,8 @@ export default function Home() {
     const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
     const applyCache = (data: {
-      routes: Route[];
-      mountains: Mountain[];
+      routes: RouteData[];
+      mountains: MountainData[];
       campsites: Campsite[];
       location?: { lat: number; lng: number; address?: string };
     }) => {
@@ -1207,8 +924,8 @@ export default function Home() {
         } = JSON.parse(cached) as {
           ts: number;
           v?: number;
-          routes: Route[];
-          mountains: Mountain[];
+          routes: RouteData[];
+          mountains: MountainData[];
           campsites: Campsite[];
           location?: { lat: number; lng: number; address?: string };
         };
@@ -1307,8 +1024,8 @@ export default function Home() {
             const cacheData = (await cacheRes.json()) as {
               hit: boolean;
               v?: number;
-              routes?: Route[];
-              mountains?: Mountain[];
+              routes?: RouteData[];
+              mountains?: MountainData[];
               campsites?: Campsite[];
             };
             if (
@@ -1355,7 +1072,7 @@ export default function Home() {
         // const routesData = await routesResponse.json();
 
         // Fetch mountains using Google Maps Places API
-        let mountains: Mountain[] = [];
+        let mountains: MountainData[] = [];
         try {
           const placesService = new google.maps.places.PlacesService(document.createElement('div'));
 
@@ -1508,7 +1225,7 @@ export default function Home() {
 
         // Fetch routes — use textSearch (not nearbySearch) so the 50 km hard cap
         // doesn't apply and all Google Maps hiking-tagged areas are surfaced.
-        let routes: Route[] = [];
+        let routes: RouteData[] = [];
         try {
           const placesService = new google.maps.places.PlacesService(document.createElement('div'));
 
@@ -1920,11 +1637,11 @@ export default function Home() {
     fetchRoutes();
   }, [isLoaded, locationStatus, locationKey, placesAttempt]);
 
-  const handleRouteClick = (route: Route) => {
+  const handleRouteClick = (route: RouteData) => {
     setSelectedDetails({ type: 'route', data: route });
   };
 
-  const handleMountainClick = (mountain: Mountain) => {
+  const handleMountainClick = (mountain: MountainData) => {
     setSelectedDetails({ type: 'mountain', data: mountain });
   };
 
@@ -3170,68 +2887,7 @@ export default function Home() {
           setSelectedDetails(null);
           setIsDeviceModalOpen(true);
         }}
-        data={
-          selectedDetails?.type === 'route'
-            ? {
-                type: 'route' as const,
-                id: selectedDetails.data.id,
-                name: selectedDetails.data.name,
-                coordinates: selectedDetails.data.coordinates,
-                distance_km: selectedDetails.data.distance_km,
-                elevation_gain_m: selectedDetails.data.elevation_gain_m,
-                difficulty: selectedDetails.data.difficulty,
-                activity_type: selectedDetails.data.activity_type,
-                photos: selectedDetails.data.photos,
-                place_id: selectedDetails.data.place_id,
-                jumpoff_elevation: selectedDetails.data.jumpoff_elevation,
-                summit_elevation: selectedDetails.data.summit_elevation,
-                strava_segment: selectedDetails.data.strava_segment,
-              }
-            : selectedDetails?.type === 'mountain'
-              ? {
-                  type: 'mountain' as const,
-                  id: selectedDetails.data.id,
-                  name: selectedDetails.data.name,
-                  coordinates: selectedDetails.data.coordinates,
-                  elevation_m: selectedDetails.data.elevation_m,
-                  prominence_m: selectedDetails.data.prominence_m || 0,
-                  mountain_type: selectedDetails.data.mountain_type || 'peak',
-                  jumpoff_elevation: selectedDetails.data.jumpoff_elevation,
-                  summit_elevation: selectedDetails.data.summit_elevation,
-                  photos: selectedDetails.data.photos,
-                  place_id: selectedDetails.data.place_id,
-                  strava_segment: selectedDetails.data.strava_segment,
-                }
-              : selectedDetails?.type === 'campsite'
-                ? {
-                    type: 'campsite' as const,
-                    id: selectedDetails.data.id,
-                    name: selectedDetails.data.name,
-                    coordinates: selectedDetails.data.coordinates,
-                    campsite_type: selectedDetails.data.type || 'campsite',
-                    rating: selectedDetails.data.rating,
-                    amenities: selectedDetails.data.amenities || [],
-                    photos: selectedDetails.data.photos,
-                    place_id: selectedDetails.data.place_id,
-                  }
-                : selectedDetails?.type === 'activity'
-                  ? {
-                      type: 'activity' as const,
-                      id: selectedDetails.data.id,
-                      name: selectedDetails.data.name,
-                      source: selectedDetails.data.source,
-                      sport_type: selectedDetails.data.sport_type,
-                      start_date: selectedDetails.data.start_date,
-                      distance_km: selectedDetails.data.distance_km,
-                      elevation_gain_m: selectedDetails.data.elevation_gain_m,
-                      moving_time_s: selectedDetails.data.moving_time_s,
-                      avg_heartrate: selectedDetails.data.avg_heartrate,
-                      max_heartrate: selectedDetails.data.max_heartrate,
-                      external_id: selectedDetails.data.external_id,
-                      coordinates: selectedDetails.data.start_latlng,
-                    }
-                  : null
-        }
+        data={toDetailsModalData(selectedDetails)}
       />
       <ChatBot />
     </main>
