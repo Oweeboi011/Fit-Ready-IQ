@@ -5,7 +5,6 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { useJsApiLoader } from '@react-google-maps/api';
-import { type User as FirebaseUser } from 'firebase/auth';
 import {
   Mountain,
   Tent,
@@ -29,27 +28,9 @@ import RouteFilter, { DEFAULT_FILTERS, type FilterState } from '@/components/Rou
 import ConnectDevicesModal from '@/components/ConnectDevicesModal';
 import DetailsModal from '@/components/DetailsModal';
 import ProfileModal from '@/components/ProfileModal';
-import { getValidStravaToken } from '@/lib/stravaAuth';
 import { haversineDistanceKm } from '@/lib/gpxParser';
-import {
-  type Activity,
-  type ActivityPolyline,
-  loadActivities,
-  saveActivities,
-  mergeActivities,
-  SOURCE_BG,
-  SOURCE_LABELS,
-  formatDuration,
-  formatActivityType,
-} from '@/lib/activityTypes';
-import { decodePolyline } from '@/lib/polylineDecoder';
-import {
-  isFirebaseAuthConfigured,
-  onFirebaseAuthStateChanged,
-  signInWithGoogle,
-  signInWithApple,
-  signOutFirebaseUser,
-} from '@/lib/firebaseClient';
+import { saveActivities, mergeActivities, formatActivityType } from '@/lib/activityTypes';
+import { isFirebaseAuthConfigured } from '@/lib/firebaseClient';
 import ChatBot from '@/components/ChatBot';
 import { ReadinessBadge } from '@/components/ReadinessPanel';
 import { computeReadiness } from '@/lib/readiness';
@@ -74,12 +55,7 @@ import { useSavedPlaces, type SavedPlace } from '@/lib/useSavedPlaces';
 import { useAdminGate } from '@/lib/useAdminGate';
 import { isPlanId, rememberSelectedPlan } from '@/lib/plans';
 import { decodePlaceRef, encodePlaceRef, type PlaceRef } from '@/lib/placeUrl';
-import {
-  DIFFICULTY_LABELS,
-  classifyDifficulty,
-  normaliseDifficulty,
-  type Difficulty,
-} from '@/lib/routeDifficulty';
+import { DIFFICULTY_LABELS, classifyDifficulty, normaliseDifficulty } from '@/lib/routeDifficulty';
 import { locationProblemMessage, useUserLocation } from '@/lib/useUserLocation';
 import { buttonGhost, buttonPrimary, buttonSecondary, buttonSize } from '@/lib/ui';
 import type { Route as RouteData, Mountain as MountainData, Campsite } from '@/lib/placesTypes';
@@ -89,9 +65,10 @@ import {
   fetchTravelDistances,
   trailClassFromElevation,
 } from '@/lib/mapsGeometry';
-import { signInErrorMessage } from '@/lib/firebaseAuthErrors';
 import { SEARCH_RADIUS_KM, withinSearchRadius } from '@/lib/placesGeometry';
 import { toDetailsModalData, type SelectedDetails } from '@/lib/detailsModalMapper';
+import { useFirebaseAuth } from '@/lib/useFirebaseAuth';
+import { useStravaSync } from '@/lib/useStravaSync';
 
 const libraries: ('places' | 'geometry')[] = ['places', 'geometry'];
 
@@ -168,11 +145,9 @@ export default function Home() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedDetails, setSelectedDetails] = useState<SelectedDetails>(null);
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
-  const [authBusy, setAuthBusy] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [stravaSyncState, setStravaSyncState] = useState<'idle' | 'syncing' | 'failed'>('idle');
+  const { authUser, authBusy, authError, setAuthError, signInGoogle, signInApple, signOut } =
+    useFirebaseAuth();
+  const { activities, setActivities, stravaSyncState } = useStravaSync(authUser?.uid);
   // True when the Elevation API refused a request, so the UI can say elevations
   // are missing instead of quietly showing whatever the fallbacks produced.
   const [elevationUnavailable, setElevationUnavailable] = useState(false);
@@ -701,177 +676,6 @@ export default function Home() {
   );
 
   const { isLoaded, loadError } = useJsApiLoader(googleMapsLoaderOptions);
-
-  useEffect(() => {
-    if (!isFirebaseAuthConfigured()) {
-      return;
-    }
-    const unsubscribe = onFirebaseAuthStateChanged((user) => {
-      setAuthUser(user);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const handleGoogleSignIn = async () => {
-    setAuthBusy(true);
-    setAuthError(null);
-    try {
-      await signInWithGoogle();
-    } catch (err: unknown) {
-      const code = (err as { code?: string })?.code ?? '';
-      // User closed the popup or clicked away — not an error worth surfacing
-      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
-        return;
-      }
-      console.error('Google sign-in failed:', err);
-      setAuthError(signInErrorMessage(code, 'Google'));
-    } finally {
-      setAuthBusy(false);
-    }
-  };
-
-  const handleAppleSignIn = async () => {
-    setAuthBusy(true);
-    setAuthError(null);
-    try {
-      await signInWithApple();
-    } catch (err: unknown) {
-      const code = (err as { code?: string })?.code ?? '';
-      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
-        return;
-      }
-      console.error('Apple sign-in failed:', err);
-      setAuthError(signInErrorMessage(code, 'Apple'));
-    } finally {
-      setAuthBusy(false);
-    }
-  };
-
-  const handleGoogleSignOut = async () => {
-    setAuthBusy(true);
-    try {
-      await signOutFirebaseUser();
-    } catch (err) {
-      console.error('Sign-out failed:', err);
-      setAuthError("We couldn't sign you out. Try again.");
-    } finally {
-      setAuthBusy(false);
-    }
-  };
-
-  // Load activities from localStorage and refresh Strava on mount
-  useEffect(() => {
-    const stored = loadActivities();
-    if (stored.length > 0) setActivities(stored);
-
-    (async () => {
-      const token = await getValidStravaToken();
-      if (!token) return;
-
-      // Throttle Strava refresh — skip if fetched within last 5 minutes
-      const STRAVA_REFRESH_KEY = 'fri_strava_last_fetch';
-      const STRAVA_TTL_MS = 5 * 60 * 1000;
-      const lastFetch = parseInt(localStorage.getItem(STRAVA_REFRESH_KEY) ?? '0', 10);
-      if (Date.now() - lastFetch < STRAVA_TTL_MS) return;
-
-      type StravaItem = {
-        id: number;
-        name: string;
-        sport_type: string;
-        start_date: string;
-        distance: number;
-        total_elevation_gain: number;
-        moving_time: number;
-        average_heartrate?: number;
-        max_heartrate?: number;
-        map?: { summary_polyline?: string };
-        start_latlng?: [number, number];
-      };
-
-      // Strava paginates 30 per page — walk pages until Strava returns a
-      // short page (fully caught up), same cap as the server-side sync.
-      const STRAVA_MAX_PAGES = 10;
-      const allItems: StravaItem[] = [];
-      // Previously this ran with no indicator and swallowed every failure, so
-      // activities either appeared out of nowhere or never appeared at all.
-      setStravaSyncState('syncing');
-      let syncFailed = false;
-      try {
-        for (let page = 1; page <= STRAVA_MAX_PAGES; page++) {
-          const res = await fetch(
-            `/api/strava/activities?token=${encodeURIComponent(token.access_token)}&page=${page}`
-          );
-          if (!res.ok) {
-            // A non-OK page used to `break` silently, truncating the history
-            // and reporting it as a complete sync.
-            console.error('Strava activities request failed:', res.status);
-            syncFailed = true;
-            break;
-          }
-          const items: StravaItem[] = await res.json();
-          if (!items || items.length === 0) break;
-          allItems.push(...items);
-          if (items.length < 30) break;
-        }
-      } catch (err) {
-        console.error('Strava sync failed:', err);
-        syncFailed = true;
-      }
-      setStravaSyncState(syncFailed ? 'failed' : 'idle');
-
-      if (allItems.length > 0) {
-        const incoming: Activity[] = allItems.map((item) => ({
-          id: `strava-${item.id}`,
-          source: 'strava' as const,
-          name: item.name,
-          sport_type: item.sport_type,
-          start_date: item.start_date,
-          distance_km: item.distance / 1000,
-          elevation_gain_m: Math.round(item.total_elevation_gain),
-          moving_time_s: item.moving_time,
-          avg_heartrate: item.average_heartrate,
-          max_heartrate: item.max_heartrate,
-          external_id: String(item.id),
-          // Strava returns [lat, lng]; Activity convention is [lng, lat] (GeoJSON)
-          start_latlng: item.start_latlng
-            ? [item.start_latlng[1], item.start_latlng[0]]
-            : undefined,
-          polyline: item.map?.summary_polyline
-            ? decodePolyline(item.map.summary_polyline)
-            : undefined,
-        }));
-        const merged = mergeActivities(stored, incoming);
-        saveActivities(merged);
-        setActivities(merged);
-        localStorage.setItem(STRAVA_REFRESH_KEY, String(Date.now()));
-      }
-
-      // Background-sync all historical Strava activities to Firestore
-      // Only runs when the user is authenticated (uid required for Firestore path)
-      const uid = authUser?.uid;
-      if (uid) {
-        const SYNC_KEY = 'fri_strava_last_firestore_sync';
-        const SYNC_TTL_MS = 60 * 60 * 1000; // re-sync at most once per hour
-        const lastSync = parseInt(localStorage.getItem(SYNC_KEY) ?? '0', 10);
-        if (Date.now() - lastSync > SYNC_TTL_MS) {
-          fetch('/api/strava/sync', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: token.access_token, uid }),
-          })
-            .then((r) => (r.ok ? r.json() : Promise.reject()))
-            .then((result: { synced: number }) => {
-              localStorage.setItem(SYNC_KEY, String(Date.now()));
-              console.info(`Strava → Firestore sync complete: ${result.synced} activities`);
-            })
-            .catch(() => {
-              /* non-critical, will retry next hour */
-            });
-        }
-      }
-    })();
-    // Re-run when uid changes so users who sign in post-mount get their Strava sync fired.
-  }, [authUser?.uid]);
 
   // Fetch real data from Google Maps Places API
   useEffect(() => {
@@ -1718,7 +1522,7 @@ export default function Home() {
                 {/* The only primary button on this screen. Named for the outcome
                     the user wants, not for the identity provider behind it. */}
                 <button
-                  onClick={handleGoogleSignIn}
+                  onClick={signInGoogle}
                   disabled={authBusy}
                   className={`${buttonPrimary} ${buttonSize.sm}`}
                   title="Continue with Google"
@@ -1727,7 +1531,7 @@ export default function Home() {
                   <span className="whitespace-nowrap">{authBusy ? 'Opening…' : 'Start free'}</span>
                 </button>
                 <button
-                  onClick={handleAppleSignIn}
+                  onClick={signInApple}
                   disabled={authBusy}
                   className={`${buttonGhost} h-8 w-8 !px-0`}
                   title="Continue with Apple"
@@ -1773,7 +1577,7 @@ export default function Home() {
         activities={activities}
         onSignOut={() => {
           setIsProfileModalOpen(false);
-          handleGoogleSignOut();
+          signOut();
         }}
       />
 
