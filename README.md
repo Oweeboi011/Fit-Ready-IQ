@@ -4,6 +4,8 @@
 
 Fit-Ready-IQ is a comprehensive web application that helps mountaineers, hikers, trail runners, and ultra-distance cyclists prepare for their next challenge. It combines real-time geographic data, live weather intelligence, fitness tracking integration, and AI-powered guidance into a unified planning experience.
 
+![Fit Ready IQ landing page](docs/screenshots/landing.png)
+
 ---
 
 ## Overview
