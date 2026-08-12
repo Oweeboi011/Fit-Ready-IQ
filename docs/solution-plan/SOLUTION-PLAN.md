@@ -1,14 +1,14 @@
 # Fit-Ready-IQ Solution Plan
 
-**Version:** 2026-06-27
-**Status:** Active — source of truth for all development
+**Version:** 2026-08-12
+**Status:** Active — source of truth for all development. Reconciled with ADR-0003 and ADR-0004 as of this revision (see Section 6.2); the prior revision (2026-06-27) predated both and had drifted out of sync with them for roughly five weeks — see ADR-0005 for the process fix.
 **Repository:** [Fit-Ready-IQ](https://github.com/Oweeboi011/Fit-Ready-IQ)
 
 ---
 
 ## 1. Purpose
 
-This document is the **master plan** for Fit-Ready-IQ. Every architectural decision, feature roadmap item, enhancement, and optimization flows from here. All other documentation (ARCHITECTURE.md, DEPLOYMENT.md, API.md, SECURITY.md, QUALITY-GATES.md) derives from this plan and must remain consistent with it.
+This document is the **master plan** for Fit-Ready-IQ. Every architectural decision, feature roadmap item, enhancement, and optimization flows from here. All other documentation (`docs/wiki/ARCHITECTURE.md`, `DEPLOYMENT.md`, `API.md`, `SECURITY.md`, `CODE-QUALITY.md`, `DATA.md`, `AI.md`, `USER-FLOW.md`, and `docs/adr/`) derives from this plan and must remain consistent with it.
 
 This plan defines:
 - Who the product serves and what problems it solves
@@ -201,7 +201,7 @@ flowchart TD
 | Feature | Status | Component | Details |
 | --- | --- | --- | --- |
 | Interactive map exploration | Done | `MapView.tsx` | Google Maps with custom markers for mountains, routes, campsites |
-| Route/mountain detail modal | Done | `DetailsModal.tsx` | Elevation profiles, photos, Strava segments, gear recommendations |
+| Route/mountain detail modal | Done | `DetailsModal.tsx` | Elevation profiles, photos, gear recommendations. Strava segments were removed — they were generated from the place name, not real segment data; see ADR-0004. |
 | Live weather in details | Done | `DetailsModal.tsx` | Google Weather API with OpenWeather fallback |
 | Strava OAuth + activity sync | Done | `ConnectDevicesModal.tsx` | Server-side token exchange, client-side activity display |
 | GPX file import | Done | `ConnectDevicesModal.tsx` | Drag-and-drop for COROS, Garmin, Komoot exports |
@@ -294,7 +294,7 @@ gantt
 | Aggregate health endpoint | 2026-06 | `/api/health` — all integrations checked in one call |
 | Strava admin sync + cache admin | 2026-06 | `/api/strava/sync`, `/api/admin/*` endpoints |
 | CI/CD quality harness | 2026-06-27 | 5 GitHub Actions workflows (CI, E2E, mutation, security, AI review) |
-| Trunk-based branch flow | 2026-06-27 | `feature/* → main`; removed 3-tier develop flow and auto-pr.yml |
+| Branch flow: feature -> develop -> main | 2026-08-12 | `develop` is the integration branch every feature PR targets; `main` only receives release PRs from `develop`, merged with a real merge commit (never squash — squashing breaks the shared history and causes spurious conflicts on the next release). Superseded an earlier trunk-based `feature/* → main` flow adopted 2026-06-27. |
 | Pre-commit hooks | 2026-06-27 | Husky: lint-staged (ESLint + Prettier) + commitlint (Conventional Commits) |
 | Dependabot | 2026-06-27 | Weekly dependency PRs for npm, pip, github-actions |
 | CODEOWNERS | 2026-06-27 | `@oweeboipenaranda` owns all files — enforces PR reviews |
@@ -313,7 +313,7 @@ gantt
 
 | Task | Priority | Status | Details |
 | --- | --- | --- | --- |
-| Fix npm audit vulnerabilities | P0 | Pending | Upgrade next to 14.2.x+, fix known high/critical advisories |
+| Fix npm audit vulnerabilities | P0 | Done | Upgraded past 14.2.x to Next.js 16, resolving the tracked high/critical advisories (see `docs/wiki/SECURITY.md` Section 8.1 for the historical baseline). Only moderate-severity advisories remain, below the CI gate's `--audit-level=high` threshold. |
 | Move Strava token from localStorage | P0 | Pending | Server-managed token lifecycle in Firestore — prevents XSS token theft |
 | Add `.env.example` | P1 | Pending | Document all required environment variables for onboarding |
 | Replace raw `<img>` with `next/image` | P1 | Pending | Automatic optimization: lazy load, WebP, srcset |
@@ -325,13 +325,15 @@ gantt
 
 **Goal:** Replace hardcoded weather notes with live forecast data from Google Weather API, including persona-specific safety alerts.
 
-> **Status:** `/api/weather` route is implemented. DetailsModal fetches live weather. Persona-specific alert thresholds and weather overlay on the map are pending.
+> **Status:** `/api/weather` route is implemented. DetailsModal fetches live weather and caches it in a module-level in-memory object (30-minute TTL, per browser tab — see `docs/wiki/DATA.md` Section 5), not the Firestore-backed cache this diagram describes as target state. Persona-specific alert thresholds and weather overlay on the map are pending.
+
+The diagram below is the **target** design (Firestore-backed, cross-tab cache); the arrow into a `weather_cache` collection has not been built — see "Firestore weather caching" in the task table as still Pending.
 
 ```mermaid
 sequenceDiagram
     participant UI as DetailsModal
     participant Route as /api/weather
-    participant Cache as Firestore Cache
+    participant Cache as Firestore Cache (planned)
     participant GW as Google Weather API
     participant OW as OpenWeather (fallback)
 
@@ -378,6 +380,10 @@ sequenceDiagram
 
 **Goal:** Make route discovery, scoring, and detail views persona-aware with different algorithms and UI per activity type.
 
+> **See ADR-0004** (`docs/adr/0004-routes-have-real-geometry.md`): this phase's difficulty-scoring formulas below assume route metrics (`elevation_gain`, `max_grade`, `technical`) that do not exist yet in a trustworthy form — today's "route" is a Places pin with driving-distance-to-trailhead and five scattered elevation probes standing in for real trail data. Persona-specific scoring should not be built on top of that; it needs ADR-0004's real-geometry Route model underneath it first, or it will just be persona-weighted fabrication.
+>
+> **Already substantially built, ahead of persona-awareness itself:** the GPX-based route-building workflow this phase would eventually need is largely done — waypoint planning and map click-to-add (`RoutePlanner.tsx`, `MapArea.tsx`), GPX export (`gpxBuilder.ts`, closes GitHub issue #24), and server-side route-snapping via the Google Routes API (`/api/directions`, closing the API-choice question in issues #21/#22). What is still purely local-device (`savedPlans.ts`, `localStorage`) rather than server-persisted is the gap GitHub issue #23 is asking to design — and ADR-0004's geometry model is the natural target shape for that persistence once built. See `docs/wiki/DEAD-CODE-AUDIT.md` for the full scaffolding inventory.
+
 ```mermaid
 flowchart TD
     A["User selects persona"] --> B["Persona stored in state"]
@@ -393,14 +399,18 @@ flowchart TD
     H --> I
 ```
 
-| Task | Priority | Details |
-| --- | --- | --- |
-| Add persona selector in header/onboarding | P0 | `mountaineer` / `hiker` / `trail_runner` / `cyclist` |
-| Persona-specific difficulty scoring algorithm | P0 | Different weights per formula above |
-| Persona-specific DetailsModal sections | P1 | Different stats, gear, and briefing content per persona |
-| Trail runner: estimated finish time calculator | P1 | Based on distance, vert, user fitness data |
-| Cyclist: gradient analysis with power zones | P1 | Average/max grade, expected power output |
-| Mountaineer: acclimatization calculator | P2 | Based on summit elevation and user history |
+| Task | Priority | Status | Details |
+| --- | --- | --- | --- |
+| Route waypoint planning + map click-to-add | P0 | Done | `RoutePlanner.tsx`, `MapArea.tsx` |
+| GPX export | P0 | Done | `gpxBuilder.ts` — closes GitHub issue #24 |
+| Server-side route-snapping | P0 | Done | `/api/directions` via Google Routes API — closes issues #21/#22 |
+| Server-persisted user-drawn routes | P0 | Pending | Currently `localStorage`-only (`savedPlans.ts`); GitHub issue #23. Target shape is ADR-0004's geometry model. |
+| Add persona selector in header/onboarding | P0 | Pending | `mountaineer` / `hiker` / `trail_runner` / `cyclist` |
+| Persona-specific difficulty scoring algorithm | P0 | Pending | Different weights per formula below — blocked on ADR-0004's real-geometry Route model landing first |
+| Persona-specific DetailsModal sections | P1 | Pending | Different stats, gear, and briefing content per persona |
+| Trail runner: estimated finish time calculator | P1 | Pending | Based on distance, vert, user fitness data |
+| Cyclist: gradient analysis with power zones | P1 | Pending | Average/max grade, expected power output |
+| Mountaineer: acclimatization calculator | P2 | Pending | Based on summit elevation and user history |
 
 **Difficulty Scoring Formulas:**
 
@@ -457,6 +467,8 @@ sequenceDiagram
 
 **Goal:** Compare user fitness data against route demands and produce actionable readiness scores with training gap analysis.
 
+> **Status: a real version of this already ships today**, client-side — `computeReadiness()` in `src/frontend/src/lib/readiness.ts`, documented in `docs/wiki/AI.md` Section 3. It works differently from the design this section originally described: it is **limiter-gated, not weighted-averaged** — the overall score is the *worst* of three factors (longest recent outing, weekly volume, biggest recent climb), not a blended composite, because averaging would hide exactly the thing that turns someone back on a route. It runs entirely client-side against the last 8 weeks of activity data; there is no `/api/readiness` server route, and none of the diagram or task table below is built as originally envisioned. Training gap analysis and heart-rate zone analysis genuinely remain undone.
+
 ```mermaid
 flowchart TD
     subgraph Inputs
@@ -464,7 +476,7 @@ flowchart TD
         Route["Route Demands<br/>- Elevation gain<br/>- Distance<br/>- Max grade<br/>- Technical rating<br/>- Weather conditions"]
     end
 
-    subgraph Engine["Readiness Engine (/api/readiness)"]
+    subgraph Engine["Readiness Engine (/api/readiness, planned)"]
         Compare["Compare metrics"]
         Score["Calculate readiness score"]
         Gap["Identify training gaps"]
@@ -487,17 +499,20 @@ flowchart TD
     Plan --> NotReady
 ```
 
-| Task | Priority | Details |
-| --- | --- | --- |
-| Readiness scoring API (`/api/readiness`) | P0 | Compare fitness metrics vs route demands |
-| Training volume analysis | P1 | Weekly distance, elevation, time trends |
-| Gap analysis with training plan | P1 | "You need X more weeks at Y volume" |
-| Heart rate zone analysis | P2 | Zone distribution from Strava activities |
-| Experience-based scoring | P2 | Adjust readiness by similar past activities |
+| Task | Priority | Status | Details |
+| --- | --- | --- | --- |
+| Client-side readiness scoring | P0 | Done | `computeReadiness()`, limiter-gated across distance/volume/ascent factors, `unknown` state when there is no training data — see `docs/wiki/AI.md` Section 3 |
+| Readiness scoring API (`/api/readiness`) | P1 | Pending | Only needed if scoring must be server-authoritative or cross-device; today's client-side version already answers the product's core question without one |
+| Training volume analysis | P1 | Pending | Weekly distance, elevation, time trends |
+| Gap analysis with training plan | P1 | Pending | "You need X more weeks at Y volume" |
+| Heart rate zone analysis | P2 | Pending | Zone distribution from Strava activities |
+| Experience-based scoring | P2 | Pending | Adjust readiness by similar past activities |
 
 ### 5.7 Phase 5: Intelligent AI Assistant
 
 **Goal:** Make the chat assistant context-aware with route, weather, and fitness data grounding.
+
+> **See `docs/wiki/AI.md`** for the full current-state chat implementation (Section 2) and this phase's status (Section 4) — none of it is built yet, and the context sources below should be re-evaluated against ADR-0003's Trip entity before work starts, since a Trip already carries route, weather window, and gear together.
 
 ```mermaid
 flowchart LR
@@ -559,17 +574,17 @@ in current conditions. Be concise and safety-conscious.
 
 **Goal:** Production-grade performance for real user traffic with optimized bundle sizes and API cost management.
 
-| Task | Priority | Details |
-| --- | --- | --- |
-| Extract `usePlacesData()` hook from page.tsx | P0 | Reduce 1200-line monolith, improve maintainability |
-| Extract `useActivities()` hook | P0 | Separate activity management logic |
-| Extract `useWeather()` hook | P1 | Centralize weather data fetching and caching |
-| Memoize Google Maps service instances | P1 | Single PlacesService/ElevationService, reuse across fetches |
-| Replace `Math.random()` with seeded PRNG | P1 | Deterministic Strava segment mock data |
-| Replace raw `<img>` with `next/image` | P1 | Automatic lazy loading, WebP conversion, srcset |
-| Dynamic imports for DetailsModal | P2 | Code-split heavy modal component (~100KB) |
-| Firestore query indexes | P2 | Composite indexes for user data queries |
-| Edge caching for weather API | P2 | Vercel edge config for weather responses |
+| Task | Priority | Status | Details |
+| --- | --- | --- | --- |
+| Extract `usePlacesData()` hook from page.tsx | P0 | Done | `src/frontend/src/lib/usePlacesData.ts`, delegating the Google Places/Elevation pipeline to `placesFetchers.ts`/`placesSearch.ts` — part of decomposing the file from 3,239 to 818 lines |
+| Extract activity-management hook | P0 | Done | `useStravaSync.ts` — paginated fetch, localStorage load, Firestore background sync |
+| Extract `useWeather()` hook | P1 | Pending | Weather fetch/cache still lives as module-level state in `DetailsModal.tsx`, not a shared hook |
+| Memoize Google Maps service instances | P1 | Pending | Single PlacesService/ElevationService, reuse across fetches |
+| ~~Replace `Math.random()` with seeded PRNG for Strava segment mock data~~ | -- | Superseded | The feature this task was patching (mock Strava segments generated from the place name) was removed entirely per ADR-0004, not fixed with a better PRNG |
+| Replace raw `<img>` with `next/image` | P1 | Pending | Automatic lazy loading, WebP conversion, srcset |
+| Dynamic imports for DetailsModal | P2 | Pending | Code-split heavy modal component (~100KB) |
+| Firestore query indexes | P2 | Pending | Composite indexes for user data queries |
+| Edge caching for weather API | P2 | Pending | Vercel edge config for weather responses |
 
 ---
 
@@ -634,53 +649,62 @@ graph TB
 
 ### 6.2 Data Model (Firestore Collections)
 
+**The current, verified-against-code schema lives in `docs/wiki/DATA.md`** — it is the canonical reference and is not duplicated here. What follows is the *target* model this plan is building toward, which is no longer the simple point-coordinate model this section described before ADR-0003 and ADR-0004 were accepted:
+
+- **ADR-0003** makes **Trip** the central entity (a Route/Place + readiness judgement + weather window + gear list + emergency contact + the resulting Activity). The dormant `Itinerary` entity/`itineraries` collection (confirmed unused — see `docs/wiki/DATA.md` Section 2.2) is renamed to Trip rather than built fresh.
+- **ADR-0004** makes a Route real geometry — an ordered `[lng, lat]` line, not a Places pin with a `place_id` and fabricated point-derived metrics. `SAVED_ROUTES` as previously modeled here (point coordinates, `place_id`-keyed) is retired; a saved Route now references a geometry-bearing Route document, and `Mountain`/`Campsite` collapse into Place types rather than siblings of Route.
+
 ```mermaid
 erDiagram
     USERS {
         string uid PK
         string persona "mountaineer|hiker|trail_runner|cyclist"
         string fitness_level "beginner|intermediate|advanced|expert"
-        number max_heart_rate
-        number weekly_volume_km
-        number weekly_elevation_m
         object strava_tokens "access_token, refresh_token, expires_at"
         object preferences "units, default_radius_km, notifications"
-        timestamp created_at
-        timestamp updated_at
+    }
+
+    TRIPS {
+        string id PK
+        string user_id FK
+        string route_id FK "or place_id, for a Place-only trip"
+        string status "planned|active|checked_in|overdue"
+        timestamp expected_return_at "drives the server-side dead-man's switch"
+        object emergency_contact
+        array gear_list
+        object weather_window "forecast snapshot at planning time"
+        string readiness_judgement "computeReadiness() result at planning time"
+        string resulting_activity_id FK "nullable, set on human-confirmed check-in"
+    }
+
+    ROUTES {
+        string id PK
+        string producer "osm_import|gpx_upload|user_drawn"
+        array geometry "ordered [lng, lat] line"
+        number length_km "computed from geometry"
+        number elevation_gain_m "sampled along geometry, nullable"
+    }
+
+    PLACES {
+        string id PK
+        string type "summit|campsite|trailhead"
+        string place_id "Google Places reference, discovery only"
+        object coordinates "lat, lng"
     }
 
     ACTIVITIES {
         string id PK
         string user_id FK
-        string source "strava|coros|garmin|komoot"
+        string source "strava|coros|garmin|komoot|apple_health"
         string sport_type
         number distance_km
         number elevation_gain_m
-        number moving_time_s
-        number avg_heartrate
-        number max_heartrate
         string polyline "encoded"
         timestamp start_date
-        timestamp created_at
-    }
-
-    SAVED_ROUTES {
-        string id PK
-        string user_id FK
-        string place_id
-        string name
-        object coordinates "lat, lng"
-        string activity_type
-        number difficulty
-        number distance_km
-        number elevation_gain_m
-        string notes
-        timestamp saved_at
     }
 
     CHAT_SESSIONS {
         string session_id PK
-        string user_id FK "optional for unauthenticated"
         string source "fit-ready-iq"
         timestamp updated_at
     }
@@ -693,21 +717,15 @@ erDiagram
         timestamp created_at
     }
 
-    WEATHER_CACHE {
-        string place_id PK
-        number lat
-        number lng
-        object forecast "current, hourly, daily"
-        array alerts "level, type, message"
-        timestamp fetched_at
-        number ttl_minutes "default 60"
-    }
-
+    USERS ||--o{ TRIPS : plans
     USERS ||--o{ ACTIVITIES : has
-    USERS ||--o{ SAVED_ROUTES : saves
-    USERS ||--o{ CHAT_SESSIONS : owns
+    TRIPS ||--o| ROUTES : "goes to"
+    TRIPS ||--o| PLACES : "or goes to"
+    TRIPS ||--o| ACTIVITIES : "produces, human-confirmed"
     CHAT_SESSIONS ||--o{ MESSAGES : contains
 ```
+
+Field-level schema for `TRIPS`/`ROUTES`/`PLACES` is intentionally not exhaustive — neither ADR specifies it yet, and per ADR-0005 that detail should be written when the first Trip/geometry-producing code lands, not speculated here ahead of it.
 
 ### 6.3 Environment Variables (Complete)
 
@@ -732,7 +750,11 @@ erDiagram
 
 ---
 
-## 7. Persona-Specific Feature Matrix
+## 7. Persona-Specific Feature Matrix (Target State)
+
+**This table describes where persona-differentiated features are headed, not what exists today.** The app currently shows every user the same UI regardless of persona — see `docs/wiki/USER-FLOW.md` Section 2 for the honest current state. Treat every "Yes"/"Lite" below as a target for the phases in Section 5, not a shipped feature.
+
+Strava segments are not in this table. They existed briefly as a feature, generated from the place name rather than real segment data, and were removed for exactly that reason — see ADR-0004. If persona-scoped segment data is ever built, it needs a real data source, not a rejected-and-removed approach revived under a new name.
 
 | Feature | Mountaineer | Hiker | Trail Runner | Cyclist |
 | --- | --- | --- | --- | --- |
@@ -741,7 +763,6 @@ erDiagram
 | Gradient analysis | Yes | Lite | Lite | Full |
 | Weather alerts | Yes | Yes | Yes | Yes |
 | Wind overlay | No | No | Lite | Full |
-| Strava segments | Yes | Yes | Yes | Yes |
 | Estimated time | Yes | Yes | Yes | Yes |
 | Power zone estimate | No | No | No | Yes |
 | Technical grade | Yes | Lite | Yes | Lite |
@@ -808,7 +829,7 @@ flowchart TD
 
 | Risk | Impact | Likelihood | Mitigation |
 | --- | --- | --- | --- |
-| npm dependency vulnerabilities | Data breach, supply chain attack | High (15 high/critical currently) | Upgrade next to 14.2.x+, run `npm audit fix`, Dependabot weekly PRs |
+| npm dependency vulnerabilities | Data breach, supply chain attack | Low (resolved — see `docs/wiki/SECURITY.md` 8.1) | Upgraded past 14.2.x to Next.js 16; only moderate advisories remain, below the CI gate's threshold. Dependabot weekly PRs keep this from regressing. |
 | Client-side Strava token storage | Token theft via XSS | Medium | Phase 3: Server-managed tokens in Firestore with auto-refresh |
 | Hardcoded secrets in commits | Credential exposure | Low (gitleaks blocks pushes) | Gitleaks secret scan in security.yml blocks merges |
 | pip dependency vulnerabilities | Backend compromise | Low (pip-audit now in CI) | `pip-audit` runs in both security.yml and backend CI |
@@ -818,8 +839,9 @@ flowchart TD
 
 | Risk | Impact | Likelihood | Mitigation |
 | --- | --- | --- | --- |
-| Large page.tsx monolith (~79 KB, 1200 lines) | Slow development, merge conflicts | Medium | Phase 6: Extract `usePlacesData`, `useActivities` hooks |
-| Activities stored in localStorage only | Data loss on clear, no cross-device | High | Phase 3: Move to Firestore user-scoped collection |
+| Large page.tsx monolith | Slow development, merge conflicts | Low (resolved) | Decomposed from 3,239 to 818 lines: `usePlacesData`/`useStravaSync`/`useFirebaseAuth` hooks, `AppHeader`/`PlacesSidebar`/`MapArea` component groups. See `docs/wiki/ARCHITECTURE.md` Section 3.1. |
+| Activities stored in localStorage only | Data loss on clear, no cross-device | Medium (partially resolved) | Strava-sourced activities now sync server-side to `users/{uid}/strava_activities` (Firestore). GPX/TCX/Apple-Health-imported activities and locally-planned routes (`savedPlans.ts`) remain localStorage-only — Phase 3 for activities, GitHub issue #23 / ADR-0004 for planned routes. |
+| ADR-0003/0004 migration touches the map's core data flow | Regressions in route discovery, saved places, and readiness scoring during the Trip/geometry rewrite | Medium | Land the geometry model behind the existing Places-pin code path rather than replacing it in one PR; keep `docs/wiki/DATA.md` updated in the same PR that ships each schema change (see ADR-0005) |
 | Firebase cold starts on Vercel | Slow first request after idle | Medium | Firebase Admin singleton pattern; function warming via cron |
 | Gemini quota exhaustion | Chat assistant unavailable | Low | Rate limit in route (max 15 RPM free tier); upgrade for production |
 | Google Maps API cost overrun | High bills from Places/Elevation calls | Medium | Cache aggressively in Firestore; batch elevation calls; set billing alerts |
@@ -840,9 +862,17 @@ flowchart TD
 | Challenge | Current State | Plan |
 | --- | --- | --- |
 | No staging environment | Preview URLs on Vercel but no stable staging Firebase project | Create `fit-ready-iq-dev` Firebase project for PR previews |
-| No alerting or monitoring | No Sentry integration, no uptime monitoring | Add Sentry SDK (already in backend pyproject.toml) to frontend; configure alert thresholds |
+| No alerting or monitoring | Partially resolved — `uptime.yml` polls `/api/health` every 15 min (needs `PRODUCTION_URL` repo variable set); backend Sentry SDK is wired with a guarded init. Frontend has no Sentry integration yet. | Add Sentry SDK to the frontend; configure alert thresholds beyond GitHub's own workflow-failure signaling |
 | Vercel function timeouts on slow Strava sync | 60 s timeout may not be enough for large accounts | Consider queued background job via Firestore + Cloud Function trigger |
 | Weather API fallback not cached separately | OpenWeather response treated same as Google Weather | Consider separate TTL for fallback data (lower confidence data) |
+
+### 9.5 Documentation and Process Risks
+
+| Risk | Impact | Likelihood | Mitigation |
+| --- | --- | --- | --- |
+| Docs drift from an accepted ADR | A newer decision (e.g. ADR-0003/0004) changes the data model but the plan/roadmap docs keep describing the old one — exactly what this document needed a full audit pass to catch | High without discipline, now Low | ADR-0005 makes cross-referencing `SOLUTION-PLAN.md` part of writing any ADR that changes the roadmap or data model, not an afterthought |
+| Docs drift from a directory/branch-flow restructure | Stale `frontend/`/`backend/` paths or an outdated branch-flow description across every doc that mentions them | Medium | No mechanical gate catches this today (unlike code layering, which `dependency-cruiser` enforces) — see ADR-0005's proposal to extend the same ratchet discipline to docs |
+| A doc silently becomes a stub or gets deleted without anyone noticing | `docs/wiki/AI.md` existed as an empty directory and `DATA.md`/`USER-FLOW.md` as 0-byte files for an unknown period before this audit found them | Low, but was undetected for a while | No current gate — a future doc-freshness check is a plausible enhancement (see Section 15) |
 
 ---
 
@@ -1001,49 +1031,50 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    subgraph Done["DONE (Phase 0)"]
+    subgraph Done["DONE"]
         direction TB
         D1["CI/CD harness\n5 workflows"]
-        D2["Trunk-based flow\nfeature/* → main"]
+        D2["feature -> develop -> main\nbranch flow"]
         D3["Pre-commit hooks\nlint + commitlint"]
         D4["Live weather\n/api/weather"]
         D5["Health endpoint\n/api/health"]
         D6["Unit + mutation\n+ security tests"]
+        D7["npm vulnerabilities fixed\nNext.js 16"]
+        D8["page.tsx decomposed\nhooks + component groups"]
+        D9["Client-side readiness scoring\ncomputeReadiness()"]
+        D10["GPX route builder + export\nserver-side route-snapping"]
     end
 
     subgraph Now["NOW (Phase 0 remaining)"]
         direction TB
-        N1["Fix npm vulnerabilities"]
         N2["Server-managed Strava tokens"]
         N3[".env.example file"]
         N4["next/image migration"]
         N5["firebaseClient.ts tests"]
     end
 
-    subgraph Next["NEXT (Phase 1-2)"]
+    subgraph Next["NEXT (Phase 1-2, ADR-0004 first)"]
         direction TB
         X1["Weather Firestore cache\n(TTL 60 min)"]
         X2["Persona-specific alerts"]
+        X0["Real route geometry\n(ADR-0004 producers)"]
         X3["Persona selector UI"]
-        X4["Persona scoring algo"]
-        X5["Estimated time calculators"]
+        X4["Persona scoring algo\n(needs X0 first)"]
     end
 
-    subgraph Later["LATER (Phase 3-4)"]
+    subgraph Later["LATER (Phase 3-4, ADR-0003)"]
         direction TB
         L1["Firebase Auth"]
         L2["User profiles"]
-        L3["Saved routes in Firestore"]
-        L4["Readiness scoring API"]
+        L0["Trip entity\n(ADR-0003)"]
+        L3["Server-persisted user routes"]
         L5["Training gap analysis"]
     end
 
     subgraph Future["FUTURE (Phase 5-6)"]
         direction TB
-        F1["Context-aware AI chat"]
-        F2["Route-grounded prompts"]
-        F3["Extract React hooks"]
-        F4["Code-split components"]
+        F1["Context-aware AI chat\n(grounded in Trip, not ad hoc)"]
+        F4["Code-split DetailsModal"]
         F5["Edge caching"]
     end
 
@@ -1058,8 +1089,8 @@ flowchart LR
 
 Any architecture, deployment, or feature decision must:
 1. Update **this solution plan** first (source of truth)
-2. Update derived docs (`ARCHITECTURE.md`, `DEPLOYMENT.md`, `API.md`, `SECURITY.md`, `QUALITY-GATES.md`) to remain consistent
-3. Go through PR review — no direct pushes to `main` for feature work
+2. Update derived docs (`ARCHITECTURE.md`, `DEPLOYMENT.md`, `API.md`, `SECURITY.md`, `CODE-QUALITY.md`, `DATA.md`, `AI.md`) to remain consistent
+3. Go through PR review — no direct pushes to `main` or `develop` for feature work; see ADR-0005 for why an architecture-changing ADR must also update this plan in the same PR
 
 ### 14.2 Change Categories
 
@@ -1079,15 +1110,49 @@ flowchart TD
     A["Change decided"] --> B["Update SOLUTION-PLAN.md"]
     B --> C{What changed?}
     C -->|System design| D["Update ARCHITECTURE.md"]
+    C -->|Data model| K["Update DATA.md"]
     C -->|API surface| E["Update API.md"]
     C -->|Deploy config| F["Update DEPLOYMENT.md"]
     C -->|Security posture| G["Update SECURITY.md"]
-    C -->|Quality gates| H["Update QUALITY-GATES.md"]
+    C -->|Quality gates| H["Update CODE-QUALITY.md"]
+    C -->|AI/chat behavior| L["Update AI.md"]
     C -->|Common issue| I["Update TROUBLESHOOTING.md"]
+    C -->|Judgment call worth remembering| M["Write an ADR (docs/adr/)"]
     D --> J["PR ready"]
     E --> J
     F --> J
     G --> J
     H --> J
     I --> J
+    K --> J
+    L --> J
+    M --> J
 ```
+
+---
+
+## 15. Future Recommendations, Considerations, and Enhancements
+
+### 15.1 Recommendations
+
+- **Sequence ADR-0004 before ADR-0003's Trip UI.** Trip references a Route or Place; building Trip on top of the current fabricated-metrics Route model just moves the credibility problem ADR-0004 describes into a new feature. Land real route geometry first, even partially (GPX-upload and OSM-import producers before user-drawn), then build Trip on solid ground.
+- **Activate the backend only when a real use case needs it, not before.** `src/backend/` is fully wired for one endpoint (`GET /api/routes/best-fit`) and has real Clean Architecture bones, but per `docs/wiki/DEAD-CODE-AUDIT.md` most of its API-client scaffolding (Strava, Garmin, Coros, Google Maps, Komoot) is unreferenced. Standing up a second runtime is a cost with no current payoff; keep treating it as ready-when-needed rather than deploying it speculatively.
+- **Write the Trip/Route field-level schema when the first real code lands**, not ahead of it — Section 6.2's ER diagram is deliberately sparse for exactly this reason. A detailed schema written before any producer code exists is a guess wearing a diagram's clothes.
+- **Extend the mechanical-gate philosophy (ADR-0002) to documentation staleness itself**, not just code — see ADR-0005. This document went five weeks and two accepted ADRs out of sync with its own "Status: Active — source of truth" claim before this audit caught it; a lighter-weight, earlier check (even just a PR template checkbox) would have caught it sooner.
+
+### 15.2 Considerations
+
+- **Komoot integration is blocked on partnership approval, not code.** `KomootClient` in the backend is a real, documented placeholder (its own module docstring says so) waiting on external access, not abandoned or forgotten work — don't "fix" it by deleting it.
+- **The client-side readiness engine (Section 5.6) may not need a server API at all.** It already answers the product's core question ("can I finish this route") without one. Before building `/api/readiness`, confirm what a server-authoritative version would actually add — cross-device sync of the *result*, not the computation, is the more likely real need.
+- **Persona differentiation (Phase 2) is UI/scoring-weight work, not new data.** The four personas already share every current feature; the feature matrix in Section 7 is a target, and building toward it does not require new external integrations, just conditional logic and, per ADR-0004, real route geometry to score against.
+- **The backend's separate Firestore schema (`docs/wiki/DATA.md` Section 3) is not accidentally disconnected — it was built for the FastAPI matching pipeline independently of the frontend's schema.** Any future work connecting the two should be a deliberate integration decision (likely its own ADR), not an assumption that they already share data.
+
+### 15.3 Enhancements (Beyond the Committed Roadmap)
+
+- A doc-freshness spot-check as part of PR review for any PR touching `src/backend/` or changing a Firestore collection — lighter than a full gate, catches drift closer to when it happens.
+- Extending `useWeather()` as a shared hook (Phase 6, still pending) would also be the natural place to add the Firestore-backed cross-tab weather cache Section 5.3 describes as target state, rather than treating them as two separate efforts.
+- A `docs/adr/` entry once the first Trip/geometry producer code actually lands, recording the specific field-level schema decided at that point — closing the gap Section 6.2 deliberately leaves open today.
+
+### 15.4 Risks and Challenges
+
+Covered in full in Section 9, not duplicated here. The two additions from this audit worth calling out directly: the ADR-0003/0004 migration risk (Section 9.2, last row) and the documentation-drift risk this entire audit exists to address (Section 9.5) — both are new since this document's previous revision, and both should be re-read before starting Phase 2 or Phase 3 work.
