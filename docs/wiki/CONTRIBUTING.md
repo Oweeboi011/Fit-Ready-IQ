@@ -307,6 +307,7 @@ If your change affects any of the following, update the corresponding document:
 - [ ] New environment variables documented in DEPLOYMENT.md
 - [ ] Mermaid diagrams updated where architecture changed
 - [ ] Solution plan updated if behavior/feature changed
+- [ ] If this PR writes an ADR, changes branch flow, or changes a directory structure/data model a doc describes: the relevant doc is updated in this same PR, not a follow-up (see ADR-0005)
 - [ ] Commit messages follow conventional format (enforced by commitlint hook)
 - [ ] PR template on GitHub is fully completed
 
