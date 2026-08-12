@@ -49,7 +49,7 @@ graph TB
     end
 
     subgraph External["External Services"]
-        Gemini["Gemini 1.5 Flash"]
+        Gemini["Gemini 2.5 Flash"]
         GoogleW["Google Weather API"]
         Strava["Strava API"]
         FS["Firebase Firestore"]
@@ -102,7 +102,7 @@ flowchart LR
 
 ### 3.1 POST /api/chat
 
-**Description:** Sends a conversation message to the Gemini 1.5 Flash AI model and returns the assistant's reply. Optionally persists the conversation to Firebase Firestore for session continuity.
+**Description:** Sends a conversation message to the Gemini 2.5 Flash AI model and returns the assistant's reply. Optionally persists the conversation to Firebase Firestore for session continuity.
 
 **Runtime:** Node.js (Firebase Admin SDK requirement)
 

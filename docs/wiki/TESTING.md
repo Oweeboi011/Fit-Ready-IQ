@@ -4,7 +4,7 @@
 
 This document describes the complete testing strategy for Fit-Ready-IQ, covering all testing layers from unit tests to production validation. The project uses a multi-layer testing approach to ensure code quality, integration reliability, and performance under load before any change reaches production.
 
-Testing is a mandatory quality gate -- all relevant tests must pass before merging to `main` and triggering a Vercel deployment.
+Testing is a mandatory quality gate -- all relevant tests must pass before merging a feature PR to `develop`, and again before the `develop -> main` release PR that triggers a Vercel deployment.
 
 ### Testing Philosophy
 
@@ -88,18 +88,15 @@ npx vitest --watch
 
 ### 3.2 Current Test Coverage
 
-| Test File | Tests | What It Validates |
-| --- | --- | --- |
-| `src/lib/activityTypes.test.ts` | 4 | Activity type definitions, persistence helpers, type guards |
-| `src/lib/decodePolyline.test.ts` | 2 | Google polyline encoding/decoding accuracy |
-| `src/lib/gpxParser.test.ts` | 1 | GPX XML parsing, track point extraction, elevation data |
-| `src/lib/useSavedPlaces.test.ts` | -- | Firestore listener hook, save/unsave toggle |
+17 test files under `src/frontend/src/lib/`, 230 tests passing:
 
-**Total: 7+ tests passing** (target: 20+ by Phase 1, 50+ by Phase 6)
+`activityTypes`, `adminAuth`, `decodePolyline`, `fitnessScore`, `gpxBuilder`, `gpxParser`, `placeUrl`, `plans`, `radarLayer`, `readiness`, `routeDifficulty`, `savedPlans`, `trainingPlan`, `useSavedPlaces`, `useUserLocation`, `weatherAlertCache`, `weatherAlerts`.
+
+Run `npm run test:unit` to see the current count — this list grows with every new `src/lib/` module, so treat the file list above as illustrative rather than exhaustive.
 
 ### 3.3 Coverage Thresholds
 
-Coverage is enforced by Vitest for four library files (`activityTypes.ts`, `gpxParser.ts`, `polylineDecoder.ts`, `useSavedPlaces.ts`). The build fails in CI if any threshold is not met:
+Coverage is enforced by Vitest (`src/frontend/vitest.config.ts`) for 15 pure `src/lib/` modules (`activityTypes.ts`, `gpxParser.ts`, `polylineDecoder.ts`, `useSavedPlaces.ts`, `useUserLocation.ts`, `fitnessScore.ts`, `placeUrl.ts`, `gpxBuilder.ts`, `routeDifficulty.ts`, `savedPlans.ts`, `readiness.ts`, `trainingPlan.ts`, `weatherAlerts.ts`, `weatherAlertCache.ts`, `radarLayer.ts`) — the list is deliberately scoped to modules with zero React/DOM dependencies, since those are the cheapest to hold to a high bar and the ones Stryker's mutation suite depends on staying that way. The build fails in CI if any threshold is not met:
 
 | Metric | Threshold |
 | --- | --- |
@@ -216,24 +213,35 @@ poetry run pytest tests/ --cov=src --cov-report=term-missing
 
 ### 5.2 Current Test Coverage
 
-| Test File | Tests | What It Validates |
-| --- | --- | --- |
-| `tests/unit/test_settings.py` | 1 | Settings loading, env var parsing, defaults |
-| `tests/unit/test_connection.py` | 1 | Database connection string construction |
+| Test File | What It Validates |
+| --- | --- |
+| `tests/unit/test_settings.py` | Settings loading, env var parsing, defaults |
+| `tests/unit/test_connection.py` | Firestore connection/client construction |
+| `tests/unit/test_mappers.py` | Firestore document <-> domain entity mapping |
+| `tests/unit/test_match_routes_use_case.py` | `MatchRoutesUseCase` orchestration (the one wired end-to-end path) |
+
+9 unit tests collected across these 4 files (`poetry run pytest tests/unit --collect-only -q`). `tests/integration/` (`test_app_endpoints.py`, `test_best_fit_routes_endpoint.py`) and `tests/test_main.py` cover the app-level and `GET /api/routes/best-fit` behavior separately — see Section 6.
 
 ### 5.3 Test Configuration
 
-The backend test suite uses `tests/conftest.py` which sets environment variables **before** importing application modules to prevent real database connections during test collection:
+The backend test suite uses `src/backend/tests/conftest.py`, which points the app at the Firebase emulator and stubs required API keys **before** importing application modules — `Settings` (Pydantic) validates eagerly at import time, so unset required fields (`FIREBASE_PROJECT_ID`, `STRAVA_CLIENT_ID`/`STRAVA_CLIENT_SECRET`/`STRAVA_REDIRECT_URI`, `MAPBOX_ACCESS_TOKEN`, `OPENWEATHER_API_KEY`) would crash `from src.main import app` before a single test runs:
 
 ```python
 import os
 
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost/test")
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-testing-only")
 os.environ.setdefault("ENVIRONMENT", "test")
+os.environ.setdefault("FIREBASE_PROJECT_ID", "fit-ready-iq-test")
+os.environ.setdefault("FIREBASE_USE_EMULATOR", "true")
+os.environ.setdefault("FIRESTORE_EMULATOR_HOST", "localhost:8080")
+os.environ.setdefault("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
+
+os.environ.setdefault("STRAVA_CLIENT_ID", "test-strava-id")
+os.environ.setdefault("STRAVA_CLIENT_SECRET", "test-strava-secret")
+os.environ.setdefault("MAPBOX_ACCESS_TOKEN", "test-mapbox-token")
+os.environ.setdefault("OPENWEATHER_API_KEY", "test-weather-key")
 ```
 
-**Critical:** These must be set before `from src.main import app` to prevent the app from attempting a real DB connection at import time.
+**Critical:** These must be set before `from src.main import app` runs, not just before the test body — `Settings()` is instantiated at module import time (see `src/backend/src/config/settings.py`), so a missing variable fails at collection, not inside a test.
 
 ---
 
@@ -400,21 +408,26 @@ Each workflow in GitHub Actions runs a specific subset of the test suite:
 
 | Workflow | Tests Run | Trigger |
 | --- | --- | --- |
-| `ci.yml` | Lint + type-check + unit tests (Vitest) + build | PR to `main`, push to `main` |
-| `e2e.yml` | Playwright E2E | PR to `main` |
-| `mutation.yml` | Stryker mutation tests | PR to `main` when `src/frontend/src/lib/**` changed |
-| `security.yml` | `npm audit` + `pip-audit` + gitleaks secret scan + CodeQL | PR to `main`, push to `main`, weekly Monday |
+| `ci.yml` | Lint + type-check + unit tests (Vitest) + build | PR to `main`/`develop`, push to `main`/`develop` |
+| `e2e.yml` | Playwright E2E | PR to `main`/`develop` |
+| `mutation.yml` | Stryker mutation tests | PR to `main`/`develop` when `src/frontend/src/lib/**` changed |
+| `security.yml` | `npm audit` + `pip-audit` + gitleaks secret scan + CodeQL | PR to `main`/`develop`, push to `main`/`develop`, weekly Monday |
 | `agent-review.yml` | AI diff review via Claude Haiku | Any PR opened / synchronized / ready |
+
+The same gate sequence runs twice per change: once on the feature PR into `develop`, and again on the release PR from `develop` into `main`.
 
 ```mermaid
 flowchart TD
-    A[PR to main] --> B[ci.yml: lint + type-check + unit + build]
+    A[PR to develop] --> B[ci.yml: lint + type-check + unit + build]
     A --> C[e2e.yml: Playwright]
     A --> D[mutation.yml: Stryker - if src/lib changed]
     A --> E[security.yml: npm audit + pip-audit + gitleaks + CodeQL]
     A --> F[agent-review.yml: AI code review comment]
-    B & C & D & E -->|all pass| G[Merge to main]
-    G --> H[Vercel deploy]
+    B & C & D & E -->|all pass| G[Merge to develop]
+    G --> H[Release PR: develop into main]
+    H --> I[Same gates re-run against main]
+    I -->|all pass| J[Merge to main, real merge commit]
+    J --> K[Vercel deploy]
 ```
 
 ---
@@ -450,7 +463,7 @@ npm run test:unit         # Vitest -- all tests pass
 npm run test:e2e          # Playwright -- all specs pass
 npm audit --audit-level=high  # No high/critical vulnerabilities
 
-# Backend validation (if backend/ files changed)
+# Backend validation (if src/backend/ files changed)
 cd ../backend
 poetry run ruff check .   # Linting -- zero errors
 poetry run ruff format --check .  # Formatting -- zero violations
@@ -543,14 +556,14 @@ flowchart TD
 | Unit (frontend) | `<module>.test.ts` | `gpxParser.test.ts` |
 | Unit (backend) | `test_<module>.py` | `test_settings.py` |
 | Integration | `test_<feature>_endpoints.py` | `test_app_endpoints.py` |
-| E2E | `<feature>.spec.ts` | `home.spec.ts` |
+| E2E | `<feature>.spec.ts` | `landing.spec.ts` |
 | Load | `load-test.js` / `locustfile.py` | -- |
 
 ### 13.3 Coverage Goals
 
-| Phase | Unit Tests | E2E Specs | Coverage Target |
+| Milestone | Frontend Unit Tests | E2E Specs | Coverage Target |
 | --- | --- | --- | --- |
-| Current | 7 | 1 | Baseline (85% statements on lib/) |
-| Phase 1 | 20+ | 3+ | > 60% statements (project-wide) |
-| Phase 4 | 35+ | 5+ | > 75% statements |
-| Phase 6 | 50+ | 8+ | > 85% statements |
+| Current | 230 (17 files) | 9 | 85% statements/functions/lines, 50% branches on the 15 covered `src/lib/` modules |
+| Next | Extend the same coverage floor to the hooks/components introduced by the `app/page.tsx` decomposition (`useFirebaseAuth`, `useStravaSync`, `usePlacesData`, `placesFetchers`) | 10+ | Hold the line as new `src/lib/` modules ship — see `vitest.config.ts`'s `coverage.include` list |
+
+This table previously projected forward from a 7-test baseline against the old phase numbering; the actual count already exceeds every one of those old targets, so it now tracks current state plus the next concrete milestone instead of a multi-phase projection that goes stale on every refactor.
