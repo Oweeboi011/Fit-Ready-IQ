@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-This document provides a comprehensive guide to deploying Fit-Ready-IQ to production. The application is deployed exclusively on **Vercel** as a Next.js 14 application with serverless functions. All persistent data resides in **Firebase** (Firestore for documents, Auth for identity, Storage for files). There are no backend containers, databases, or custom infrastructure to manage in production.
+This document provides a comprehensive guide to deploying Fit-Ready-IQ to production. The application is deployed exclusively on **Vercel** as a Next.js 16 application with serverless functions. All persistent data resides in **Firebase** (Firestore for documents, Auth for identity, Storage for files). There are no backend containers, databases, or custom infrastructure to manage in production.
 
 The deployment model is designed for simplicity, scalability, and cost efficiency:
 - **Zero-configuration scaling** -- Vercel automatically scales serverless functions based on traffic.
@@ -20,7 +20,8 @@ The deployment model is designed for simplicity, scalability, and cost efficienc
 ```mermaid
 graph TB
     subgraph GitHub["GitHub Repository"]
-        Main["main branch"]
+        Main["main branch<br/>(release)"]
+        Develop["develop branch<br/>(integration)"]
         PR["Pull Request branches"]
     end
 
@@ -45,6 +46,8 @@ graph TB
         Weather["Weather API"]
     end
 
+    PR -->|merge| Develop
+    Develop -->|release PR, merge commit| Main
     Main -->|Auto-deploy| Prod
     PR -->|Auto-deploy| Preview
     Build --> Functions
@@ -56,7 +59,7 @@ graph TB
 
 ### 2.2 Deploy Flow
 
-Changes reach production only after all CI, E2E, security, and (when `src/frontend/src/lib/` changes) mutation gates pass on the PR to `main`. Direct pushes to `main` are blocked by branch protection.
+Changes reach production only after all CI, E2E, security, and (when `src/frontend/src/lib/` changes) mutation gates pass twice: once on the feature PR into `develop`, and again on the release PR from `develop` into `main`. Direct pushes to either branch are blocked by branch protection.
 
 ```mermaid
 sequenceDiagram
@@ -65,13 +68,16 @@ sequenceDiagram
     participant V as Vercel
     participant Prod as Production
 
-    Dev->>GH: Push feature/* branch, open PR to main
+    Dev->>GH: Push feature/* branch, open PR to develop
     GH->>GH: ci.yml: lint + type-check + unit tests + build
     GH->>GH: e2e.yml: Playwright E2E
     GH->>GH: security.yml: npm audit + pip-audit + gitleaks + CodeQL
     GH->>GH: mutation.yml (if src/lib changed)
     GH-->>Dev: All gates result
-    Dev->>GH: Merge to main (after approval)
+    Dev->>GH: Merge to develop (after approval, squash)
+    Dev->>GH: Open release PR: develop into main
+    GH->>GH: Same gate sequence re-runs against main
+    Dev->>GH: Merge to main (real merge commit, not squash)
     GH->>V: Webhook trigger
     V->>V: npm install + npm run build
     alt Build succeeds
@@ -86,23 +92,26 @@ sequenceDiagram
 
 The project uses GitHub Actions workflows to enforce quality gates before any change reaches production.
 
-**Branch flow:** `feature/*` → `main` → Vercel (trunk-based, no intermediate branch)
+**Branch flow:** `feature/*` → `develop` → `main` → Vercel
+
+`develop` is the integration branch every feature PR targets. `main` is the release branch — it only receives merges from `develop`, and that merge must be a real merge commit (`gh pr merge --merge`), not a squash. Squashing a `develop -> main` release breaks the shared git history between the two branches, which causes spurious merge conflicts on the very next release even for purely additive changes.
 
 ```mermaid
 flowchart LR
-    A["feature/* branch"] -->|PR to main| B["CI + E2E + Security gates"]
-    B -->|All gates pass + review| C["main"]
-    C -->|Auto-deploy| D["Vercel Production"]
+    A["feature/* branch"] -->|PR to develop| B["CI + E2E + Security gates"]
+    B -->|All gates pass + review| C["develop"]
+    C -->|release PR, merge commit| D["main"]
+    D -->|Auto-deploy| E["Vercel Production"]
 ```
 
 **Workflow table:**
 
 | Workflow | Trigger | What It Does |
 | --- | --- | --- |
-| `ci.yml` | PR to `main`, push to `main` | Lint + type-check + unit tests + build (frontend); ruff + mypy + pytest (backend) |
-| `e2e.yml` | PR to `main` | Playwright E2E tests on Chromium (uses real secrets from GitHub Secrets) |
-| `mutation.yml` | PR to `main` when `src/frontend/src/lib/**` changed | Stryker mutation tests |
-| `security.yml` | PR to `main`, push to `main`, weekly Monday | npm audit + pip-audit + gitleaks secret scan + CodeQL |
+| `ci.yml` | PR to `main`/`develop`, push to `main`/`develop` | Lint + type-check + unit tests + build (frontend); ruff + mypy + pytest (backend) |
+| `e2e.yml` | PR to `main`/`develop` | Playwright E2E tests on Chromium (uses real secrets from GitHub Secrets) |
+| `mutation.yml` | PR to `main`/`develop` when `src/frontend/src/lib/**` changed | Stryker mutation tests |
+| `security.yml` | PR to `main`/`develop`, push to `main`/`develop`, weekly Monday | npm audit + pip-audit + gitleaks secret scan + CodeQL |
 | `agent-review.yml` | Any PR opened / synchronized / ready | Posts AI code review comment via Claude Haiku. Needs `ANTHROPIC_API_KEY` secret. Add `[skip review]` to PR title to suppress. |
 
 **Required GitHub Secrets** (Settings -> Secrets and variables -> Actions):
@@ -128,15 +137,15 @@ flowchart LR
 
 ### 2.4 Branch Protection Setup (One-Time, GitHub UI)
 
-Configure branch protection for `main` in **Settings → Branches** after pushing the workflows.
+Configure branch protection for both `main` and `develop` in **Settings → Branches** after pushing the workflows. Both branches carry identical rules.
 
-**`main` branch:**
+**`main` and `develop` branches (same rules on both):**
 - Require status checks: `Frontend Quality`, `Backend Quality`, `Playwright E2E`, `Secret Scan`
 - Require branches to be up to date before merging
 - Enable merge queue (Settings → Branches → Edit → Merge queue)
 - Require 1 approving review
 - Dismiss stale reviews on new commits
-- Restrict direct pushes (no commits directly to `main`)
+- Restrict direct pushes (no commits directly to either branch)
 
 ---
 
@@ -183,7 +192,7 @@ Set these in **Vercel Project Settings > Environment Variables**. Apply to both 
 | Variable | Required | Scope | Description |
 | --- | --- | --- | --- |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Yes | Client + Server | Google Maps JS API key. Bundled into client JS at build time. Restrict to your domain in Google Cloud Console. |
-| `GEMINI_API_KEY` | Yes | Server only | Gemini 1.5 Flash API key for AI chat functionality. |
+| `GEMINI_API_KEY` | Yes | Server only | Gemini 2.5 Flash API key for AI chat functionality. |
 | `NEXT_PUBLIC_FIREBASE_API_KEY` | Yes | Client | Firebase web API key (public -- safe to expose). |
 | `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Yes | Client | Firebase Auth domain (e.g., `fit-ready-iq.firebaseapp.com`). |
 | `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Yes | Client + Server | Firebase project ID (e.g., `fit-ready-iq`). |
@@ -242,7 +251,7 @@ npx vercel env add GEMINI_API_KEY preview
 
 ### 5.1 Automatic Deployment (Recommended)
 
-Connect the GitHub repository to Vercel. Merges to `main` (after passing all CI/CD gates on the PR to `main`) trigger a production deployment. Every pull request gets a preview deployment for early validation.
+Connect the GitHub repository to Vercel. Merges to `main` (after passing all CI/CD gates on the release PR from `develop`) trigger a production deployment. Every pull request — feature-to-develop or the develop-to-main release — gets a preview deployment for early validation.
 
 ```mermaid
 flowchart LR
@@ -254,7 +263,7 @@ flowchart LR
     F --> G[PR comment with preview URL]
 ```
 
-Changes reach `main` only after the full gate sequence: feature PR to `main` → CI + E2E + mutation + security pass → approval → merge. Direct pushes to `main` are blocked by branch protection.
+Changes reach `main` only after the full gate sequence runs twice: feature PR to `develop` → CI + E2E + mutation + security pass → approval → merge; then release PR `develop` into `main` → same gates → merge (real merge commit). Direct pushes to either branch are blocked by branch protection.
 
 ### 5.2 Manual Deployment
 
@@ -277,7 +286,7 @@ npm install -g vercel
 # Login to Vercel
 vercel login
 
-# Link project (from frontend/ directory)
+# Link project (from src/frontend/ directory)
 cd src/frontend
 vercel link
 

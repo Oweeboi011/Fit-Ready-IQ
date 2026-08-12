@@ -136,7 +136,7 @@ mindmap
 ```mermaid
 graph TB
     subgraph Client["User Browser"]
-        NextApp["Next.js 14 App"]
+        NextApp["Next.js 16 App"]
         MapsSDK["Google Maps JS API"]
     end
 
@@ -151,7 +151,7 @@ graph TB
     end
 
     subgraph External["External Services"]
-        Gemini["Gemini 1.5 Flash"]
+        Gemini["Gemini 2.5 Flash"]
         Strava["Strava API"]
         Google["Google Maps + Places + Elevation + Weather"]
         OpenWeather["OpenWeather (fallback)"]
@@ -219,15 +219,15 @@ flowchart TD
 | CI/CD quality harness | Done | `.github/workflows/` | 5 workflows: CI, E2E, mutation, security, AI review |
 | Pre-commit hooks | Done | `.husky/` | lint-staged + commitlint, trunk-based branch flow |
 | Dependabot | Done | `.github/dependabot.yml` | npm, pip, github-actions — weekly PRs to main |
-| Unit test suite | Done | `src/lib/*.test.ts` | gpxParser, polylineDecoder, activityTypes, useSavedPlaces |
+| Unit test suite | Done | `src/frontend/src/lib/*.test.ts` | gpxParser, polylineDecoder, activityTypes, useSavedPlaces |
 
 ### 4.4 Technology Stack
 
 | Layer | Technology | Purpose |
 | --- | --- | --- |
-| Frontend | Next.js 14, TypeScript, Tailwind CSS (`slate-*`) | App shell and UI rendering |
+| Frontend | Next.js 16, TypeScript, Tailwind CSS (`slate-*`) | App shell and UI rendering |
 | Maps | Google Maps JS API, Places API, Elevation API | Geographic data and visualization |
-| AI | Gemini 1.5 Flash | Conversational chat assistant |
+| AI | Gemini 2.5 Flash | Conversational chat assistant |
 | Data | Firebase Firestore | Chat persistence, places cache, saved places |
 | Auth | Firebase Auth (partial — Google sign-in in firebaseClient) | User identity management |
 | Storage | Firebase Storage (planned Phase 3) | GPX files, user uploads |
@@ -580,7 +580,7 @@ in current conditions. Be concise and safety-conscious.
 ```mermaid
 graph TB
     subgraph Client["Client Layer (Browser)"]
-        App["Next.js 14 App<br/>(Code-split + Optimized)"]
+        App["Next.js 16 App<br/>(Code-split + Optimized)"]
         Hooks["Custom Hooks<br/>(usePlacesData, useActivities,<br/>useWeather, useReadiness)"]
         Maps["Google Maps SDK"]
     end
@@ -608,7 +608,7 @@ graph TB
     end
 
     subgraph AI["AI Services"]
-        Gemini["Gemini 1.5 Flash<br/>(Context-Grounded)"]
+        Gemini["Gemini 2.5 Flash<br/>(Context-Grounded)"]
     end
 
     subgraph Fitness["Fitness Providers"]

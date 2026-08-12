@@ -6,7 +6,7 @@ The safety feature is a **server-side dead-man's switch**, not location tracking
 
 ## Consequences
 
-- The dormant `Itinerary` entity (`backend/src/domain/entities/__init__.py`) and the unused `itineraries` Firestore collection are the same concept and are renamed to Trip. Both are dead code today; this is nearly free now and expensive once either goes live.
+- The dormant `Itinerary` entity (`src/backend/src/domain/entities/__init__.py`) and the unused `itineraries` Firestore collection are the same concept and are renamed to Trip. Both are dead code today; this is nearly free now and expensive once either goes live.
 - Trip lives in Next.js route handlers plus a scheduled function, not the undeployed FastAPI backend. Standing up and paying for a second runtime for one feature is not justified when the serverless stack already does the job.
 - Check-in does double duty: the "are you back safe?" tap also closes the Trip and prompts to attach the matching Activity, so the safety feature is also the history feature. Trip completion is always human-confirmed — a geometry matcher may *suggest* an Activity, but never writes history unasked, because a false "you climbed this" destroys trust in every readiness judgement downstream.
 - Offline support is scoped to the current Trip only — route line, elevation profile, gear, contacts, queued Check-in. Explicitly **not** map tiles: Google Maps' terms forbid caching them, so tiles would mean migrating off Google Maps entirely. That is a separate bet, deferred until people are demonstrably filing Trips.

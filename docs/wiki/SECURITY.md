@@ -251,16 +251,18 @@ service cloud.firestore {
 
 ## 8. Dependency Security
 
-### 8.1 Current Status
+### 8.1 Historical Baseline (Phase 0)
 
-The dependency graph had known vulnerabilities tracked as Phase 0 tasks. The `npm audit --audit-level=high` check in `security.yml` now blocks all PRs and pushes to `main` with high or critical findings, making dependency hygiene a hard CI gate rather than a manual task.
+The dependency graph had known high/critical vulnerabilities tracked and resolved as Phase 0 tasks, before the framework was upgraded to its current Next.js 16. This table is a historical record of what was fixed, not a current-state claim:
 
-| Package | Severity | Issue | Fix |
+| Package (at the time) | Severity | Issue | Fix applied |
 | --- | --- | --- | --- |
-| next 14.1.0 | Critical (3) | Various CVEs | Upgrade to 14.2.x+ |
-| axios | High | Prototype pollution | Upgrade to latest |
-| lodash | High | Prototype pollution | Remove or replace |
+| next 14.1.0 | Critical (3) | Various CVEs | Upgraded past 14.2.x, later to Next.js 16 |
+| axios | High | Prototype pollution | Upgraded to latest |
+| lodash | High | Prototype pollution | Removed |
 | follow-redirects | High | Redirect bypass | Transitive dep fix |
+
+The `npm audit --audit-level=high` check in `security.yml` now blocks all PRs and pushes to `main`/`develop` with high or critical findings, making dependency hygiene a hard CI gate rather than a manual task. As of the last local audit, only moderate-severity advisories remain (below the CI gate's threshold) — see `npm audit` output in `src/frontend/` for the current list.
 
 ### 8.2 Dependency Management Practices
 

@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-This document describes the system architecture of Fit-Ready-IQ, an adventure readiness platform built for mountaineers, hikers, trail runners, and ultra-distance cyclists. The application runs as a Next.js 14 application deployed on Vercel, with Firebase providing persistence and authentication services, and Google Cloud APIs delivering geographic and weather intelligence.
+This document describes the system architecture of Fit-Ready-IQ, an adventure readiness platform built for mountaineers, hikers, trail runners, and ultra-distance cyclists. The application runs as a Next.js 16 application deployed on Vercel, with Firebase providing persistence and authentication services, and Google Cloud APIs delivering geographic and weather intelligence.
 
 The architecture follows a **server-route pattern** where the Next.js App Router serves both the frontend UI and backend API logic. Secrets and external API calls are handled exclusively in server routes (serverless functions on Vercel), while client-side code handles rendering, user interaction, and direct Google Maps API calls (which use a browser-restricted API key).
 
@@ -16,7 +16,7 @@ The architecture follows a **server-route pattern** where the Next.js App Router
 graph TB
     subgraph Client["Client Layer (Browser)"]
         direction TB
-        NextApp["Next.js 14 App Router<br/>(React + TypeScript + Tailwind)"]
+        NextApp["Next.js 16 App Router<br/>(React + TypeScript + Tailwind)"]
         MapsSDK["Google Maps JS SDK<br/>(Maps + Places + Elevation)"]
     end
 
@@ -48,7 +48,7 @@ graph TB
     end
 
     subgraph AI["AI Services"]
-        GeminiAPI["Gemini 1.5 Flash<br/>(Generative AI)"]
+        GeminiAPI["Gemini 2.5 Flash<br/>(Generative AI)"]
     end
 
     Client -->|HTTPS| Vercel
@@ -552,7 +552,7 @@ gantt
 ```mermaid
 graph TB
     subgraph Client["Client Layer"]
-        App["Next.js 14 App<br/>(Code-split, optimized)"]
+        App["Next.js 16 App<br/>(Code-split, optimized)"]
         Hooks["Custom Hooks<br/>(usePlacesData, useActivities,<br/>useWeather, useReadiness)"]
     end
 
