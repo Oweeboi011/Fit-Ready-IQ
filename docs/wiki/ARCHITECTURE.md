@@ -109,65 +109,90 @@ sequenceDiagram
 
 ### 3.1 Module Boundaries
 
+`src/app/app/page.tsx` was a single 3,239-line file as recently as this document's previous revision. It is now 818 lines and orchestration-only — every concern it used to own directly has been extracted into a named component group or a `lib/` hook. The diagram below is deliberately drawn at that group level, not per-file, so it does not need editing every time a group gains another file (see `docs/wiki/CODE-QUALITY.md` Section 5 for the size ceilings that drove this).
+
 ```mermaid
 graph TD
-    subgraph Pages["App Router (app/)"]
-        Page["page.tsx<br/>(Orchestration Layer)"]
-        Layout["layout.tsx<br/>(Global Layout)"]
-        AuthCallback["auth/callback/strava<br/>(OAuth Redirect)"]
+    subgraph Page["app/app/page.tsx (orchestration only)"]
+        Home["Home()<br/>state wiring, effects, top-level layout"]
     end
 
-    subgraph Components["Components (components/)"]
-        MapView["MapView.tsx<br/>(Google Maps Rendering)"]
-        Details["DetailsModal.tsx<br/>(Route/Mountain Details)"]
-        Filter["RouteFilter.tsx<br/>(Search + Filters)"]
-        Connect["ConnectDevicesModal.tsx<br/>(Strava + GPX Import)"]
-        Chat["ChatBot.tsx<br/>(AI Assistant UI)"]
+    subgraph Header["components/AppHeader.tsx"]
+        AppHeader["Brand, nav, auth buttons"]
     end
 
-    subgraph Lib["Libraries (lib/)"]
-        ActivityTypes["activityTypes.ts<br/>(Type Definitions)"]
-        GPXParser["gpxParser.ts<br/>(GPX File Parsing)"]
-        PolyDecode["polylineDecoder.ts<br/>(Polyline Decoding)"]
-        FireAdmin["firebaseAdmin.ts<br/>(Admin SDK Singleton)"]
+    subgraph Sidebar["components/PlacesSidebar.tsx + sidebar/*"]
+        SidebarTop["Search, tabs, filters"]
+        ListItems["RouteListItem / MountainListItem /<br/>CampsiteListItem / ActivityListItem /<br/>SavedPlaceListItem"]
+    end
+
+    subgraph MapArea["components/MapArea.tsx + map/*"]
+        MapCanvas["MapView, MapDirections, RoutePlanner"]
+        NavDock["NavDock (weather, terrain, layers, admin)"]
+    end
+
+    subgraph Modals["components/ (modals)"]
+        Details["DetailsModal.tsx"]
+        Connect["ConnectDevicesModal.tsx"]
+        Chat["ChatBot.tsx"]
+    end
+
+    subgraph Hooks["lib/ hooks"]
+        AuthHook["useFirebaseAuth.ts"]
+        StravaHook["useStravaSync.ts"]
+        PlacesHook["usePlacesData.ts"]
+        LocationHook["useUserLocation.ts"]
+    end
+
+    subgraph PureLib["lib/ pure helpers"]
+        Fetchers["placesFetchers.ts + placesSearch.ts<br/>(Google Places/Elevation pipeline)"]
+        Geometry["mapsGeometry.ts, placesGeometry.ts"]
+        GPX["gpxParser.ts, gpxBuilder.ts"]
     end
 
     subgraph ServerRoutes["Server Routes (app/api/)"]
-        ChatAPI["/api/chat<br/>(Gemini + Firestore)"]
-        WeatherAPI["/api/weather<br/>(Weather + Cache)"]
-        StravaExchange["/api/strava/exchange<br/>(OAuth)"]
-        StravaActivities["/api/strava/activities<br/>(Data Fetch)"]
-        FirebaseHealth["/api/integrations/firebase<br/>(Health Check)"]
+        ChatAPI["/api/chat"]
+        WeatherAPI["/api/weather"]
+        StravaExchange["/api/strava/exchange"]
+        StravaSync["/api/strava/sync"]
+        PlacesCache["/api/places/cache"]
     end
 
-    Page --> MapView
-    Page --> Details
-    Page --> Filter
-    Page --> Connect
-    Page --> Chat
+    Home --> Header
+    Home --> Sidebar
+    Home --> MapArea
+    Home --> Modals
+    Home --> Hooks
+
+    AuthHook --> Home
+    StravaHook --> Home
+    PlacesHook --> Home
+    PlacesHook --> Fetchers
+    Fetchers --> Geometry
+    LocationHook --> Home
 
     Chat --> ChatAPI
     Details --> WeatherAPI
     Connect --> StravaExchange
-    Connect --> StravaActivities
-
-    MapView --> PolyDecode
-    Connect --> GPXParser
-    Connect --> ActivityTypes
-    ChatAPI --> FireAdmin
-    FirebaseHealth --> FireAdmin
+    Connect --> GPX
+    StravaHook --> StravaSync
+    PlacesHook --> PlacesCache
 ```
 
 ### 3.2 Component Responsibilities
 
-| Component | Responsibility | Key Dependencies |
+| Component / Hook | Responsibility | Key Dependencies |
 | --- | --- | --- |
-| `page.tsx` | State orchestration, data fetching coordination, layout composition. Manages map center, selected markers, filter state, and modal visibility. | All components, Google Maps hooks |
-| `MapView.tsx` | Renders Google Maps instance with custom markers (mountains, routes, campsites). Handles zoom, pan, marker click events. | `@react-google-maps/api`, polylineDecoder |
-| `DetailsModal.tsx` | Displays detailed information for selected route/mountain/campsite including elevation profiles, photos, Strava segments, gear recommendations, and weather data. | Google Elevation API, weather data |
-| `RouteFilter.tsx` | Provides filtering controls for activity type, difficulty, distance range, and elevation gain. Emits filter state changes to parent. | None (pure UI) |
-| `ConnectDevicesModal.tsx` | Manages Strava OAuth flow, GPX file drag-and-drop import, and activity history display with source badges. | Strava routes, GPX parser |
-| `ChatBot.tsx` | Conversational AI interface with message history, typing indicators, and session management. | /api/chat route |
+| `page.tsx` (`Home`) | State wiring only: calls the hooks below, composes the four component groups, owns the handful of memos that genuinely span multiple hooks' outputs (`filteredRoutes`, `dockAlerts`, `layerCounts`). Does not fetch, parse, or render list items directly anymore. | All hooks and component groups |
+| `AppHeader.tsx` | Brand, nav actions, admin-gate link, auth buttons/avatar. | `useAdminGate`, auth state passed as props |
+| `PlacesSidebar.tsx` + `sidebar/*` | Search box, tab strip, filters, and the five list-item renderers (one component each) plus their loading/error/empty states. | `RouteFilter.tsx`, the five `*ListItem.tsx` components |
+| `MapArea.tsx` + `map/*` | The map panel: `MapView`, `MapDirections`, `RoutePlanner`, and `NavDock` wiring (weather, terrain pulse, layers, admin/roadmap triggers). | `@react-google-maps/api`, `usePlannerRoute` |
+| `DetailsModal.tsx` | Displays detailed information for a selected route/mountain/campsite/activity: elevation profile, photos, gear recommendations, weather. Does **not** show Strava segments — that field was removed as fabricated data (see `placesTypes.ts`). | Google Elevation API, weather data |
+| `ConnectDevicesModal.tsx` | Strava OAuth flow, GPX/TCX/Apple Health file import, activity history display with source badges. | Strava routes, `gpxParser.ts`, `appleHealthParser.ts` |
+| `ChatBot.tsx` | Conversational AI interface — message history, session persistence to `localStorage` + Firestore. No tool-use yet; see `docs/wiki/AI.md`. | `/api/chat` route |
+| `useFirebaseAuth.ts` | Auth-listener effect, sign-in/out handlers, auth error state (not `alert()`). | `firebaseClient.ts` |
+| `useStravaSync.ts` | Paginated Strava activity fetch (capped at 10 pages), localStorage load, Firestore background sync. | `stravaAuth.ts`, `/api/strava/sync` |
+| `usePlacesData.ts` | The three-tier places cache (sessionStorage -> Firestore -> live fetch), delegates the actual Google API calls to `placesFetchers.ts`/`placesSearch.ts`. | `placesFetchers.ts`, `/api/places/cache` |
 | `useSavedPlaces.ts` | Real-time Firestore listener hook for the authenticated user's saved places. Subscribes on mount, unsubscribes on unmount. | Firebase client SDK, Firestore |
 
 ### 3.3 State Management Strategy
@@ -336,77 +361,7 @@ flowchart TD
 
 ### 5.1 Firestore Data Model
 
-```mermaid
-erDiagram
-    USERS {
-        string uid PK
-        string persona
-        string fitness_level
-        number max_heart_rate
-        number weekly_volume_km
-        number weekly_elevation_m
-        object strava_tokens
-        object preferences
-        timestamp created_at
-        timestamp updated_at
-    }
-
-    ACTIVITIES {
-        string id PK
-        string user_id FK
-        string source
-        string sport_type
-        number distance_km
-        number elevation_gain_m
-        number moving_time_s
-        number avg_heartrate
-        string polyline
-        timestamp start_date
-    }
-
-    SAVED_ROUTES {
-        string id PK
-        string user_id FK
-        string place_id
-        string name
-        object coordinates
-        string activity_type
-        number difficulty
-        number distance_km
-        number elevation_gain_m
-        timestamp saved_at
-    }
-
-    CHAT_SESSIONS {
-        string session_id PK
-        string user_id FK
-        string source
-        timestamp updated_at
-    }
-
-    MESSAGES {
-        string msg_id PK
-        string session_id FK
-        array messages
-        string assistantReply
-        timestamp created_at
-    }
-
-    WEATHER_CACHE {
-        string place_id PK
-        number lat
-        number lng
-        object forecast
-        array alerts
-        timestamp fetched_at
-        number ttl_minutes
-    }
-
-    USERS ||--o{ ACTIVITIES : has
-    USERS ||--o{ SAVED_ROUTES : saves
-    USERS ||--o{ CHAT_SESSIONS : owns
-    CHAT_SESSIONS ||--o{ MESSAGES : contains
-```
+The full schema — every Firestore collection, which SDK writes it, and the non-Firestore client-side caches — lives in `docs/wiki/DATA.md`. It is not duplicated here so there is exactly one place to update when the schema changes; the frontend and backend currently use separate, unrelated Firestore collections under the same project (see `DATA.md` Sections 2 and 3), and two accepted ADRs (0003, 0004) describe a planned Trip/route-geometry model not yet reflected in either.
 
 ### 5.2 Data Flow Patterns
 
