@@ -55,16 +55,32 @@ erDiagram
 
     CHAT_SESSIONS {
         string session_id PK
+        string user_id FK "null when signed out; enables erasure"
         string source
         timestamp updated_at
+        timestamp expiresAt "90-day TTL"
     }
 
     MESSAGES {
         string msg_id PK
         string session_id FK
+        string user_id FK
         array messages
         string assistantReply
         timestamp created_at
+        timestamp expiresAt "90-day TTL, collection-group scope"
+    }
+
+    AUDIT_LOGS {
+        string entry_id PK
+        string action "admin.cache.purge | account.delete | ..."
+        object actor "uid + email"
+        string target
+        string outcome "success | failure"
+        object detail "counters only, never payloads"
+        string ip
+        timestamp at
+        timestamp expiresAt "730-day TTL"
     }
 
     HEALTH {
@@ -84,8 +100,27 @@ erDiagram
 | `users/{uid}/saved_places/{placeId}` | Subcollection | Client SDK (`useSavedPlaces.ts`) | Only collection the browser writes to directly; everything else goes through a server route with the Admin SDK. |
 | `users/{uid}/strava_activities/{stravaId}` | Subcollection | Admin SDK, write-only from `POST /api/strava/sync` | Idempotent upsert keyed on the Strava activity ID; batched (up to 30 per write). |
 | `places_cache/{gridKey}` | Top-level, shared | Admin SDK | Public-read, grid key = coordinates rounded to 0.5 degrees (~55 km) so nearby users share cached results. `v` field gates the schema — see `PLACES_CACHE_VERSION` in `src/frontend/src/app/app/page.tsx`; bump it whenever a cached field's meaning changes, not just its shape. 24-hour TTL enforced client-side on read. |
-| `chat_sessions/{sessionId}` + `.../messages/{msgId}` | Top-level + subcollection | Admin SDK, fire-and-forget from `/api/chat` | A Firestore write failure here is caught and logged, never fails the chat response — see `docs/wiki/AI.md` Section 2.1. |
+| `chat_sessions/{sessionId}` + `.../messages/{msgId}` | Top-level + subcollection | Admin SDK, fire-and-forget from `/api/chat` | A Firestore write failure here is caught and logged, never fails the chat response — see `docs/wiki/AI.md` Section 2.1. Carries `user_id` when the caller is signed in, which is what makes a transcript erasable; documents written before that stamp are unattributable and drain via TTL. |
+| `audit_logs/{entryId}` | Top-level | Admin SDK only, via `src/lib/auditLog.ts` | Append-only: no update or delete path exists in the codebase, and clients are denied in both directions. Holds a uid, an action, a target and counters — never the data it describes, so an erasure record does not become a surviving copy of what was erased. Retained through account deletion as the evidence the deletion happened (GDPR Art. 17(3)(b)). |
+| `rate_limits/{bucketId}` | Top-level | Admin SDK only | One document per caller per window. The bucket id embeds a *hashed* credential, never a live one. |
 | `_health/` | Top-level | Admin SDK | Probe documents written and read by `/api/health`'s Firestore write-test check; not application data. |
+
+### 2.1.1 Retention
+
+`rate_limits`, `chat_sessions` (+ `messages`, at collection-group scope) and
+`audit_logs` each carry an `expiresAt` timestamp — **which does nothing until a
+Firestore TTL policy names it.** Without the policies these collections grow
+without bound and retain data past the period the product claims. See
+`docs/runbooks/firestore-ttl.md`.
+
+### 2.1.2 Where user data lives
+
+`src/frontend/src/lib/userDataFootprint.ts` is the single enumeration of every
+user-scoped collection. `/api/account/export` and `/api/account/delete` both
+walk it rather than listing collections themselves, because the classic failure
+mode is drift: a collection is added, the export learns about it, the deletion
+does not, and the product silently keeps data it reported as erased. **Adding a
+user-scoped collection means adding it there in the same change.**
 
 ### 2.2 Confirmed Dormant
 

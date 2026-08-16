@@ -1,10 +1,25 @@
 import { NextResponse } from 'next/server';
 
+import { requireAdmin } from '@/lib/adminAuth';
 import { getFirebaseConnectionStatus, getFirestoreAdmin } from '@/lib/firebaseAdmin';
 
 export const runtime = 'nodejs';
 
-export async function GET() {
+/**
+ * Deep Firebase connectivity probe — admin only.
+ *
+ * Unlike /api/health, which only reports whether credentials are *present*,
+ * this actually writes to Firestore to prove the round trip works. That makes
+ * it two things an anonymous caller should not have: a write it can trigger at
+ * will, and a readout of the GCP project id plus raw Admin SDK error strings,
+ * which describe our infrastructure to anyone who asks.
+ *
+ * Use /api/health for uptime monitoring; that one is meant to be public.
+ */
+export async function GET(request: Request) {
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
+
   const status = getFirebaseConnectionStatus();
 
   if (!status.connected) {

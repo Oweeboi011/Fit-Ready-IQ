@@ -13,9 +13,40 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    // Helper: the caller owns the document as it exists now.
+    function ownsExisting() {
+      return isAuthenticated() && request.auth.uid == resource.data.user_id;
+    }
+
+    // Helper: the caller owns the document as it will exist after the write.
+    function ownsIncoming() {
+      return isAuthenticated() && request.auth.uid == request.resource.data.user_id;
+    }
+
+    // Helper: an update that keeps the document with its current owner.
+    //
+    // Checking only `resource.data.user_id` (what these rules used to do) lets a
+    // user rewrite `user_id` to somebody else's uid, pushing a document they
+    // authored into a stranger's collection where that stranger cannot delete it.
+    // Ownership is set once, at create.
+    function updatesOwnDoc() {
+      return ownsExisting() && ownsIncoming();
+    }
+
     // Users collection
+    //
+    // Rules do NOT cascade into subcollections: `match /users/{userId}` governs
+    // the user document alone. Every subcollection needs its own match block, or
+    // it falls through to the default deny — which is what happened to
+    // saved_places, silently breaking every bookmark in the product.
     match /users/{userId} {
       allow read, write: if isOwner(userId);
+
+      // Bookmarked routes, peaks and campsites. Written directly by the browser
+      // via useSavedPlaces.ts, so this is the rule that has to allow it.
+      match /saved_places/{placeId} {
+        allow read, write: if isOwner(userId);
+      }
 
       // Strava historical activities synced server-side via Admin SDK
       // Users can read their own activities; writes are via Admin SDK only (write: false)
@@ -27,10 +58,9 @@ service cloud.firestore {
 
     // Activities collection — scoped to the owning user
     match /activities/{activityId} {
-      allow read, write: if isAuthenticated()
-        && request.auth.uid == resource.data.user_id;
-      allow create: if isAuthenticated()
-        && request.auth.uid == request.resource.data.user_id;
+      allow read, delete: if ownsExisting();
+      allow update: if updatesOwnDoc();
+      allow create: if ownsIncoming();
     }
 
     // Routes collection — readable by all authenticated users, writable only by the backend
@@ -47,25 +77,77 @@ service cloud.firestore {
       allow write: if false; // backend Admin SDK only
     }
 
-    // Training programs — scoped to the owning user
-    match /training_programs/{programId} {
-      allow read, write: if isAuthenticated()
-        && request.auth.uid == resource.data.user_id;
-      allow create: if isAuthenticated()
-        && request.auth.uid == request.resource.data.user_id;
+    // Rate-limit counters — written only by the Admin SDK from route handlers.
+    // A client that could read these would learn other callers' usage, and one
+    // that could write them could hand itself an unlimited budget.
+    //
+    // Configure a Firestore TTL policy on the `expiresAt` field of this
+    // collection; otherwise one document per caller per window accumulates for
+    // ever. See src/frontend/src/lib/rateLimit.ts.
+    match /rate_limits/{bucketId} {
+      allow read, write: if false; // Admin SDK only
     }
 
-    // Training sessions — scoped to the owning user via parent program
+    // Chat transcripts — written by /api/chat via the Admin SDK, never by a
+    // browser. The default deny already covers this; it is spelled out because
+    // an unlisted collection reads as an oversight rather than a decision, and
+    // these documents hold whatever users typed into the assistant.
+    //
+    // Closed to clients even though documents now carry `user_id`: that field
+    // exists so erasure and export can find a transcript server-side, not to
+    // open a read path. Users reach their own transcripts through
+    // /api/account/export, which verifies the token and scopes the query.
+    //
+    // Needs a Firestore TTL policy on `expiresAt`, at collection-group scope so
+    // it covers `messages` too. Without it the 90-day retention that /api/chat
+    // stamps is a field nothing acts on.
+    match /chat_sessions/{sessionId} {
+      allow read, write: if false; // Admin SDK only
+      match /messages/{messageId} {
+        allow read, write: if false; // Admin SDK only
+      }
+    }
+
+    // Audit trail — privileged actions, erasures, and denied admin attempts.
+    //
+    // Closed in both directions, which is the point. No client reads it: the
+    // records name which admin touched what, and that is a map of who to phish.
+    // No client writes it: an audit log a caller can append to is one an
+    // attacker can pad with noise to bury the entry that matters.
+    //
+    // There is deliberately no update or delete path anywhere in the codebase —
+    // src/frontend/src/lib/auditLog.ts only ever adds — so the trail is
+    // append-only in practice and not merely by convention. Ageing out is left
+    // to a Firestore TTL policy on `expiresAt` (730 days), which is the one
+    // removal mechanism, and it is configured in the console rather than
+    // reachable from application code.
+    match /audit_logs/{entryId} {
+      allow read, write: if false; // Admin SDK only
+    }
+
+    // Training programs — scoped to the owning user
+    match /training_programs/{programId} {
+      allow read, delete: if ownsExisting();
+      allow update: if updatesOwnDoc();
+      allow create: if ownsIncoming();
+    }
+
+    // Training sessions — scoped to the owning user
+    // Every session carries its own user_id rather than inheriting ownership
+    // from a parent program: resolving the parent would need a get() per rule
+    // evaluation, and an authenticated-only rule (what this was) let any signed-in
+    // user read or write anyone else's sessions.
     match /training_sessions/{sessionId} {
-      allow read, write: if isAuthenticated();
+      allow read, delete: if ownsExisting();
+      allow update: if updatesOwnDoc();
+      allow create: if ownsIncoming();
     }
 
     // Itineraries — scoped to the owning user
     match /itineraries/{itineraryId} {
-      allow read, write: if isAuthenticated()
-        && request.auth.uid == resource.data.user_id;
-      allow create: if isAuthenticated()
-        && request.auth.uid == request.resource.data.user_id;
+      allow read, delete: if ownsExisting();
+      allow update: if updatesOwnDoc();
+      allow create: if ownsIncoming();
     }
   }
 }

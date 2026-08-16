@@ -21,7 +21,20 @@
  * (or another server-only module) may import them. Keep this in step with the
  * matching list in eslint.config.mjs.
  */
-const SERVER_ONLY = ['src/lib/firebaseAdmin\\.ts', 'src/lib/adminAuth\\.ts'];
+const SERVER_ONLY = [
+  'src/lib/firebaseAdmin\\.ts',
+  'src/lib/adminAuth\\.ts',
+  'src/lib/serverAuth\\.ts',
+  'src/lib/rateLimit\\.ts',
+  // Writes the audit trail through the Admin SDK.
+  'src/lib/auditLog\\.ts',
+  // Reads LOG_LEVEL and node:crypto, and writes to the server's stdout.
+  'src/lib/logger\\.ts',
+  // Pure data, but it is the policy half of the limiter and only route handlers
+  // have any use for it. Listing it keeps the graph honest: without this, a
+  // client module could import the table and reach rateLimit.ts through it.
+  'src/lib/rateLimitRules\\.ts',
+];
 
 /**
  * Route handlers, the server-only modules themselves, and unit tests. Tests run in

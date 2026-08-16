@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 
+import { createLogger, upstreamSnippet, type Logger } from '@/lib/logger';
+import { rateLimit, tooManyRequests } from '@/lib/rateLimit';
+import { DIRECTIONS_RATE_LIMIT } from '@/lib/rateLimitRules';
+
 export const runtime = 'nodejs';
 
 /**
@@ -27,6 +31,21 @@ export interface DirectionsResult {
   durationSeconds: number;
 }
 
+/**
+ * Why a request produced no route.
+ *
+ * The status code alone cannot say: a missing key and a key Google refused both
+ * end up as 503, and the fixes are completely different — set a key, versus
+ * enable the Routes API and billing on the project the key belongs to. The
+ * planner shows this to the user, so it has to be the real reason.
+ */
+export type DirectionsFailure =
+  'not_configured' | 'rejected' | 'no_route' | 'bad_request' | 'upstream' | 'timeout';
+
+function failure(reason: DirectionsFailure, error: string, status: number) {
+  return NextResponse.json({ error, reason }, { status });
+}
+
 /** Routes API caps intermediates at 25. */
 const MAX_INTERMEDIATES = 25;
 
@@ -47,11 +66,23 @@ function waypoint(point: LatLng) {
   return { location: { latLng: { latitude: point.lat, longitude: point.lng } } };
 }
 
+/**
+ * The Routes API travel modes we use.
+ *
+ * `BICYCLE` matters for the planner: cycling routing prefers cycleways and will
+ * use roads a walking route avoids, and it refuses stairs and footpaths a bike
+ * cannot ride. Routing a bike trip on foot returns a line no bike can follow and
+ * a distance that is wrong in both directions.
+ */
+type TravelMode = 'DRIVE' | 'WALK' | 'BICYCLE';
+
+const TRAVEL_MODES: readonly TravelMode[] = ['DRIVE', 'WALK', 'BICYCLE'];
+
 interface RouteRequest {
   origin: LatLng;
   destination: LatLng;
   stops: LatLng[];
-  travelMode: 'DRIVE' | 'WALK';
+  travelMode: TravelMode;
 }
 
 /** Parses and validates the body; returns null when it is unusable. */
@@ -70,23 +101,31 @@ async function parseRequest(request: Request): Promise<RouteRequest | null> {
     origin,
     destination,
     stops: Array.isArray(intermediates) ? intermediates.filter(isLatLng) : [],
-    travelMode: mode === 'DRIVE' ? 'DRIVE' : 'WALK',
+    // Unknown or missing modes fall back to walking — the most conservative
+    // routing of the three, and the planner's original behaviour.
+    travelMode: TRAVEL_MODES.includes(mode as TravelMode) ? (mode as TravelMode) : 'WALK',
   };
 }
 
 export async function POST(request: Request) {
-  const key = process.env.GOOGLE_ROUTES_API_KEY ?? process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const log = createLogger('/api/directions', request);
+  const limit = await rateLimit(request, DIRECTIONS_RATE_LIMIT);
+  if (!limit.ok) return tooManyRequests(limit);
+
+  // `||`, not `??`: a declared-but-blank GOOGLE_ROUTES_API_KEY (the usual shape
+  // of a .env copied from .env.example) is an empty string, not undefined, so
+  // `??` would hand back "" and defeat the documented fallback to the Maps key.
+  const key = process.env.GOOGLE_ROUTES_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   if (!key) {
-    return NextResponse.json({ error: 'Routing is not configured' }, { status: 503 });
+    return failure('not_configured', 'Routing is not configured', 503);
   }
 
   const parsed = await parseRequest(request);
   if (!parsed) {
-    return NextResponse.json({ error: 'origin and destination are required' }, { status: 400 });
+    return failure('bad_request', 'origin and destination are required', 400);
   }
-  const { origin, destination, stops, travelMode } = parsed;
 
-  return callRoutesApi(key, parsed);
+  return callRoutesApi(key, parsed, log);
 }
 
 /** Maps a Routes API payload onto our shape, or null when it has no geometry. */
@@ -113,8 +152,14 @@ function toResult(data: unknown): DirectionsResult | null {
   };
 }
 
-/** The Routes API call itself, split out to keep the handler readable. */
-async function callRoutesApi(key: string, req: RouteRequest) {
+/**
+ * The Routes API call itself, split out to keep the handler readable.
+ *
+ * The logger is passed in rather than created here so its request id matches
+ * the handler's — a helper that minted its own would log the same request under
+ * a different id, which defeats the point of having one.
+ */
+async function callRoutesApi(key: string, req: RouteRequest, log: Logger) {
   const { origin, destination, stops, travelMode } = req;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -143,17 +188,24 @@ async function callRoutesApi(key: string, req: RouteRequest) {
 
     if (!res.ok) {
       // Surface the reason in our logs; the client gets something actionable.
-      console.error('Routes API failed:', res.status, data?.error?.message ?? data);
-      return NextResponse.json(
-        { error: 'Routing service unavailable' },
-        { status: res.status === 403 ? 503 : 502 }
-      );
+      log.warn('routes_api_rejected', {
+        status: res.status,
+        upstream: upstreamSnippet(String(data?.error?.message ?? '')),
+      });
+      // Both 400 and 403 mean the credentials were refused, not that our
+      // payload was wrong — we validated origin and destination above. Google
+      // answers an unusable key with 400 "API key not valid", and a key whose
+      // project lacks the Routes API (or billing) with 403. Either way the fix
+      // is in the Cloud console, not in the request, so they share a reason.
+      return res.status === 403 || res.status === 400
+        ? failure('rejected', 'Routing request was rejected by Google', 503)
+        : failure('upstream', 'Routing service unavailable', 502);
     }
 
     const result = toResult(data);
     if (!result) {
       // A genuine "no route exists" — common between unmapped trail points.
-      return NextResponse.json({ error: 'No route found' }, { status: 404 });
+      return failure('no_route', 'No route found', 404);
     }
 
     return NextResponse.json(result, {
@@ -161,10 +213,11 @@ async function callRoutesApi(key: string, req: RouteRequest) {
     });
   } catch (err) {
     const timedOut = err instanceof DOMException && err.name === 'AbortError';
-    console.error('Routes request failed:', err);
-    return NextResponse.json(
-      { error: timedOut ? 'Routing timed out' : 'Routing service unreachable' },
-      { status: 504 }
+    log.error('routes_request_failed', err);
+    return failure(
+      timedOut ? 'timeout' : 'upstream',
+      timedOut ? 'Routing timed out' : 'Routing service unreachable',
+      504
     );
   } finally {
     clearTimeout(timer);

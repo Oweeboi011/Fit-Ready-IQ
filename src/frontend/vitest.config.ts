@@ -10,7 +10,21 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
+      // An explicit allowlist rather than a glob, so a new module is measured
+      // only once someone decides it should be. The cost of that is a module
+      // can sit outside the gate indefinitely — which is what had happened to
+      // every security-critical file below: the identity gate, the admin gate
+      // and the rate limiter were all unmeasured while the product enforced an
+      // 85% threshold on GPX parsing.
       include: [
+        // Security-critical: authorisation, metering, audit.
+        'src/lib/serverAuth.ts',
+        'src/lib/adminAuth.ts',
+        'src/lib/rateLimit.ts',
+        'src/lib/auditLog.ts',
+        'src/lib/logger.ts',
+
+        'src/lib/theme.ts',
         'src/lib/activityTypes.ts',
         'src/lib/gpxParser.ts',
         'src/lib/polylineDecoder.ts',
@@ -26,6 +40,7 @@ export default defineConfig({
         'src/lib/weatherAlerts.ts',
         'src/lib/weatherAlertCache.ts',
         'src/lib/radarLayer.ts',
+        'src/lib/stravaAuth.ts',
       ],
       thresholds: {
         statements: 85,

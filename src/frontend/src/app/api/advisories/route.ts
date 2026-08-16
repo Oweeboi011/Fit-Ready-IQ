@@ -3,7 +3,10 @@ import path from 'node:path';
 
 import { NextResponse } from 'next/server';
 
+import { createLogger } from '@/lib/logger';
 import { cleanAdvisories, type Advisory } from '@/lib/advisories';
+import { rateLimit, tooManyRequests } from '@/lib/rateLimit';
+import { ADVISORIES_RATE_LIMIT } from '@/lib/rateLimitRules';
 
 export const runtime = 'nodejs';
 
@@ -25,7 +28,14 @@ export const runtime = 'nodejs';
  * have avoided, because of a placeholder nobody remembered to remove.
  */
 
-export async function GET() {
+export async function GET(request: Request) {
+  const log = createLogger('/api/advisories', request);
+  // Cheap, but the `ADVISORY_FEED_URL` branch turns each call into an outbound
+  // request to a park authority's server. Unmetered, that makes us a convenient
+  // amplifier pointed at exactly the volunteer-run sites we depend on.
+  const limit = await rateLimit(request, ADVISORIES_RATE_LIMIT);
+  if (!limit.ok) return tooManyRequests(limit);
+
   // The scraped file wins: it is the one a deployment actually controls.
   try {
     const scraped = await readFile(path.join(process.cwd(), 'data', 'advisories.json'), 'utf8');
@@ -66,7 +76,7 @@ export async function GET() {
       { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } }
     );
   } catch (err) {
-    console.error('Advisory feed failed:', err);
+    log.error('advisory_feed_failed', err);
     return NextResponse.json(
       { configured: true, error: 'Advisory feed unavailable', advisories: [] as Advisory[] },
       { status: 502 }

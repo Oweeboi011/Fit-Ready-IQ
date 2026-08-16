@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createLogger, serializeError, type Logger } from '@/lib/logger';
 import { summarizeAlerts, type ForecastHour, type WeatherAlert } from '@/lib/weatherAlerts';
+import { rateLimit, tooManyRequests } from '@/lib/rateLimit';
+import { WEATHER_RATE_LIMIT } from '@/lib/rateLimitRules';
+import { findWeatherWindow, type WeatherWindow } from '@/lib/weatherWindow';
 
 export const runtime = 'nodejs';
 
@@ -134,7 +138,9 @@ async function fetchOpenWeather(
   lng: number,
   elevation: number | null
 ) {
-  const baseUrl = process.env.OPENWEATHER_BASE_URL ?? 'https://api.openweathermap.org/data/2.5';
+  // `||` so a blank OPENWEATHER_BASE_URL in .env falls back to the real default
+  // rather than building every request against an empty origin.
+  const baseUrl = process.env.OPENWEATHER_BASE_URL || 'https://api.openweathermap.org/data/2.5';
   const endpoint = `${baseUrl}/weather?lat=${lat}&lon=${lng}&appid=${apiKey}&units=metric`;
 
   const res = await fetch(endpoint, {
@@ -233,7 +239,9 @@ async function fetchOpenWeatherForecastHours(
   lat: number,
   lng: number
 ): Promise<ForecastHour[]> {
-  const baseUrl = process.env.OPENWEATHER_BASE_URL ?? 'https://api.openweathermap.org/data/2.5';
+  // `||` so a blank OPENWEATHER_BASE_URL in .env falls back to the real default
+  // rather than building every request against an empty origin.
+  const baseUrl = process.env.OPENWEATHER_BASE_URL || 'https://api.openweathermap.org/data/2.5';
   const endpoint = `${baseUrl}/forecast?lat=${lat}&lon=${lng}&appid=${apiKey}&units=metric`;
 
   const res = await fetch(endpoint, {
@@ -255,30 +263,63 @@ async function fetchOpenWeatherForecastHours(
   }));
 }
 
-async function fetchForecastAlerts(
-  googleKey: string | undefined,
-  openWeatherKey: string | undefined,
-  lat: number,
-  lng: number
-): Promise<WeatherAlert[]> {
+/**
+ * Hazards ahead, and the span worth going.
+ *
+ * Both come from the same hourly fetch — asking twice would double the cost of
+ * the call for two views of one forecast. A failure yields no alerts and an
+ * `unknown` window rather than an empty one, so the UI says it does not know
+ * instead of implying the forecast is clear.
+ */
+interface ForecastRequest {
+  googleKey: string | undefined;
+  openWeatherKey: string | undefined;
+  lat: number;
+  lng: number;
+  requiredHours: number | null;
+  log: Logger;
+}
+
+async function fetchForecast({
+  googleKey,
+  openWeatherKey,
+  lat,
+  lng,
+  requiredHours,
+  log,
+}: ForecastRequest): Promise<{ alerts: WeatherAlert[]; window: WeatherWindow }> {
   try {
     const hours = googleKey
       ? await fetchGoogleForecastHours(googleKey, lat, lng)
       : openWeatherKey
         ? await fetchOpenWeatherForecastHours(openWeatherKey, lat, lng)
         : [];
-    return summarizeAlerts(hours);
+    return {
+      alerts: summarizeAlerts(hours),
+      window: findWeatherWindow(hours, requiredHours ? { requiredHours } : {}),
+    };
   } catch (err) {
-    console.warn('weather forecast fetch failed:', err);
-    return [];
+    log.warn('weather_forecast_failed', { error: serializeError(err) });
+    return {
+      alerts: [],
+      window: findWeatherWindow([]),
+    };
   }
 }
 
 // ── Route handler ─────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
+  const log = createLogger('/api/weather', request);
+
+  const limit = await rateLimit(request, WEATHER_RATE_LIMIT);
+  if (!limit.ok) return tooManyRequests(limit);
+
   const lat = toNumber(request.nextUrl.searchParams.get('lat'));
   const lng = toNumber(request.nextUrl.searchParams.get('lng'));
   const elevation = toNumber(request.nextUrl.searchParams.get('elevation'));
+  // How long the route takes, so the window is scoped to this route rather than
+  // to the location — see `weatherWindow.ts`. Absent, it falls back to a short outing.
+  const requiredHours = toNumber(request.nextUrl.searchParams.get('hours'));
 
   if (lat === null || lng === null) {
     return NextResponse.json({ error: 'Missing or invalid lat/lng' }, { status: 400 });
@@ -297,10 +338,17 @@ export async function GET(request: NextRequest) {
       ? await fetchGoogleWeather(googleKey, lat, lng, elevation)
       : await fetchOpenWeather(openWeatherKey!, lat, lng, elevation);
 
-    const alerts = await fetchForecastAlerts(googleKey, openWeatherKey, lat, lng);
+    const { alerts, window } = await fetchForecast({
+      googleKey,
+      openWeatherKey,
+      lat,
+      lng,
+      requiredHours,
+      log,
+    });
 
     return NextResponse.json(
-      { ...result, alerts },
+      { ...result, alerts, window },
       { headers: { 'Cache-Control': 'public, max-age=1800, stale-while-revalidate=300' } }
     );
   } catch (error) {
