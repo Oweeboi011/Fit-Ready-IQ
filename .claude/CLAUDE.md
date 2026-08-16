@@ -29,9 +29,28 @@ npx vitest run src/lib/gpxParser.test.ts
 
 ```bash
 poetry run uvicorn src.main:app --reload --port 8000
-pytest                            # all tests
-pytest tests/unit/test_foo.py    # single test file
+poetry run pytest                        # all tests
+poetry run pytest tests/unit/test_foo.py # single test file
 ```
+
+The dependencies live in Poetry's virtualenv, not in the system Python, so every
+command needs the `poetry run` prefix — a bare `uvicorn` or `pytest` reports
+`No module named uvicorn` even though the package is installed.
+
+Requires `src/backend/.env`: six settings in `src/config/settings.py` have no
+default (`firebase_project_id`, the three `strava_*`, `mapbox_access_token`,
+`openweather_api_key`), so without it the app dies on a Pydantic
+`ValidationError` before serving anything. Copy `.env.example` and leave values
+blank if you have no keys — blank still satisfies the type. `CORS_ORIGINS` is the
+exception: it is a `list[str]`, and pydantic-settings JSON-decodes complex types
+straight from the dotenv file before any validator runs, so it must be a JSON
+array (`["http://localhost:4790"]`), not the comma-separated form the
+`parse_cors_origins` validator implies.
+
+**Windows:** if Poetry was installed with `pip install --user`, `poetry.exe`
+lands in `%APPDATA%\Python\Python312\Scripts`, which is not on `PATH` by default —
+`poetry` is then "not recognised". Either add that directory to your user `PATH`,
+or use `python -m poetry run ...` instead.
 
 ### Local dev with Firebase emulators
 
@@ -53,32 +72,66 @@ The FastAPI backend is not called by the frontend in production; it is planned f
 
 | Route | Purpose | Timeout |
 |---|---|---|
-| `/api/chat` | Gemini 2.5 Flash conversation, persisted to Firestore. History capped at 20 messages (first message anchored) to bound token cost. | 30 s |
+| `/api/chat` | Gemini 2.5 Flash conversation, persisted to Firestore. History capped at 20 messages (first message anchored) to bound token cost. Rate-limited to 20/hour per caller. | 30 s |
 | `/api/strava/exchange` | Server-side OAuth token exchange (keeps secret off client) | — |
-| `/api/strava/activities` | Fetch activities from Strava API | — |
-| `/api/strava/sync` | Admin: sync Strava activities → Firestore | 60 s |
-| `/api/places/cache` | Grid-based places cache (0.5° cells, 24 h TTL) | 15 s |
-| `/api/weather` | Google Weather (primary) → OpenWeather fallback | 15 s |
+| `/api/strava/activities` | Fetch activities from Strava API. Strava token travels in the `X-Strava-Token` header, never the query string. | — |
+| `/api/strava/sync` | Sync the caller's Strava activities → Firestore. **Requires a Firebase ID token**; the destination `uid` comes from that token, never the body. | 60 s |
+| `/api/places/cache` | Grid-based places cache (0.5° cells, 24 h TTL). GET is public; **POST requires a Firebase ID token** and caps each kind at 200 items. | 15 s |
+| `/api/weather` | Google Weather (primary) → OpenWeather fallback. Rate-limited to 200/hour per caller. | 15 s |
 | `/api/health` | Credential-presence checks only (no live API calls). `s-maxage=30, stale-while-revalidate=10`. | 15 s |
 | `/api/admin/cache` | Inspect / purge places cache (batch 400 docs). Admin-gated. | 30 s |
 | `/api/admin/strava-sync` | Strava sync status across users. Admin-gated. | — |
-| `/api/admin/whoami` | Returns `{ isAdmin }` for the bearer token; lets the UI hide admin affordances without shipping the allowlist | — |
+| `/api/admin/users` | Lists accounts from **Firebase Auth** (not Firestore, which omits anyone who has not yet synced or saved). Admin-gated, audited, capped at 1 000 with a `truncated` flag | — |
+| `/api/admin/whoami` | Returns `{ isAdmin, role }` for the bearer token; lets the UI hide admin affordances without shipping the allowlist | — |
+| `/api/account/export` | GDPR Art. 15 — every collection the caller owns, as one JSON document. Rate-limited to 5/hour | — |
+| `/api/account/delete` | GDPR Art. 17 — erases the caller's data, then the Auth account. Requires `{"confirm":"DELETE"}`. Rate-limited to 5/hour | — |
+| `/api/integrations/firebase` | Deep Firebase probe — actually writes to Firestore. Admin-gated; use `/api/health` for uptime monitoring. | 15 s |
+| `/api/directions` | Google Routes API proxy for the planner (12 s upstream timeout). Rate-limited to 120/hour per caller. | — |
+| `/api/advisories` | Scraped `data/advisories.json`, then `ADVISORY_FEED_URL`; never invents a closure | — |
 
 ### Firestore data model
 
 ```
 users/{uid}/saved_places/{placeId}
 users/{uid}/strava_activities/{actId}   # Admin SDK write-only
-users/{uid}/strava_sync                 # sync manifest
+users/{uid}.strava_sync                 # sync manifest — a FIELD on the user doc, not a subcollection
 places_cache/{gridKey}                  # shared, public read, 24 h TTL
 activities/{actId}
 routes/{routeId}
 training_programs/{programId}
 itineraries/{itineraryId}
+chat_sessions/{sessionId}/messages/{id} # Admin SDK only; one doc per turn
+rate_limits/{bucketId}                  # Admin SDK only; needs a TTL policy on `expiresAt`
+audit_logs/{entryId}                    # Admin SDK only; append-only, 730-day TTL
 _health/                                # health check documents
 ```
 
+**Three collections need a Firestore TTL policy on `expiresAt` or they grow for
+ever**: `rate_limits`, `chat_sessions` (plus its `messages` subcollection, at
+*collection-group* scope — deleting a parent never touches a subcollection), and
+`audit_logs`. The field is inert without the policy. See
+`docs/runbooks/firestore-ttl.md`.
+
+**Every route needs a rate-limit budget**, declared in `src/lib/rateLimitRules.ts`
+rather than inline, so the set is enumerable. `rateLimitCoverage.test.ts` fails
+the build if a route ships without one or an explicit, reasoned exemption.
+
+**A user-scoped collection must be added to `src/lib/userDataFootprint.ts`** in
+the same change. Export and erasure both walk that list; a collection missing
+from it is data the product keeps after telling someone it was deleted.
+
 Places cache key = coordinates rounded to 0.5° so nearby users share cached results.
+
+**Security rules do not cascade into subcollections.** `match /users/{userId}` governs
+the user document alone — every subcollection needs its own `match` block or it falls
+through to the default deny. `saved_places` shipped without one, which silently denied
+every bookmark write in production. When you add a subcollection the browser touches,
+add its rule in the same change.
+
+**A `uid` in a request body is not an identity.** Route handlers use the Admin SDK,
+which bypasses these rules entirely, so any route that writes user-scoped data must
+take the uid from `requireUser(request)` in `src/lib/serverAuth.ts` — never from the
+body or a query parameter.
 
 ### Client-side caching
 
@@ -91,6 +144,19 @@ To avoid redundant paid API calls:
 ### Admin access
 
 `/admin/settings` and every `/api/admin/*` route are gated on the `ADMIN_EMAILS` allowlist (comma-separated, **server-side only**). API routes call `requireAdmin(request)`, which verifies a Firebase ID token from the `Authorization: Bearer` header and checks the email against the list. An empty or missing `ADMIN_EMAILS` denies everyone — the gate fails closed.
+
+Two roles, ordered: `viewer` (read-only dashboards — cache freshness, sync
+health) and `admin` (everything, including purges and the user directory).
+Routes ask for the minimum they need via `requireRole(request, 'viewer')`;
+`requireAdmin` is exactly `requireRole(request, 'admin')`. A role rides on the
+`fri_role` Firebase custom claim, and `ADMIN_EMAILS` is the bootstrap that
+**always outranks the claim**, so a misconfigured claim can never lock out the
+last administrator. Claims travel inside the ID token, so a change takes effect
+on the next refresh with no per-request lookup.
+
+Every denied admin attempt is written to `audit_logs`, distinguishing "no role"
+from "role insufficient" — a viewer reaching for a destructive endpoint is a
+different event from a stranger knocking.
 
 The client never sees the allowlist. `useAdminGate()` asks `/api/admin/whoami` and hides admin UI when the answer is no; that is presentation only, and the routes verify independently. Admin calls from the browser must go through `authedFetch` so the token is attached.
 
@@ -111,7 +177,11 @@ Firebase Admin SDK tries credentials in this order: `FIREBASE_SERVICE_ACCOUNT_KE
 - `src/components/marketing/` — landing-page client islands (`StartTrialButton`, `PricingTable`)
 - `src/lib/plans.ts` — plan tiers, prices and entitlements; the single source for pricing copy and paywall checks
 - `src/lib/ui.ts` — button vocabulary (`buttonPrimary` / `buttonSecondary` / `buttonGhost`)
-- `src/lib/adminAuth.ts` — server-side admin gate (`requireAdmin`, `isAdminEmail`)
+- `src/lib/adminAuth.ts` — server-side admin gate and role vocabulary (`requireRole`, `requireAdmin`, `isAdminEmail`)
+- `src/lib/serverAuth.ts` — identity gate (`requireUser`, `optionalUser`); the only acceptable source of a uid
+- `src/lib/rateLimitRules.ts` — every rate-limit budget in the product, in one table
+- `src/lib/auditLog.ts` — append-only audit trail for privileged and irreversible actions
+- `src/lib/userDataFootprint.ts` — the single list of where user data lives; export and erasure both walk it
 - `src/lib/useAdminGate.ts` — client hook that asks the server whether the user is an admin
 - `src/components/MapView.tsx` — Google Maps with custom markers, polylines, OverlayView popups
 - `src/components/NavDock.tsx` + `src/components/dock/` — the floating dock over the map: content tabs, weather, terrain, advisories, alerts, layers, quick links
@@ -128,7 +198,7 @@ Firebase Admin SDK tries credentials in this order: `FIREBASE_SERVICE_ACCOUNT_KE
 - `src/components/RouteFilter.tsx` — filter controls, controlled by the page (never holds its own state)
 - `src/lib/firebaseAdmin.ts` — Admin SDK init (server-side only)
 - `src/lib/firebaseClient.ts` — client SDK init + Google/Apple auth (`signInWithGoogle`, `signInWithApple`)
-- `src/lib/gpxParser.ts` — GPX/TCX → activity objects (haversine, elevation gain, sport inference)
+- `src/lib/gpxParser.ts` — GPX → activity objects (haversine, elevation gain, sport inference). GPX only: it reads `<trkpt>`, which TCX does not use
 - `src/lib/appleHealthParser.ts` — Apple Health export.xml → activity objects (Workout elements)
 - `src/lib/polylineDecoder.ts` — precision-5 polyline decode → `[lng, lat]` pairs (test file is `decodePolyline.test.ts`)
 - `src/lib/activityTypes.ts` — activity interfaces, localStorage persistence (`fri_activities` key), dedup. Sources: `strava | coros | garmin | komoot | apple_health`
@@ -136,6 +206,10 @@ Firebase Admin SDK tries credentials in this order: `FIREBASE_SERVICE_ACCOUNT_KE
 - `src/lib/useUserLocation.ts` — the *only* geolocation call in the app. Reports `source` so a fallback is never drawn as the user's position
 - `src/lib/routeDifficulty.ts` — difficulty from distance and ascent (NPS formula), with an `unknown` band
 - `src/lib/fitnessScore.ts` — month-to-date fitness score, targets pro-rated across days elapsed
+- `src/lib/ledger.ts` — lifetime and year-to-date totals plus personal bests, the record that survives the month rollover `fitnessScore` resets on
+- `src/lib/readinessRecommender.ts` — bands scored routes into "ready" and "stretch". The ready band sorts by demand, not score: everything easy scores 100, so sorting by score surfaces the flattest walk
+- `src/lib/weatherWindow.ts` — the soonest span worth going, scoped to a route's duration. A `warning` hour is disqualifying, never discounted
+- `src/lib/routeDuration.ts` — Naismith ascent estimate, shared by the details view and the weather window so the two cannot disagree
 - `src/lib/mapLayers.ts` — map layer vocabulary and persistence
 - `src/lib/gpxBuilder.ts` — planner → GPX (round-trips through `gpxParser`)
 - `src/lib/savedPlans.ts` — device-local planned routes
@@ -155,6 +229,23 @@ through that vocabulary so it inherits the focus ring.
 
 **Failures are sayable.** No silent catch. If a fetch fails the UI says which
 one and offers a retry.
+
+**Server-side logging goes through `src/lib/logger.ts`, never `console.*`.**
+`createLogger(route, request)` emits one JSON object per line — matching the
+backend's structlog output, so both halves of the product are queried the same
+way — and carries a `request_id` taken from Vercel's `x-vercel-id`, so a user's
+report can reach the line that recorded it.
+
+Pass the caught value to `log.error(event, err)` rather than spreading it: the
+logger redacts by key (anything matching token/secret/key/password/authorization/
+cookie), bounds strings, and reduces an error to name/message/stack/cause. A raw
+`console.error('...', err)` serialises whatever the error carries, which for a
+fetch or firebase-admin error can include an `Authorization` header. Never log an
+upstream response body directly — use `upstreamSnippet()`, which caps and
+redacts it. Logs outlive the credentials they might quote.
+
+Event names are `snake_case` nouns describing what happened
+(`strava_refresh_rejected`), not sentences, so they group.
 
 ### Cache versioning
 
@@ -314,9 +405,9 @@ All sources are typed in `src/lib/activityTypes.ts`:
 | Source key | Origin | Parser |
 |---|---|---|
 | `strava` | Strava OAuth sync | `/api/strava/activities` |
-| `coros` | GPX/TCX file upload | `gpxParser.ts` |
-| `garmin` | GPX/TCX file upload | `gpxParser.ts` |
-| `komoot` | GPX/TCX file upload | `gpxParser.ts` |
+| `coros` | GPX file upload | `gpxParser.ts` |
+| `garmin` | GPX file upload | `gpxParser.ts` |
+| `komoot` | GPX file upload | `gpxParser.ts` |
 | `apple_health` | Apple Health `export.xml` | `appleHealthParser.ts` |
 
 Apple Health export: iPhone → Health → profile photo → Export All Health Data → extract zip → upload `export.xml` in the Connect Devices modal.
