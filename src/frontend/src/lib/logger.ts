@@ -53,7 +53,9 @@ const MAX_DEPTH = 4;
 export const REDACTED = '[redacted]';
 
 function truncate(value: string): string {
-  return value.length <= MAX_STRING ? value : `${value.slice(0, MAX_STRING)}…[+${value.length - MAX_STRING} chars]`;
+  return value.length <= MAX_STRING
+    ? value
+    : `${value.slice(0, MAX_STRING)}…[+${value.length - MAX_STRING} chars]`;
 }
 
 /**

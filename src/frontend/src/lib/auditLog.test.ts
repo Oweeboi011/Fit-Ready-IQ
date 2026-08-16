@@ -108,7 +108,9 @@ describe('recordAudit', () => {
       outcome: 'success',
     });
 
-    const line = JSON.parse((console.error as unknown as { mock: { calls: string[][] } }).mock.calls[0][0]);
+    const line = JSON.parse(
+      (console.error as unknown as { mock: { calls: string[][] } }).mock.calls[0][0]
+    );
     expect(line).toMatchObject({
       level: 'warn',
       event: 'audit_not_persisted',

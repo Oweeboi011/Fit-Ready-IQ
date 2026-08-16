@@ -17,8 +17,16 @@ export interface SavedPlan {
   waypoints: PlannerWaypoint[];
   /** Epoch millis. */
   savedAt: number;
-  /** Straight-line kilometres, cached so the list does not recompute. */
-  distanceKm: number;
+  /**
+   * Routed kilometres, cached so the list does not recompute.
+   *
+   * `null` when the plan was saved without a route — routing was unavailable, or
+   * no path exists between the waypoints. It used to hold a straight-line figure
+   * in that case, which is always short and read as a real distance in the plan
+   * list. Plans saved before this change still carry their old number; the
+   * validator never checked this field, so both shapes load.
+   */
+  distanceKm: number | null;
 }
 
 export const SAVED_PLANS_KEY = 'fri_saved_plans';

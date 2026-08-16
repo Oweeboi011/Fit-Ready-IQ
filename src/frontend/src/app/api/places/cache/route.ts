@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createLogger, serializeError } from '@/lib/logger';
 import { getFirestoreAdmin, isFirebaseAdminConfigured } from '@/lib/firebaseAdmin';
 import { rateLimit, tooManyRequests } from '@/lib/rateLimit';
-import {
-  PLACES_CACHE_READ_RATE_LIMIT,
-  PLACES_CACHE_WRITE_RATE_LIMIT,
-} from '@/lib/rateLimitRules';
+import { PLACES_CACHE_READ_RATE_LIMIT, PLACES_CACHE_WRITE_RATE_LIMIT } from '@/lib/rateLimitRules';
 import { requireUser } from '@/lib/serverAuth';
 
 export const runtime = 'nodejs';

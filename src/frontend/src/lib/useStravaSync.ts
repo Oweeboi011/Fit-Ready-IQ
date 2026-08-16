@@ -5,6 +5,7 @@ import {
   saveActivities,
   mergeActivities,
 } from '@/lib/activityTypes';
+import { authedFetch } from '@/lib/firebaseClient';
 import { decodePolyline } from '@/lib/polylineDecoder';
 import { getValidStravaToken } from '@/lib/stravaAuth';
 
@@ -56,9 +57,9 @@ export function useStravaSync(uid: string | null | undefined) {
       let syncFailed = false;
       try {
         for (let page = 1; page <= STRAVA_MAX_PAGES; page++) {
-          const res = await fetch(
-            `/api/strava/activities?token=${encodeURIComponent(token.access_token)}&page=${page}`
-          );
+          const res = await fetch(`/api/strava/activities?page=${page}`, {
+            headers: { 'X-Strava-Token': token.access_token },
+          });
           if (!res.ok) {
             // A non-OK page used to `break` silently, truncating the history
             // and reporting it as a complete sync.
@@ -111,10 +112,13 @@ export function useStravaSync(uid: string | null | undefined) {
         const SYNC_TTL_MS = 60 * 60 * 1000; // re-sync at most once per hour
         const lastSync = parseInt(localStorage.getItem(SYNC_KEY) ?? '0', 10);
         if (Date.now() - lastSync > SYNC_TTL_MS) {
-          fetch('/api/strava/sync', {
+          // authedFetch, not fetch: the route derives the destination uid from
+          // the Firebase ID token. Sending our own uid in the body would be an
+          // unverifiable claim, and the route no longer reads one.
+          authedFetch('/api/strava/sync', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: token.access_token, uid }),
+            body: JSON.stringify({ token: token.access_token }),
           })
             .then((r) => (r.ok ? r.json() : Promise.reject()))
             .then((result: { synced: number }) => {
