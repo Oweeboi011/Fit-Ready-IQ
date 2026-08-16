@@ -1,6 +1,10 @@
 /**
- * Parses GPX (and basic TCX) files into a structured activity object.
+ * Parses GPX files into a structured activity object.
  * Used for COROS, Garmin, and Komoot file uploads.
+ *
+ * GPX only, deliberately: this reads `<trkpt>` elements, which TCX does not use
+ * — it stores `<Trackpoint>`. `ConnectDevicesModal` accepts `.gpx` alone so a
+ * valid TCX export is never taken and then rejected as empty.
  */
 
 export interface ParsedGpxActivity {

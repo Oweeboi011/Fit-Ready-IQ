@@ -18,8 +18,10 @@ function getFirebaseClientConfig() {
   // module is evaluated on the server. Next inlines nothing but NEXT_PUBLIC_* into the
   // browser bundle, so on the client the fallback is `undefined` and no secret can
   // leak — and a project ID is not a credential in any case.
+  // `||` so a declared-but-blank NEXT_PUBLIC_FIREBASE_PROJECT_ID still falls
+  // through to FIREBASE_PROJECT_ID instead of resolving to an empty string.
   // eslint-disable-next-line no-restricted-syntax
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? process.env.FIREBASE_PROJECT_ID;
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID;
 
   return {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,

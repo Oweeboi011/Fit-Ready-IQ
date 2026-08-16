@@ -130,10 +130,7 @@ export default function Home() {
    * third party's error overlay is not us degrading honestly.
    */
   const mapConfigError = useMemo(
-    () =>
-      googleMapsApiKey
-        ? undefined
-        : new Error('NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is not set'),
+    () => (googleMapsApiKey ? undefined : new Error('NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is not set')),
     [googleMapsApiKey]
   );
 

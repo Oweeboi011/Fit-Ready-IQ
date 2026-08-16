@@ -4,7 +4,7 @@ import MapNavDock from '@/components/map/MapNavDock';
 import MapCanvas from '@/components/map/MapCanvas';
 import type { ContentTab, DockAlert, DockWeather, TerrainPulse } from '@/components/NavDock';
 import type { DirectionsTarget } from '@/components/MapDirections';
-import type { PlannerRoute } from '@/lib/usePlannerRoute';
+import type { PlannerRoute, PlannerTravelMode } from '@/lib/usePlannerRoute';
 import type { PlannerWaypoint } from '@/lib/gpxBuilder';
 import type { Advisory } from '@/lib/advisories';
 import type { MapLayer } from '@/lib/mapLayers';
@@ -63,6 +63,8 @@ interface MapAreaProps {
   onRemoveWaypoint: (id: string) => void;
   onMoveWaypoint: (id: string, direction: -1 | 1) => void;
   plannerRoute: PlannerRoute;
+  plannerTravelMode: PlannerTravelMode;
+  onPlannerTravelModeChange: (mode: PlannerTravelMode) => void;
   onClearPlanner: () => void;
   onLoadPlan: (waypoints: PlannerWaypoint[]) => void;
   onMapClick: ((coordinates: [number, number], name?: string) => void) | undefined;
@@ -150,6 +152,8 @@ export default function MapArea(props: MapAreaProps) {
         onRemoveWaypoint={props.onRemoveWaypoint}
         onMoveWaypoint={props.onMoveWaypoint}
         plannerRoute={props.plannerRoute}
+        plannerTravelMode={props.plannerTravelMode}
+        onPlannerTravelModeChange={props.onPlannerTravelModeChange}
         onClearPlanner={props.onClearPlanner}
         onLoadPlan={props.onLoadPlan}
         onMapClick={props.onMapClick}

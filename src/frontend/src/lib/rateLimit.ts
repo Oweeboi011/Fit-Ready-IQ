@@ -88,10 +88,7 @@ export function callerKey(request: Request): string {
  * it is logged, because silently not rate-limiting is how you discover the
  * limiter was broken on the invoice.
  */
-export async function rateLimit(
-  request: Request,
-  rule: RateLimitRule
-): Promise<RateLimitResult> {
+export async function rateLimit(request: Request, rule: RateLimitRule): Promise<RateLimitResult> {
   const allowed: RateLimitResult = {
     ok: true,
     remaining: rule.limit,
@@ -125,7 +122,10 @@ export async function rateLimit(
     });
 
     if (count > rule.limit) {
-      const retryAfterSeconds = Math.max(1, Math.ceil((windowStart + windowMs - Date.now()) / 1000));
+      const retryAfterSeconds = Math.max(
+        1,
+        Math.ceil((windowStart + windowMs - Date.now()) / 1000)
+      );
       return { ok: false, remaining: 0, retryAfterSeconds };
     }
 

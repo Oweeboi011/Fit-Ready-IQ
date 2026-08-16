@@ -7,6 +7,45 @@ export interface StravaToken {
 
 const STORAGE_KEY = 'fri_strava_token';
 
+/**
+ * CSRF protection for the Strava OAuth round trip.
+ *
+ * Without a `state` parameter the callback accepts any `?code=` it is handed, so
+ * an attacker could send a victim a link carrying *their* authorisation code and
+ * silently bind the victim's Fit Ready IQ session to the attacker's Strava
+ * account — from then on the victim's training data is the attacker's, and every
+ * activity the victim imports lands in an account they do not control.
+ *
+ * The nonce lives in `sessionStorage`: it belongs to the one tab that started
+ * the flow and should not outlive it.
+ */
+const STATE_KEY = 'fri_strava_oauth_state';
+
+/** Mints and stores a one-shot nonce. Returns null if storage is unavailable. */
+export function createStravaOAuthState(): string | null {
+  try {
+    const state = crypto.randomUUID();
+    sessionStorage.setItem(STATE_KEY, state);
+    return state;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Checks the `state` Strava echoed back against the stored nonce and clears it,
+ * so a replay of the same callback URL fails the second time.
+ */
+export function consumeStravaOAuthState(received: string | null): boolean {
+  try {
+    const expected = sessionStorage.getItem(STATE_KEY);
+    sessionStorage.removeItem(STATE_KEY);
+    return Boolean(expected) && Boolean(received) && expected === received;
+  } catch {
+    return false;
+  }
+}
+
 function readStoredToken(): StravaToken | null {
   if (typeof window === 'undefined') return null;
   const raw = localStorage.getItem(STORAGE_KEY);

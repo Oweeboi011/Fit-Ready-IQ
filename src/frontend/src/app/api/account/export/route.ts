@@ -3,7 +3,11 @@ import { NextResponse } from 'next/server';
 
 import { createLogger } from '@/lib/logger';
 import { recordAudit } from '@/lib/auditLog';
-import { getFirebaseAdminApp, getFirestoreAdmin, isFirebaseAdminConfigured } from '@/lib/firebaseAdmin';
+import {
+  getFirebaseAdminApp,
+  getFirestoreAdmin,
+  isFirebaseAdminConfigured,
+} from '@/lib/firebaseAdmin';
 import { rateLimit, tooManyRequests } from '@/lib/rateLimit';
 import { ACCOUNT_EXPORT_RATE_LIMIT } from '@/lib/rateLimitRules';
 import { requireUser } from '@/lib/serverAuth';

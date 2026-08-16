@@ -22,8 +22,7 @@ export interface VerifiedUser {
 }
 
 export type AuthResult<TIdentity> =
-  | { ok: true; user: TIdentity }
-  | { ok: false; response: NextResponse };
+  { ok: true; user: TIdentity } | { ok: false; response: NextResponse };
 
 export function deny(status: number, message: string): { ok: false; response: NextResponse } {
   return { ok: false, response: NextResponse.json({ error: message }, { status }) };

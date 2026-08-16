@@ -1,7 +1,7 @@
 import dynamic from 'next/dynamic';
 import { MapDirections, type DirectionsTarget } from '@/components/MapDirections';
 import { RoutePlanner } from '@/components/RoutePlanner';
-import type { PlannerRoute } from '@/lib/usePlannerRoute';
+import type { PlannerRoute, PlannerTravelMode } from '@/lib/usePlannerRoute';
 import type { PlannerWaypoint } from '@/lib/gpxBuilder';
 import type { Advisory } from '@/lib/advisories';
 import type { MapLayer } from '@/lib/mapLayers';
@@ -38,6 +38,8 @@ interface MapCanvasProps {
   onRemoveWaypoint: (id: string) => void;
   onMoveWaypoint: (id: string, direction: -1 | 1) => void;
   plannerRoute: PlannerRoute;
+  plannerTravelMode: PlannerTravelMode;
+  onPlannerTravelModeChange: (mode: PlannerTravelMode) => void;
   onClearPlanner: () => void;
   onLoadPlan: (waypoints: PlannerWaypoint[]) => void;
   onMapClick: ((coordinates: [number, number], name?: string) => void) | undefined;
@@ -74,6 +76,8 @@ export default function MapCanvas({
   onRemoveWaypoint,
   onMoveWaypoint,
   plannerRoute,
+  plannerTravelMode,
+  onPlannerTravelModeChange,
   onClearPlanner,
   onLoadPlan,
   onMapClick,
@@ -113,6 +117,8 @@ export default function MapCanvas({
         onRemove={onRemoveWaypoint}
         onMove={onMoveWaypoint}
         route={plannerRoute}
+        travelMode={plannerTravelMode}
+        onTravelModeChange={onPlannerTravelModeChange}
         onClear={onClearPlanner}
         onLoadPlan={(waypoints) => {
           onLoadPlan(waypoints);

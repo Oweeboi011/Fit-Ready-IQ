@@ -11,10 +11,7 @@ import {
 import { rateLimit, tooManyRequests } from '@/lib/rateLimit';
 import { ACCOUNT_DELETE_RATE_LIMIT } from '@/lib/rateLimitRules';
 import { requireUser } from '@/lib/serverAuth';
-import {
-  USER_OWNED_COLLECTIONS,
-  USER_OWNED_TREE_COLLECTIONS,
-} from '@/lib/userDataFootprint';
+import { USER_OWNED_COLLECTIONS, USER_OWNED_TREE_COLLECTIONS } from '@/lib/userDataFootprint';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
