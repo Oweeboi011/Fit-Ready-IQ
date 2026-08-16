@@ -37,7 +37,7 @@ function ModeToggle({ mode, onChange }: { mode: TravelMode; onChange: (m: Travel
     <div
       role="radiogroup"
       aria-label="Travel mode"
-      className="flex items-center gap-0.5 rounded-lg border border-white/10 bg-white/[0.03] p-0.5"
+      className="flex items-center gap-0.5 rounded-lg border border-ink/10 bg-ink/[0.03] p-0.5"
     >
       {options.map(({ id, label, Icon }) => (
         <button
@@ -172,7 +172,7 @@ export function MapDirections({ map, origin, target, onClear }: MapDirectionsPro
     <div className="pointer-events-none absolute inset-x-0 top-6 z-30 flex justify-center px-4">
       <div
         role="status"
-        className="pointer-events-auto w-[min(26rem,100%)] rounded-2xl border border-white/10 bg-slate-900/95 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl"
+        className="pointer-events-auto w-[min(26rem,100%)] rounded-2xl border border-ink/10 bg-slate-900/95 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -185,7 +185,7 @@ export function MapDirections({ map, origin, target, onClear }: MapDirectionsPro
             type="button"
             onClick={onClear}
             aria-label="Clear directions"
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-ink/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
           >
             <X aria-hidden="true" className="h-3.5 w-3.5" />
           </button>

@@ -22,7 +22,7 @@ const GRID_DEGREES = 0.5;
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-slate-800/60 px-4 py-3">
+    <div className="rounded-xl border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
       <p className="font-tabular mt-1.5 text-xl font-bold text-white">{value}</p>
       {hint && <p className="mt-0.5 text-[10px] text-slate-500">{hint}</p>}
@@ -32,7 +32,7 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 
 function Unavailable({ what, why }: { what: string; why: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-white/10 bg-slate-900/40 p-6 text-center">
+    <div className="rounded-xl border border-dashed border-ink/10 bg-slate-900/40 p-6 text-center">
       <p className="text-sm font-semibold text-slate-200">{what}</p>
       <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-slate-500">{why}</p>
     </div>
@@ -68,7 +68,7 @@ export function ActivityTab({ data }: { data: AdminData }) {
       </div>
 
       {sync.entries.length > 0 && (
-        <div className="overflow-hidden rounded-xl border border-white/[0.06]">
+        <div className="overflow-hidden rounded-xl border border-ink/[0.06]">
           <table className="w-full text-left">
             <thead className="bg-slate-800/60">
               <tr>
@@ -83,7 +83,7 @@ export function ActivityTab({ data }: { data: AdminData }) {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.04]">
+            <tbody className="divide-y divide-ink/[0.04]">
               {sync.entries.slice(0, 8).map((entry) => (
                 <tr key={entry.uid}>
                   <td className="max-w-[10rem] truncate px-3 py-2 font-mono text-[10px] text-slate-400">
@@ -174,7 +174,7 @@ export function GovernanceTab({ data }: { data: AdminData }) {
         {rows.map(({ label, detail, ok }) => (
           <div
             key={label}
-            className="flex items-center gap-3 rounded-lg border border-white/[0.05] bg-slate-800/40 px-3 py-2.5"
+            className="flex items-center gap-3 rounded-lg border border-ink/[0.05] bg-slate-800/40 px-3 py-2.5"
           >
             {ok ? (
               <CheckCircle aria-hidden="true" className="h-4 w-4 flex-shrink-0 text-emerald-400" />
@@ -189,7 +189,7 @@ export function GovernanceTab({ data }: { data: AdminData }) {
         ))}
       </div>
 
-      <div className="rounded-xl border border-white/[0.06] bg-slate-800/40 p-4">
+      <div className="rounded-xl border border-ink/[0.06] bg-slate-800/40 p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
           Access control
         </h3>
@@ -247,7 +247,7 @@ export function CachingTab({ data, onRefresh }: { data: AdminData; onRefresh: ()
         <Stat label="Stale" value={String(cache.stale)} />
       </div>
 
-      <div className="rounded-xl border border-white/[0.06] bg-slate-800/40 p-4">
+      <div className="rounded-xl border border-ink/[0.06] bg-slate-800/40 p-4">
         <div className="mb-2 flex items-baseline justify-between">
           <p className="text-xs font-medium text-slate-300">Fresh share</p>
           <p className="font-tabular text-xs font-bold text-white">{freshShare}%</p>
@@ -255,7 +255,7 @@ export function CachingTab({ data, onRefresh }: { data: AdminData; onRefresh: ()
         <div
           role="img"
           aria-label={`${freshShare} per cent of cached regions are fresh`}
-          className="h-1.5 w-full overflow-hidden rounded-full bg-white/10"
+          className="h-1.5 w-full overflow-hidden rounded-full bg-ink/10"
         >
           <div
             className={`h-full rounded-full ${freshShare >= 70 ? 'bg-emerald-500' : freshShare >= 40 ? 'bg-amber-500' : 'bg-red-500'}`}
@@ -316,7 +316,7 @@ export function EfficiencyTab({ data }: { data: AdminData }) {
         />
       )}
 
-      <div className="rounded-xl border border-white/[0.06] bg-slate-800/40 p-4">
+      <div className="rounded-xl border border-ink/[0.06] bg-slate-800/40 p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
           Request budget
         </h3>

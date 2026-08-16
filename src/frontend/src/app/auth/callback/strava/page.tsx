@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 
+import { consumeStravaOAuthState } from '@/lib/stravaAuth';
 import { buttonGhost, buttonPrimary, buttonSize } from '@/lib/ui';
 
 /** The exchange rarely takes more than a second; past this it is not coming back. */
@@ -49,6 +50,21 @@ function StravaCallbackInner() {
         title: 'That link was incomplete',
         detail:
           'Strava did not send an authorisation code. Starting the connection again usually fixes it.',
+        canRetry: true,
+      });
+      return;
+    }
+
+    // Only honour a callback for a flow this tab started. Without this check the
+    // page would exchange any code it was handed, so a crafted link could bind
+    // this browser to somebody else's Strava account. Consuming the nonce also
+    // makes the check single-use, so the same callback URL cannot be replayed.
+    if (!consumeStravaOAuthState(searchParams.get('state'))) {
+      setOutcome({
+        state: 'failed',
+        title: "We couldn't verify that connection",
+        detail:
+          'This link did not come from a connection started in this tab, or it has already been used. Start the connection again from Connect Devices.',
         canRetry: true,
       });
       return;
@@ -129,7 +145,7 @@ function StravaCallbackInner() {
   if (outcome.state === 'failed') {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-950 p-4">
-        <div className="w-full max-w-sm rounded-2xl border border-white/[0.08] bg-slate-900 p-6 text-center shadow-2xl">
+        <div className="w-full max-w-sm rounded-2xl border border-ink/[0.08] bg-slate-900 p-6 text-center shadow-2xl">
           <AlertCircle aria-hidden="true" className="mx-auto mb-4 h-10 w-10 text-amber-400" />
           <h1 className="text-lg font-semibold text-white">{outcome.title}</h1>
           <p className="mt-2 text-sm text-slate-400">{outcome.detail}</p>

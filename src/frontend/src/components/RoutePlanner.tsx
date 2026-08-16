@@ -1,12 +1,22 @@
 'use client';
 
-import { Download, FolderOpen, GripVertical, MapPin, Save, Trash2, X } from 'lucide-react';
+import {
+  Bike,
+  Download,
+  FolderOpen,
+  Footprints,
+  GripVertical,
+  MapPin,
+  Save,
+  Trash2,
+  TriangleAlert,
+  X,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { buildGpx, gpxFilename, type PlannerWaypoint } from '@/lib/gpxBuilder';
 import { deletePlan, loadPlans, savePlan, type SavedPlan } from '@/lib/savedPlans';
-import type { PlannerRoute } from '@/lib/usePlannerRoute';
-import { haversineDistanceKm } from '@/lib/gpxParser';
+import type { PlannerRoute, PlannerTravelMode } from '@/lib/usePlannerRoute';
 import { buttonGhost, buttonPrimary, buttonSecondary, buttonSize } from '@/lib/ui';
 
 interface RoutePlannerProps {
@@ -17,19 +27,10 @@ interface RoutePlannerProps {
   onMove: (id: string, direction: -1 | 1) => void;
   onClear: () => void;
   onLoadPlan: (waypoints: PlannerWaypoint[]) => void;
-  /** Walking route through the waypoints, or the straight-line fallback. */
+  /** Routed line through the waypoints, or an error saying why there is none. */
   route: PlannerRoute;
-}
-
-/** Straight-line length through the waypoints, in order. */
-function totalDistanceKm(waypoints: PlannerWaypoint[]): number {
-  let total = 0;
-  for (let i = 1; i < waypoints.length; i++) {
-    const [aLng, aLat] = waypoints[i - 1].coordinates;
-    const [bLng, bLat] = waypoints[i].coordinates;
-    total += haversineDistanceKm(aLat, aLng, bLat, bLng);
-  }
-  return total;
+  travelMode: PlannerTravelMode;
+  onTravelModeChange: (mode: PlannerTravelMode) => void;
 }
 
 /** Sum of the positive elevation steps we know about. */
@@ -44,32 +45,98 @@ function totalAscentM(waypoints: PlannerWaypoint[]): number | null {
   return Math.round(gain);
 }
 
-/** Distance and ascent, with the provenance of the distance spelled out. */
-function RouteSummary({
-  route,
-  distance,
-  ascent,
-}: {
-  route: PlannerRoute;
-  distance: number;
-  ascent: number | null;
-}) {
+/**
+ * Distance and ascent — or the reason there are none.
+ *
+ * There is no fallback figure. When routing fails the panel says so and shows
+ * nothing else: the straight-line distance this used to display was always short
+ * and was still what got saved and exported.
+ */
+function RouteSummary({ route, ascent }: { route: PlannerRoute; ascent: number | null }) {
+  const failed = route.status === 'error';
+
   return (
-    <div className="mt-3 flex items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
-      <MapPin aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 text-blue-400" />
+    <div
+      className={`mt-3 flex items-center gap-3 rounded-lg border px-3 py-2 ${
+        failed ? 'border-amber-500/25 bg-amber-500/[0.07]' : 'border-ink/[0.06] bg-ink/[0.03]'
+      }`}
+    >
+      {failed ? (
+        <TriangleAlert aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 text-amber-400" />
+      ) : (
+        <MapPin aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 text-blue-400" />
+      )}
       <div className="min-w-0">
-        <p className="font-tabular text-xs font-semibold text-white">
-          {route.status === 'routing' ? 'Routing…' : `${distance.toFixed(1)} km`}
-          {ascent != null && ` · ${ascent} m up`}
-        </p>
-        {/* Say which kind of number this is. A straight-line figure presented
-            as a walking distance is always short. */}
-        <p className="text-[10px] text-slate-500">
-          {route.mode === 'walking'
-            ? 'Following walking paths'
-            : 'Straight line — no mapped path between these points'}
-        </p>
+        {failed ? (
+          <>
+            <p className="text-xs font-semibold text-amber-200">No route</p>
+            <p className="mt-0.5 text-[10px] leading-relaxed text-slate-400">{route.error}</p>
+          </>
+        ) : (
+          <>
+            <p className="font-tabular text-xs font-semibold text-white">
+              {route.status === 'routing' || route.distanceKm == null
+                ? 'Routing…'
+                : `${route.distanceKm.toFixed(1)} km`}
+              {ascent != null && ` · ${ascent} m up`}
+            </p>
+            <p className="text-[10px] text-slate-500">
+              {route.mode === 'cycling' ? 'Following cycling routes' : 'Following walking paths'}
+            </p>
+          </>
+        )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Walk or bike.
+ *
+ * Not a display preference — it changes the request. Cycling routing prefers
+ * cycleways and roads and refuses steps and footpaths a bike cannot ride, so the
+ * same waypoints give a different line and a different distance. A radiogroup
+ * rather than two buttons, so arrow keys move between them and a screen reader
+ * announces it as one choice with two options.
+ */
+function TravelModeToggle({
+  value,
+  onChange,
+}: {
+  value: PlannerTravelMode;
+  onChange: (mode: PlannerTravelMode) => void;
+}) {
+  const options: { id: PlannerTravelMode; label: string; Icon: typeof Footprints }[] = [
+    { id: 'walk', label: 'Walk', Icon: Footprints },
+    { id: 'bike', label: 'Bike', Icon: Bike },
+  ];
+
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Travel mode"
+      className="mt-3 flex gap-1 rounded-lg border border-ink/[0.06] bg-ink/[0.03] p-1"
+    >
+      {options.map(({ id, label, Icon }) => {
+        const selected = value === id;
+        return (
+          <button
+            key={id}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onChange(id)}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+              selected
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-400 hover:bg-ink/[0.06] hover:text-white'
+            }`}
+          >
+            <Icon aria-hidden="true" className="h-3.5 w-3.5" />
+            {label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -89,7 +156,7 @@ function WaypointList({
       {waypoints.map((w, index) => (
         <li
           key={w.id}
-          className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-2 py-1.5"
+          className="flex items-center gap-2 rounded-lg border border-ink/[0.06] bg-ink/[0.03] px-2 py-1.5"
         >
           <span className="font-tabular flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
             {index + 1}
@@ -133,7 +200,7 @@ function SavedPlansDrawer({
   const [showSaved, setShowSaved] = useState(false);
 
   return (
-    <div className="mt-3 border-t border-white/[0.06] pt-3">
+    <div className="mt-3 border-t border-ink/[0.06] pt-3">
       <button
         type="button"
         onClick={() => setShowSaved((v) => !v)}
@@ -180,7 +247,7 @@ function SavedPlanList({
       {plans.map((plan) => (
         <li
           key={plan.id}
-          className="flex items-center gap-1 rounded-lg border border-white/[0.06] bg-white/[0.03] px-2 py-1.5"
+          className="flex items-center gap-1 rounded-lg border border-ink/[0.06] bg-ink/[0.03] px-2 py-1.5"
         >
           <button
             type="button"
@@ -189,7 +256,8 @@ function SavedPlanList({
           >
             <span className="block truncate text-[11px] text-slate-200">{plan.name}</span>
             <span className="font-tabular block text-[9px] text-slate-500">
-              {plan.waypoints.length} waypoints · {plan.distanceKm.toFixed(1)} km
+              {plan.waypoints.length} waypoints
+              {plan.distanceKm == null ? ' · not routed' : ` · ${plan.distanceKm.toFixed(1)} km`}
             </span>
           </button>
           <button
@@ -213,10 +281,15 @@ function SavedPlanList({
  * clickable underneath — planning a line across terrain you cannot see would be
  * pointless.
  *
- * Distances are straight-line between waypoints and labelled as such. Snapping
- * to trails would need a routing engine with trail data; quietly presenting a
- * road-routed distance as a trail distance would be the kind of plausible-but-
- * wrong number this app has been busy removing.
+ * Distances come from the router, on foot or by bike, and from nowhere else.
+ * When the router cannot join the waypoints the panel shows no line and no
+ * number and says why — the straight-line fallback that used to fill the gap was
+ * always short, and it was still what got saved and exported.
+ *
+ * The routing engine has no trail data, so a route over unmapped ground will
+ * fail rather than approximate. That is the intended outcome: a road-routed
+ * distance presented as a trail distance is exactly the plausible-but-wrong
+ * number this app has been busy removing.
  */
 export function RoutePlanner({
   isOpen,
@@ -227,6 +300,8 @@ export function RoutePlanner({
   onClear,
   onLoadPlan,
   route,
+  travelMode,
+  onTravelModeChange,
 }: RoutePlannerProps) {
   const [name, setName] = useState('');
   const [plans, setPlans] = useState<SavedPlan[]>([]);
@@ -246,7 +321,9 @@ export function RoutePlanner({
     return () => clearTimeout(timer);
   }, [justSaved]);
 
-  const distance = route.status === 'ready' ? route.distanceKm : totalDistanceKm(waypoints);
+  // No routed distance means the plan is saved without one, rather than with a
+  // straight-line stand-in that would read as real in the saved-plan list.
+  const distance = route.status === 'ready' ? route.distanceKm : null;
   const ascent = useMemo(() => totalAscentM(waypoints), [waypoints]);
 
   const handleSave = useCallback(() => {
@@ -284,8 +361,8 @@ export function RoutePlanner({
   }
 
   return (
-    <div className="pointer-events-auto absolute bottom-24 left-4 z-30 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-white/10 bg-slate-900/95 shadow-2xl shadow-black/60 backdrop-blur-xl">
-      <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-3">
+    <div className="pointer-events-auto absolute bottom-24 left-4 z-30 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-ink/10 bg-slate-900/95 shadow-2xl shadow-black/60 backdrop-blur-xl">
+      <div className="flex items-center justify-between gap-3 border-b border-ink/[0.06] px-4 py-3">
         <div>
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-300">Planner</h2>
           <p className="mt-0.5 text-[10px] text-slate-500">Tap the map to add a waypoint</p>
@@ -294,7 +371,7 @@ export function RoutePlanner({
           type="button"
           onClick={onClose}
           aria-label="Close planner"
-          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-ink/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
         >
           <X aria-hidden="true" className="h-3.5 w-3.5" />
         </button>
@@ -310,18 +387,21 @@ export function RoutePlanner({
           onChange={(e) => setName(e.target.value)}
           placeholder="Name this route"
           maxLength={80}
-          className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-200 placeholder-slate-500 outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20"
+          className="w-full rounded-lg border border-ink/10 bg-ink/5 px-3 py-2 text-xs text-slate-200 placeholder-slate-500 outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20"
         />
 
+        {/* Before the waypoints, because it changes how they will be joined. */}
+        <TravelModeToggle value={travelMode} onChange={onTravelModeChange} />
+
         {waypoints.length === 0 ? (
-          <p className="mt-3 rounded-lg border border-dashed border-white/10 px-3 py-4 text-center text-[11px] leading-relaxed text-slate-500">
+          <p className="mt-3 rounded-lg border border-dashed border-ink/10 px-3 py-4 text-center text-[11px] leading-relaxed text-slate-500">
             No waypoints yet. Tap anywhere on the map to drop the first one.
           </p>
         ) : (
           <>
             <WaypointList waypoints={waypoints} onRemove={onRemove} onMove={onMove} />
 
-            <RouteSummary route={route} distance={distance} ascent={ascent} />
+            <RouteSummary route={route} ascent={ascent} />
 
             <div className="mt-3 flex gap-2">
               <button

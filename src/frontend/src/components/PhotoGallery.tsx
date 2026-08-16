@@ -14,7 +14,7 @@ interface PhotoGalleryProps {
 
 function Frame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-center rounded-lg border border-dashed border-white/[0.08] bg-white/[0.03] py-8">
+    <div className="flex items-center justify-center rounded-lg border border-dashed border-ink/[0.08] bg-ink/[0.03] py-8">
       <div className="px-4 text-center">{children}</div>
     </div>
   );
@@ -41,7 +41,7 @@ export function PhotoGallery({ photos, loading, failed, placeName }: PhotoGaller
           <div
             role="status"
             aria-label="Loading photos"
-            className="mx-auto mb-2 h-5 w-5 animate-spin rounded-full border-2 border-white/10 border-t-slate-400"
+            className="mx-auto mb-2 h-5 w-5 animate-spin rounded-full border-2 border-ink/10 border-t-slate-400"
           />
           <p className="text-sm text-slate-400">Loading photos…</p>
         </Frame>
@@ -50,7 +50,7 @@ export function PhotoGallery({ photos, loading, failed, placeName }: PhotoGaller
           {photos.slice(0, 6).map((photo, index) => (
             <div
               key={photo}
-              className="group relative aspect-square overflow-hidden rounded-lg bg-white/[0.03]"
+              className="group relative aspect-square overflow-hidden rounded-lg bg-ink/[0.03]"
             >
               <Image
                 src={photo}

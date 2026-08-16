@@ -470,6 +470,12 @@ export default function MapView({
       }
     });
     return () => google.maps.event.removeListener(listener);
+    // Deliberately keyed on the source collections rather than on
+    // `visibleRoutes`/`isLayerVisible`. This effect moves the viewport, and
+    // `visibleRoutes` is derived — a new array on most renders — so depending on
+    // it would refit the bounds continuously and drag the map back every time
+    // the user panned. Toggling a layer should hide pins, not re-frame the map.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refitting on derived state fights the user's pan/zoom
   }, [map, routes, mountains, campsites, userLocation]);
 
   // Centre on whatever the page resolved. This component no longer asks for
@@ -563,7 +569,7 @@ export default function MapView({
             </p>
           )}
           {showDiagnostics && (
-            <div className="mt-4 rounded-md border border-white/10 bg-slate-900 p-3 text-left text-xs text-slate-400">
+            <div className="mt-4 rounded-md border border-ink/10 bg-slate-900 p-3 text-left text-xs text-slate-400">
               <p className="font-semibold text-slate-300">Quick checks (dev only)</p>
               <ul className="mt-2 list-disc space-y-1 pl-5">
                 <li>Enable Maps JavaScript API, Places API, and Elevation API.</li>
@@ -1091,7 +1097,7 @@ export default function MapView({
       {/* Legend — bottom-left, so it doesn't stack under Google Maps' native
           zoom control or the ChatBot floating button, which both sit bottom-right */}
       {showLegend && (
-        <div className="absolute bottom-24 left-4 hidden rounded-xl border border-white/10 bg-slate-900/90 p-4 shadow-xl backdrop-blur sm:block">
+        <div className="absolute bottom-24 left-4 hidden rounded-xl border border-ink/10 bg-slate-900/90 p-4 shadow-xl backdrop-blur sm:block">
           <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             Legend
           </h3>
@@ -1116,7 +1122,7 @@ export default function MapView({
               </div>
             </div>
             {(mountains.length > 0 || campsites.length > 0) && (
-              <div className="border-t border-white/10 pt-2">
+              <div className="border-t border-ink/10 pt-2">
                 <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                   Points of Interest
                 </p>

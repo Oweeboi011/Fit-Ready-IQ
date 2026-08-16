@@ -165,7 +165,7 @@ export default function ChatBot() {
         onClick={() => setIsOpen((v) => !v)}
         className={`fixed bottom-5 right-5 z-50 flex h-12 w-12 items-center justify-center rounded-2xl shadow-lg transition-all active:scale-95 ${
           isOpen
-            ? 'border border-white/10 bg-slate-800 shadow-black/40 hover:bg-slate-700'
+            ? 'border border-ink/10 bg-slate-800 shadow-black/40 hover:bg-slate-700'
             : 'bg-gradient-to-br from-blue-500 to-blue-700 shadow-blue-900/50 hover:scale-105 hover:shadow-xl hover:shadow-blue-900/60'
         }`}
         aria-label={isOpen ? 'Close AI assistant' : 'Open AI assistant'}
@@ -188,11 +188,11 @@ export default function ChatBot() {
           }}
           // Was a hardcoded 360px panel offset 20px from the right edge, so on a
           // 360px phone it overflowed the viewport.
-          className="fixed inset-x-3 bottom-20 z-50 flex h-[min(520px,70vh)] flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-slate-900 shadow-2xl shadow-black/60 sm:inset-x-auto sm:right-5 sm:w-[360px]"
+          className="fixed inset-x-3 bottom-20 z-50 flex h-[min(520px,70vh)] flex-col overflow-hidden rounded-2xl border border-ink/[0.08] bg-slate-900 shadow-2xl shadow-black/60 sm:inset-x-auto sm:right-5 sm:w-[360px]"
           style={{ animation: 'cardEnter 0.2s ease-out' }}
         >
           {/* Header */}
-          <div className="flex flex-shrink-0 items-center justify-between border-b border-white/[0.06] bg-slate-950/80 px-4 py-3 backdrop-blur">
+          <div className="flex flex-shrink-0 items-center justify-between border-b border-ink/[0.06] bg-slate-950/80 px-4 py-3 backdrop-blur">
             <div className="flex items-center gap-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow shadow-blue-900/40">
                 <Sparkles aria-hidden="true" className="h-4 w-4 text-white" />
@@ -207,7 +207,7 @@ export default function ChatBot() {
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-slate-300"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-ink/[0.06] hover:text-slate-300"
               aria-label="Close"
             >
               <X aria-hidden="true" className="h-4 w-4" />
@@ -230,7 +230,7 @@ export default function ChatBot() {
                   className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full ${
                     msg.role === 'assistant'
                       ? 'border border-blue-500/30 bg-blue-500/15'
-                      : 'border border-white/10 bg-white/[0.06]'
+                      : 'border border-ink/10 bg-ink/[0.06]'
                   }`}
                 >
                   {msg.role === 'assistant' ? (
@@ -245,7 +245,7 @@ export default function ChatBot() {
                   className={`max-w-[76%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
                     msg.role === 'user'
                       ? 'rounded-br-sm bg-blue-600 text-white'
-                      : 'rounded-bl-sm border border-white/[0.06] bg-white/[0.06] text-slate-200'
+                      : 'rounded-bl-sm border border-ink/[0.06] bg-ink/[0.06] text-slate-200'
                   }`}
                 >
                   {msg.content}
@@ -259,7 +259,7 @@ export default function ChatBot() {
                 <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-blue-500/30 bg-blue-500/15">
                   <Bot aria-hidden="true" className="h-3.5 w-3.5 text-blue-400" />
                 </div>
-                <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-sm border border-white/[0.06] bg-white/[0.06] px-3.5 py-2.5">
+                <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-sm border border-ink/[0.06] bg-ink/[0.06] px-3.5 py-2.5">
                   <Loader2 aria-hidden="true" className="h-3 w-3 animate-spin text-slate-500" />
                   <span className="text-xs text-slate-500">Thinking…</span>
                 </div>
@@ -279,7 +279,7 @@ export default function ChatBot() {
                     setMessages((prev) => prev.slice(0, -2));
                     sendMessage(retry);
                   }}
-                  className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[11px] font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                  className="rounded-full border border-ink/10 bg-ink/[0.06] px-3 py-1 text-[11px] font-medium text-slate-300 transition-colors hover:bg-ink/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                 >
                   Retry
                 </button>
@@ -294,7 +294,7 @@ export default function ChatBot() {
                     key={prompt}
                     type="button"
                     onClick={() => sendMessage(prompt)}
-                    className="block w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-left text-xs text-slate-300 transition-colors hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                    className="block w-full rounded-xl border border-ink/[0.08] bg-ink/[0.03] px-3 py-2 text-left text-xs text-slate-300 transition-colors hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                   >
                     {prompt}
                   </button>
@@ -306,8 +306,8 @@ export default function ChatBot() {
           </div>
 
           {/* Input */}
-          <div className="flex-shrink-0 border-t border-white/[0.06] bg-slate-950/50 p-3">
-            <div className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 transition-all focus-within:border-blue-500/40 focus-within:bg-white/[0.06]">
+          <div className="flex-shrink-0 border-t border-ink/[0.06] bg-slate-950/50 p-3">
+            <div className="flex items-center gap-2 rounded-xl border border-ink/[0.08] bg-ink/[0.04] px-3 py-2 transition-all focus-within:border-blue-500/40 focus-within:bg-ink/[0.06]">
               <input
                 ref={inputRef}
                 type="text"

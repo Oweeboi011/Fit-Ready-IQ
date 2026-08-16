@@ -5,6 +5,8 @@ import { type User as FirebaseUser } from 'firebase/auth';
 import { isFirebaseAuthConfigured } from '@/lib/firebaseClient';
 import { buttonGhost, buttonPrimary, buttonSize } from '@/lib/ui';
 
+import ThemeToggle from './ThemeToggle';
+
 interface AppHeaderProps {
   isAdmin: boolean;
   authUser: FirebaseUser | null;
@@ -27,9 +29,10 @@ export default function AppHeader({
   onToggleSidebar,
 }: AppHeaderProps) {
   return (
-    <header className="relative z-20 flex h-14 flex-shrink-0 items-center justify-between border-b border-white/[0.06] bg-slate-950/95 px-5 backdrop-blur">
+    <header className="relative z-20 flex h-14 flex-shrink-0 items-center justify-between border-b border-ink/[0.06] bg-slate-950/95 px-5 backdrop-blur">
       {/* Brand */}
       <Link href="/" className="flex items-center gap-2.5">
+        {/* eslint-disable-next-line @next/next/no-img-element -- static SVG, no optimisation to gain */}
         <img src="/icon.svg" alt="" aria-hidden="true" className="h-8 w-8" />
         <span className="text-[15px] font-bold tracking-tight text-white">Fit Ready IQ</span>
       </Link>
@@ -47,6 +50,7 @@ export default function AppHeader({
           <Watch aria-hidden="true" className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Connect Devices</span>
         </button>
+        <ThemeToggle className="h-8 w-8 !px-0" />
         {isAdmin && (
           <Link
             href="/admin/settings"
@@ -72,7 +76,7 @@ export default function AppHeader({
                   alt="Profile"
                   width={20}
                   height={20}
-                  className="h-5 w-5 rounded-full border border-white/20"
+                  className="h-5 w-5 rounded-full border border-ink/20"
                   unoptimized
                 />
               ) : (

@@ -28,7 +28,7 @@ export default function ActivityListItem({ activity, onClick }: ActivityListItem
     <button
       type="button"
       onClick={onClick}
-      className="group w-full rounded-lg border border-white/[0.07] bg-white/5 px-3.5 py-3 text-left transition-colors hover:border-violet-500/40 hover:bg-violet-900/10"
+      className="group w-full rounded-lg border border-ink/[0.07] bg-ink/5 px-3.5 py-3 text-left transition-colors hover:border-violet-500/40 hover:bg-violet-900/10"
     >
       <div className="flex items-start justify-between gap-2">
         <p className="line-clamp-1 text-[13px] font-semibold text-slate-200 group-hover:text-violet-300">

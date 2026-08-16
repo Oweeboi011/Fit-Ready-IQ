@@ -43,7 +43,7 @@ export default function MapLoadingOverlay({
         role="status"
         aria-live="polite"
         aria-label="Map loading progress"
-        className="pointer-events-auto flex items-center gap-3 rounded-full border border-white/10 bg-slate-900/90 py-2.5 pl-3 pr-2.5 shadow-xl backdrop-blur-md"
+        className="pointer-events-auto flex items-center gap-3 rounded-full border border-ink/10 bg-slate-900/90 py-2.5 pl-3 pr-2.5 shadow-xl backdrop-blur-md"
       >
         <span
           className="h-4 w-4 flex-shrink-0 animate-spin rounded-full border-2 border-blue-500/25 border-t-blue-500"
@@ -59,7 +59,7 @@ export default function MapLoadingOverlay({
           type="button"
           onClick={() => setIsDismissed(true)}
           aria-label="Hide loading indicator"
-          className="-my-2 -mr-1 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          className="-my-2 -mr-1 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-ink/10 hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         >
           <X aria-hidden="true" className="h-3 w-3" />
         </button>

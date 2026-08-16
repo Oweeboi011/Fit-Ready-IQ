@@ -119,9 +119,9 @@ export default function Modal({
         aria-labelledby={label ? undefined : titleId}
         aria-label={label}
         onKeyDown={handleKeyDown}
-        className={`modal-enter relative max-h-[92vh] w-full ${maxWidth} overflow-y-auto rounded-t-2xl border border-white/[0.08] bg-slate-900 shadow-2xl sm:rounded-2xl`}
+        className={`modal-enter relative max-h-[92vh] w-full ${maxWidth} overflow-y-auto rounded-t-2xl border border-ink/[0.08] bg-slate-900 shadow-2xl sm:rounded-2xl`}
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-t-2xl border-b border-white/[0.06] bg-slate-900/95 px-6 py-4 backdrop-blur-xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-t-2xl border-b border-ink/[0.06] bg-slate-900/95 px-6 py-4 backdrop-blur-xl">
           <div id={titleId} className="flex min-w-0 flex-1 items-start gap-3">
             {title}
           </div>
@@ -130,7 +130,7 @@ export default function Modal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-ink/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
           >
             <X aria-hidden="true" className="h-4 w-4" />
           </button>

@@ -38,7 +38,7 @@ function NoteList({
       {notes.map((note) => (
         <li
           key={note.title}
-          className="rounded-xl border border-white/[0.06] bg-slate-800/40 px-4 py-3"
+          className="rounded-xl border border-ink/[0.06] bg-slate-800/40 px-4 py-3"
         >
           <div className="flex items-center gap-2">
             <Icon aria-hidden="true" className={`h-3.5 w-3.5 flex-shrink-0 ${tone}`} />
@@ -103,7 +103,7 @@ export default function RoadmapModal({
           <div
             role="img"
             aria-label={`Roadmap ${percent} per cent complete`}
-            className="h-1.5 w-full overflow-hidden rounded-full bg-white/10"
+            className="h-1.5 w-full overflow-hidden rounded-full bg-ink/10"
           >
             <div
               className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-400 transition-all"
@@ -115,7 +115,7 @@ export default function RoadmapModal({
         <div
           role="tablist"
           aria-label="Roadmap view"
-          className="mb-5 grid grid-cols-2 gap-1 rounded-xl border border-white/[0.06] bg-white/[0.03] p-1"
+          className="mb-5 grid grid-cols-2 gap-1 rounded-xl border border-ink/[0.06] bg-ink/[0.03] p-1"
         >
           {(
             [
@@ -132,7 +132,7 @@ export default function RoadmapModal({
               className={`min-h-11 rounded-lg px-3 py-1.5 text-[11px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
                 view === id
                   ? 'bg-blue-600 text-white shadow'
-                  : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                  : 'text-slate-400 hover:bg-ink/5 hover:text-slate-200'
               }`}
             >
               {label}
@@ -153,7 +153,7 @@ export default function RoadmapModal({
                     return (
                       <li
                         key={item.title}
-                        className="flex gap-3 rounded-xl border border-white/[0.06] bg-slate-800/40 px-3 py-2.5"
+                        className="flex gap-3 rounded-xl border border-ink/[0.06] bg-slate-800/40 px-3 py-2.5"
                       >
                         <span
                           aria-hidden="true"
