@@ -30,7 +30,7 @@ export default function MapNotices({
           fixes that without becoming a tour. */}
       {showFirstRunHint && !isLoading && !saveError && !authError && (
         <div className="pointer-events-none absolute inset-x-0 top-6 z-20 flex justify-center px-4">
-          <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-white/10 bg-slate-900/95 py-2 pl-4 pr-2 shadow-xl backdrop-blur">
+          <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-ink/10 bg-slate-900/95 py-2 pl-4 pr-2 shadow-xl backdrop-blur">
             <p className="text-xs text-slate-300">
               <span className="font-semibold text-white md:hidden">Tap the menu</span>
               <span className="hidden font-semibold text-white md:inline">
@@ -42,7 +42,7 @@ export default function MapNotices({
               type="button"
               onClick={onDismissFirstRunHint}
               aria-label="Dismiss tip"
-              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white"
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-ink/10 hover:text-white"
             >
               <X aria-hidden="true" className="h-3.5 w-3.5" />
             </button>
@@ -66,7 +66,7 @@ export default function MapNotices({
               onDismissAuthError();
             }}
             aria-label="Dismiss"
-            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white"
+            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-ink/10 hover:text-white"
           >
             <X aria-hidden="true" className="h-3.5 w-3.5" />
           </button>
@@ -78,7 +78,7 @@ export default function MapNotices({
       {saveToast && !saveError && !authError && (
         <div
           role="status"
-          className="absolute inset-x-0 top-6 z-30 mx-auto flex w-fit max-w-[calc(100%-2rem)] items-center gap-1 rounded-full border border-white/10 bg-slate-900/95 py-2 pl-4 pr-2 shadow-xl backdrop-blur"
+          className="absolute inset-x-0 top-6 z-30 mx-auto flex w-fit max-w-[calc(100%-2rem)] items-center gap-1 rounded-full border border-ink/10 bg-slate-900/95 py-2 pl-4 pr-2 shadow-xl backdrop-blur"
         >
           <span className="text-xs text-slate-200">{saveToast.message}</span>
           <button

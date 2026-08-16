@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { type Activity, formatDuration, SOURCE_LABELS, SOURCE_BG } from '@/lib/activityTypes';
 import { computeFitnessScore } from '@/lib/fitnessScore';
+import { buildLedger } from '@/lib/ledger';
+import { LedgerPanel } from '@/components/LedgerPanel';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -40,10 +42,13 @@ export default function ProfileModal({
   const fitness = useMemo(() => computeFitnessScore(activities), [activities]);
   const monthLabel = useMemo(() => new Date().toLocaleString(undefined, { month: 'long' }), []);
 
+  // Totals come from the ledger rather than an inline reduce: a GPX with no
+  // elevation track parses to NaN, and one NaN turned every lifetime figure
+  // here into "NaN km". `buildLedger` cleans each value as it sums.
+  const ledger = useMemo(() => buildLedger(activities), [activities]);
+
   const stats = useMemo(() => {
-    const totalKm = activities.reduce((s, a) => s + a.distance_km, 0);
-    const totalElev = activities.reduce((s, a) => s + a.elevation_gain_m, 0);
-    const totalTime = activities.reduce((s, a) => s + a.moving_time_s, 0);
+    const { distanceKm: totalKm, ascentM: totalElev, movingTimeS: totalTime } = ledger.lifetime;
     const avgHR =
       activities.filter((a) => a.avg_heartrate).length > 0
         ? Math.round(
@@ -61,7 +66,7 @@ export default function ProfileModal({
     const topType = Object.entries(byType).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
     return { totalKm, totalElev, totalTime, avgHR, topType, count: activities.length };
-  }, [activities]);
+  }, [activities, ledger]);
 
   const monthlyByType = useMemo(() => {
     const now = new Date();
@@ -116,7 +121,7 @@ export default function ProfileModal({
               alt="Profile"
               width={56}
               height={56}
-              className="h-14 w-14 rounded-full border-2 border-white/20"
+              className="h-14 w-14 rounded-full border-2 border-ink/20"
               unoptimized
             />
           ) : (
@@ -133,14 +138,14 @@ export default function ProfileModal({
           </div>
           <button
             onClick={onSignOut}
-            className="ml-auto flex-shrink-0 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-400 transition-all hover:bg-white/10 hover:text-white"
+            className="ml-auto flex-shrink-0 rounded-lg border border-ink/10 bg-ink/5 px-3 py-1.5 text-xs font-medium text-slate-400 transition-all hover:bg-ink/10 hover:text-white"
           >
             Sign out
           </button>
         </div>
 
         {/* Fitness Score */}
-        <div className="rounded-xl border border-white/[0.06] bg-slate-800/60 p-4">
+        <div className="rounded-xl border border-ink/[0.06] bg-slate-800/60 p-4">
           {/* The window has to be on screen: without it, a score that resets
                 on the 1st of the month looks like the app losing your data. */}
           <div className="mb-4 flex items-baseline justify-between gap-2">
@@ -190,7 +195,7 @@ export default function ProfileModal({
                       {value}/{max}
                     </span>
                   </div>
-                  <div className="h-1.5 w-full rounded-full bg-white/10">
+                  <div className="h-1.5 w-full rounded-full bg-ink/10">
                     <div
                       className="h-1.5 rounded-full transition-all duration-500"
                       style={{ width: `${(value / max) * 100}%`, backgroundColor: color }}
@@ -231,13 +236,16 @@ export default function ProfileModal({
               color: 'text-red-400',
             },
           ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="rounded-xl border border-white/[0.06] bg-slate-800/60 p-3">
+            <div key={label} className="rounded-xl border border-ink/[0.06] bg-slate-800/60 p-3">
               <Icon aria-hidden="true" className={`h-4 w-4 ${color} mb-2`} />
               <p className="text-[10px] text-slate-400">{label}</p>
               <p className="mt-0.5 text-base font-bold leading-tight text-white">{value}</p>
             </div>
           ))}
         </div>
+
+        {/* The record — what accumulates, as opposed to the month-to-date score */}
+        <LedgerPanel ledger={ledger} />
 
         {/* This Month */}
         <div>
@@ -302,17 +310,17 @@ export default function ProfileModal({
 
         {/* Extra insights */}
         <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-xl border border-white/[0.06] bg-slate-800/60 p-3 text-center">
+          <div className="rounded-xl border border-ink/[0.06] bg-slate-800/60 p-3 text-center">
             <ActivityIcon aria-hidden="true" className="mx-auto mb-1 h-4 w-4 text-slate-400" />
             <p className="text-[10px] text-slate-400">Activities</p>
             <p className="text-lg font-bold text-white">{stats.count}</p>
           </div>
-          <div className="rounded-xl border border-white/[0.06] bg-slate-800/60 p-3 text-center">
+          <div className="rounded-xl border border-ink/[0.06] bg-slate-800/60 p-3 text-center">
             <TrendingUp aria-hidden="true" className="mx-auto mb-1 h-4 w-4 text-slate-400" />
             <p className="text-[10px] text-slate-400">Top Sport</p>
             <p className="text-sm font-bold capitalize text-white">{stats.topType ?? '—'}</p>
           </div>
-          <div className="rounded-xl border border-white/[0.06] bg-slate-800/60 p-3 text-center">
+          <div className="rounded-xl border border-ink/[0.06] bg-slate-800/60 p-3 text-center">
             <Zap aria-hidden="true" className="mx-auto mb-1 h-4 w-4 text-slate-400" />
             <p className="text-[10px] text-slate-400">Avg Dist</p>
             <p className="text-sm font-bold text-white">
@@ -328,7 +336,7 @@ export default function ProfileModal({
             Recent Activities
           </h3>
           {recent.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/[0.08] bg-slate-800/30 py-8 text-center">
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-ink/[0.08] bg-slate-800/30 py-8 text-center">
               <ActivityIcon aria-hidden="true" className="mb-2 h-6 w-6 text-slate-500" />
               <p className="text-sm text-slate-400">No activities yet</p>
               <p className="mt-1 text-xs text-slate-500">Connect Strava or upload a GPX file</p>
@@ -338,7 +346,7 @@ export default function ProfileModal({
               {recent.map((a) => (
                 <div
                   key={a.id}
-                  className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-slate-800/60 px-4 py-3"
+                  className="flex items-center gap-3 rounded-xl border border-ink/[0.06] bg-slate-800/60 px-4 py-3"
                 >
                   <div
                     className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${SOURCE_BG[a.source]}`}

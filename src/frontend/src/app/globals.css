@@ -3,8 +3,110 @@
 @tailwind utilities;
 
 @layer base {
+  /**
+   * Theming, by redefining the neutral ramp rather than by `dark:` variants.
+   *
+   * The product is written in `slate-*` — 676 usages across 43 files — where
+   * slate-950 means "the deepest surface" and slate-50 means "the brightest
+   * text". Those readings are what the components actually depend on, so light
+   * mode simply *inverts the ramp*: 950 becomes the near-white page, 50 becomes
+   * the near-black text, and every existing utility keeps working unchanged.
+   *
+   * Channels are space-separated RGB triples, not hex, so that Tailwind's
+   * `<alpha-value>` placeholder can compose them — `bg-slate-900/80` has to keep
+   * working, and `rgb(var(--x) / 0.8)` is the only form that allows it.
+   *
+   * Accent colours are deliberately absent: blue, orange, emerald and red carry
+   * meaning, and a warning whose hue depends on the theme stops reading as one.
+   */
   :root {
     --sidebar-width: 20rem;
+
+    /* Corner radius. Referenced by tailwind.config.js as borderRadius.lg —
+     * it was referenced there but never defined, so all 126 `rounded-lg`
+     * utilities, including the whole button vocabulary in src/lib/ui.ts,
+     * were emitting `border-radius: var(--radius)` and rendering square. */
+    --radius: 0.5rem;
+
+    /* Dark: the default, and the palette the product was designed against. */
+    --c-slate-50: 248 250 252;
+    --c-slate-100: 241 245 249;
+    --c-slate-200: 226 232 240;
+    --c-slate-300: 203 213 225;
+    --c-slate-400: 148 163 184;
+    --c-slate-500: 100 116 139;
+    --c-slate-600: 71 85 105;
+    --c-slate-700: 51 65 85;
+    --c-slate-800: 30 41 59;
+    --c-slate-900: 15 23 42;
+    --c-slate-950: 2 6 23;
+
+    /* The translucent overlay colour behind every hairline border and hover
+     * wash — `border-ink/[0.06]`, `bg-ink/5`. White over a dark surface; black
+     * over a light one. Distinct from `text-white`, which stays white because
+     * it sits on accent fills that do not change. */
+    --c-ink: 255 255 255;
+
+    /* Surfaces used by hand-written CSS below, which cannot use Tailwind. */
+    --surface-base: rgb(2 6 23);
+    --skeleton-from: rgba(30, 41, 59, 0.9);
+    --skeleton-via: rgba(51, 65, 85, 0.7);
+    --scrollbar-thumb: rgba(148, 163, 184, 0.25);
+    --scrollbar-thumb-hover: rgba(148, 163, 184, 0.45);
+  }
+
+  /**
+   * Light: the same ramp, reversed about its midpoint. 50↔950, 100↔900,
+   * 200↔800, 300↔700, 400↔600; 500 is its own mirror and stays put.
+   *
+   * The extremes are pulled slightly off pure values — the page is slate-50
+   * rather than #fff and text is slate-900 rather than #000 — because full
+   * black on full white is the highest-fatigue combination there is, and this
+   * is a product people read for a long time while planning a route.
+   */
+  :root.light {
+    --c-slate-50: 2 6 23;
+    --c-slate-100: 15 23 42;
+    --c-slate-200: 30 41 59;
+    --c-slate-300: 51 65 85;
+    --c-slate-400: 71 85 105;
+    --c-slate-500: 100 116 139;
+    --c-slate-600: 148 163 184;
+    --c-slate-700: 203 213 225;
+    --c-slate-800: 226 232 240;
+    --c-slate-900: 241 245 249;
+    --c-slate-950: 248 250 252;
+
+    --c-ink: 15 23 42;
+
+    --surface-base: rgb(248 250 252);
+    --skeleton-from: rgba(226, 232, 240, 0.9);
+    --skeleton-via: rgba(203, 213, 225, 0.7);
+    --scrollbar-thumb: rgba(71, 85, 105, 0.28);
+    --scrollbar-thumb-hover: rgba(71, 85, 105, 0.5);
+  }
+
+  /**
+   * Tells the browser which way round its own UI goes — native scrollbars,
+   * form controls, and the canvas painted behind the page during overscroll.
+   * CSS variables cannot reach any of those, so without this the page is
+   * light and its furniture is still dark.
+   *
+   * Set here as the static default and again from JS in applyTheme(), so it is
+   * correct both before and after hydration.
+   */
+  :root {
+    color-scheme: dark;
+  }
+
+  :root.light {
+    color-scheme: light;
+  }
+
+  /* Paint the themed surface behind the page so overscroll and the area
+   * outside the layout do not flash the opposite theme. */
+  html {
+    background-color: var(--surface-base);
   }
 
   html {
@@ -24,11 +126,11 @@
     font-feature-settings: 'tnum';
   }
 
-  /* Dark scrollbar */
+  /* Scrollbar. Themed — a dark thumb is invisible on a light page. */
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.25); border-radius: 9999px; }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.45); }
+  ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 }
 
 @layer utilities {
@@ -36,9 +138,16 @@
     scrollbar-gutter: stable;
   }
 
-  /* Dark skeleton shimmer */
+  /* Skeleton shimmer. Themed, or the loading state is a dark block on a
+   * light page — which reads as content that failed rather than content
+   * that is arriving. */
   .skeleton {
-    background: linear-gradient(90deg, rgba(30,41,59,0.9) 25%, rgba(51,65,85,0.7) 50%, rgba(30,41,59,0.9) 75%);
+    background: linear-gradient(
+      90deg,
+      var(--skeleton-from) 25%,
+      var(--skeleton-via) 50%,
+      var(--skeleton-from) 75%
+    );
     background-size: 200% 100%;
     animation: shimmer 1.8s ease-in-out infinite;
   }
@@ -141,4 +250,14 @@
 }
 .sidebar-tabs::-webkit-scrollbar {
   display: none;
+}
+
+/* Installed as a PWA (display: standalone, viewport-fit=cover), the page runs
+   edge to edge with no browser chrome below it — so the floating dock lands
+   under the iOS home indicator and the bottom row of controls stops being
+   tappable. Add the inset on top of the existing bottom offset rather than
+   replacing it, so the dock keeps its gap in a normal browser tab where the
+   inset resolves to 0. */
+.dock-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }

@@ -105,7 +105,7 @@ export default function SidebarTabs({
     <div
       role="tablist"
       aria-label="Browse places and activities"
-      className="sidebar-tabs flex flex-shrink-0 gap-0.5 overflow-x-auto rounded-xl border border-white/[0.08] bg-white/5 p-1"
+      className="sidebar-tabs flex flex-shrink-0 gap-0.5 overflow-x-auto rounded-xl border border-ink/[0.08] bg-ink/5 p-1"
     >
       {tabs.map((tab) => {
         const count = tabCount(tab.id, matches, {
@@ -129,7 +129,7 @@ export default function SidebarTabs({
             className={`flex min-h-11 flex-shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
               activeTab === tab.id
                 ? tab.activeClass
-                : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                : 'text-slate-400 hover:bg-ink/5 hover:text-slate-200'
             }`}
           >
             <tab.Icon aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0" />
@@ -137,7 +137,7 @@ export default function SidebarTabs({
             {count > 0 && (
               <span
                 className={`font-tabular rounded-full px-1.5 py-px text-[9px] font-bold leading-none ${
-                  activeTab === tab.id ? 'bg-white/25 text-white' : 'bg-white/10 text-slate-400'
+                  activeTab === tab.id ? 'bg-ink/25 text-white' : 'bg-ink/10 text-slate-400'
                 }`}
               >
                 {count > 99 ? '99+' : count}

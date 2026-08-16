@@ -23,7 +23,7 @@ export default function MountainListItem({
     <button
       type="button"
       onClick={onClick}
-      className="card-enter group w-full rounded-xl border border-white/[0.07] bg-white/5 px-3.5 py-3 text-left transition-all hover:border-slate-500/40 hover:bg-white/[0.08] active:scale-[0.99]"
+      className="card-enter group w-full rounded-xl border border-ink/[0.07] bg-ink/5 px-3.5 py-3 text-left transition-all hover:border-slate-500/40 hover:bg-ink/[0.08] active:scale-[0.99]"
       style={{ animationDelay: `${index * 30}ms` }}
     >
       <div className="flex items-start justify-between gap-2">
@@ -47,13 +47,13 @@ export default function MountainListItem({
               />
             </button>
           )}
-          <span className="flex h-5 w-5 items-center justify-center rounded bg-white/10">
+          <span className="flex h-5 w-5 items-center justify-center rounded bg-ink/10">
             <Mountain aria-hidden="true" className="h-3.5 w-3.5 text-slate-400" />
           </span>
         </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <span className="inline-flex items-center rounded-full bg-slate-700/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-300 ring-1 ring-white/10">
+        <span className="inline-flex items-center rounded-full bg-slate-700/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-300 ring-1 ring-ink/10">
           {mountain.mountain_type}
         </span>
         {mountain.trail_class && (
@@ -69,7 +69,7 @@ export default function MountainListItem({
         </span>
         {mountain.prominence_m ? (
           <>
-            <span className="text-white/20">·</span>
+            <span className="text-ink/20">·</span>
             <span className="font-tabular text-slate-400">{mountain.prominence_m} m prom</span>
           </>
         ) : null}

@@ -217,7 +217,7 @@ function DockButton({
       className={`relative flex min-h-11 flex-shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl px-3 py-1.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
         active
           ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40'
-          : 'text-slate-400 hover:bg-white/[0.08] hover:text-white'
+          : 'text-slate-400 hover:bg-ink/[0.08] hover:text-white'
       }`}
     >
       <Icon aria-hidden="true" className="h-4 w-4" />
@@ -228,8 +228,8 @@ function DockButton({
             badgeTone === 'warning'
               ? 'bg-amber-500 text-slate-950'
               : active
-                ? 'bg-white/25 text-white'
-                : 'bg-white/10 text-slate-300'
+                ? 'bg-ink/25 text-white'
+                : 'bg-ink/10 text-slate-300'
           }`}
         >
           {badge > 99 ? '99+' : badge}
@@ -313,7 +313,7 @@ export function NavDock(props: NavDockProps) {
   return (
     <div
       ref={containerRef}
-      className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex flex-col items-center px-4"
+      className="dock-safe-bottom pointer-events-none absolute inset-x-0 bottom-4 z-30 flex flex-col items-center px-4"
     >
       {open && (
         <div className="pointer-events-auto">
@@ -326,7 +326,7 @@ export function NavDock(props: NavDockProps) {
       <div
         role="toolbar"
         aria-label="Navigation dock"
-        className="pointer-events-auto flex max-w-full items-center gap-0.5 overflow-x-auto rounded-2xl border border-white/10 bg-slate-900/90 p-1.5 shadow-2xl shadow-black/50 backdrop-blur-xl"
+        className="pointer-events-auto flex max-w-full items-center gap-0.5 overflow-x-auto rounded-2xl border border-ink/10 bg-slate-900/90 p-1.5 shadow-2xl shadow-black/50 backdrop-blur-xl"
       >
         {CONTENT_TABS.map(({ id, label, Icon }) => (
           <DockButton
@@ -339,7 +339,7 @@ export function NavDock(props: NavDockProps) {
           />
         ))}
 
-        <div aria-hidden="true" className="mx-1 h-8 w-px flex-shrink-0 bg-white/10" />
+        <div aria-hidden="true" className="mx-1 h-8 w-px flex-shrink-0 bg-ink/10" />
 
         {ITEMS.map(({ id, label, Icon }) => (
           <DockButton

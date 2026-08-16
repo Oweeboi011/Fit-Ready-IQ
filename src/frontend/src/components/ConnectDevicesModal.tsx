@@ -12,7 +12,7 @@ import {
 } from '@/lib/activityTypes';
 import { parseGpxFile } from '@/lib/gpxParser';
 import { parseAppleHealthXml, appleHealthWorkoutsToActivities } from '@/lib/appleHealthParser';
-import { getValidStravaToken } from '@/lib/stravaAuth';
+import { createStravaOAuthState, getValidStravaToken } from '@/lib/stravaAuth';
 
 interface ConnectDevicesModalProps {
   isOpen: boolean;
@@ -147,9 +147,29 @@ export default function ConnectDevicesModal({
       }));
       return;
     }
+    const state = createStravaOAuthState();
+    if (!state) {
+      // The callback fails closed on a missing nonce, so starting a flow we know
+      // cannot be verified would just strand them there.
+      setParseError((prev) => ({
+        ...prev,
+        strava:
+          'Your browser is blocking session storage, which we need to complete the connection securely. Private browsing usually causes this — try a normal window, or import GPX files below.',
+      }));
+      return;
+    }
+
     const redirectUri = `${window.location.origin}/auth/callback/strava`;
     const scope = 'read,activity:read_all,profile:read_all';
-    window.location.href = `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}`;
+    const authorizeUrl = new URL('https://www.strava.com/oauth/authorize');
+    authorizeUrl.search = new URLSearchParams({
+      client_id: clientId,
+      response_type: 'code',
+      redirect_uri: redirectUri,
+      scope,
+      state,
+    }).toString();
+    window.location.href = authorizeUrl.toString();
   };
 
   const handleFileSelect = (deviceId: string, event: React.ChangeEvent<HTMLInputElement>) => {
@@ -345,7 +365,7 @@ export default function ConnectDevicesModal({
         {devices.map((device) => (
           <div
             key={device.id}
-            className="rounded-xl border border-white/[0.06] bg-slate-800/50 p-4 transition-all hover:border-white/10 hover:bg-slate-800/80"
+            className="rounded-xl border border-ink/[0.06] bg-slate-800/50 p-4 transition-all hover:border-ink/10 hover:bg-slate-800/80"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex min-w-0 items-start gap-3.5">
@@ -369,7 +389,7 @@ export default function ConnectDevicesModal({
                         )}
                       </span>
                     ) : (
-                      <span className="inline-flex items-center rounded-full bg-white/5 px-2.5 py-0.5 text-xs font-medium text-slate-400 ring-1 ring-white/10">
+                      <span className="inline-flex items-center rounded-full bg-ink/5 px-2.5 py-0.5 text-xs font-medium text-slate-400 ring-1 ring-ink/10">
                         Not connected
                       </span>
                     )}
@@ -561,7 +581,7 @@ export default function ConnectDevicesModal({
 
             {/* Selected files preview */}
             {selectedFiles[device.id]?.length > 0 && (
-              <div className="mt-3 rounded-lg border border-white/[0.06] bg-white/5 p-3">
+              <div className="mt-3 rounded-lg border border-ink/[0.06] bg-ink/5 p-3">
                 <p className="mb-1.5 text-xs font-semibold text-slate-300">Ready to import:</p>
                 <ul className="space-y-1">
                   {selectedFiles[device.id].map((file, index) => (
@@ -593,7 +613,7 @@ export default function ConnectDevicesModal({
       </div>
 
       {/* Footer */}
-      <div className="rounded-b-2xl border-t border-white/[0.06] bg-slate-900/80 px-5 py-4">
+      <div className="rounded-b-2xl border-t border-ink/[0.06] bg-slate-900/80 px-5 py-4">
         <div className="flex items-center gap-2 text-xs text-slate-400">
           <svg
             aria-hidden="true"
