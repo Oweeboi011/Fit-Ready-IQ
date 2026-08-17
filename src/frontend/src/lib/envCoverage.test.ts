@@ -46,6 +46,16 @@ const NOT_APP_CONFIG = new Set([
   'CI', // set by the CI provider; read by playwright.config.ts
   'E2E_BASE_URL', // Playwright only, documented in the e2e setup
   'VERCEL_URL', // injected by the platform
+
+  // Provided by the operating system or the hosting platform, and read by
+  // /api/health to locate Application Default Credentials. Nobody sets these in
+  // an env file — listing them in .env.example would invite someone to try.
+  'HOME', // POSIX
+  'APPDATA', // Windows
+  'GOOGLE_APPLICATION_CREDENTIALS', // set by the operator or gcloud, not by us
+  'K_SERVICE', // Cloud Run
+  'GAE_ENV', // App Engine
+  'FUNCTION_TARGET', // Cloud Functions
 ]);
 
 function sourceFiles(dir: string): string[] {
