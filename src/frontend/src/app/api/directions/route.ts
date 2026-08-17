@@ -187,16 +187,41 @@ async function callRoutesApi(key: string, req: RouteRequest, log: Logger) {
     const data = await res.json();
 
     if (!res.ok) {
-      // Surface the reason in our logs; the client gets something actionable.
+      const upstreamMessage = String(data?.error?.message ?? '');
+
+      /**
+       * The referrer-restricted-key case, called out separately because it is
+       * the one failure whose cause is invisible from the symptom.
+       *
+       * `GOOGLE_ROUTES_API_KEY` falls back to `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`,
+       * and that public key *should* be HTTP-referrer restricted — which makes
+       * it unusable from here, because a server-to-server call sends no referer.
+       * Google answers "Requests from referer <empty> are blocked", the fallback
+       * makes it look configured, and the operator sees a generic 503 while the
+       * real fix is a second key with no referrer restriction.
+       */
+      const referrerBlocked = /referer|referrer/i.test(upstreamMessage);
+
       log.warn('routes_api_rejected', {
         status: res.status,
-        upstream: upstreamSnippet(String(data?.error?.message ?? '')),
+        referrer_blocked: referrerBlocked,
+        upstream: upstreamSnippet(upstreamMessage),
       });
-      // Both 400 and 403 mean the credentials were refused, not that our
-      // payload was wrong — we validated origin and destination above. Google
-      // answers an unusable key with 400 "API key not valid", and a key whose
-      // project lacks the Routes API (or billing) with 403. Either way the fix
-      // is in the Cloud console, not in the request, so they share a reason.
+
+      if (referrerBlocked) {
+        return failure(
+          'rejected',
+          'Routing is configured with a browser-restricted API key, which cannot be used ' +
+            'server-side. Set GOOGLE_ROUTES_API_KEY to a key with no HTTP-referrer restriction.',
+          503
+        );
+      }
+
+      // Both 400 and 403 otherwise mean the credentials were refused, not that
+      // our payload was wrong — we validated origin and destination above.
+      // Google answers an unusable key with 400 "API key not valid", and a key
+      // whose project lacks the Routes API (or billing) with 403. Either way the
+      // fix is in the Cloud console, not the request, so they share a reason.
       return res.status === 403 || res.status === 400
         ? failure('rejected', 'Routing request was rejected by Google', 503)
         : failure('upstream', 'Routing service unavailable', 502);
