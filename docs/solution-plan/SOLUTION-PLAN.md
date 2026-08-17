@@ -840,7 +840,7 @@ flowchart TD
 | Risk | Impact | Likelihood | Mitigation |
 | --- | --- | --- | --- |
 | Large page.tsx monolith | Slow development, merge conflicts | Low (resolved) | Decomposed from 3,239 to 818 lines: `usePlacesData`/`useStravaSync`/`useFirebaseAuth` hooks, `AppHeader`/`PlacesSidebar`/`MapArea` component groups. See `docs/wiki/ARCHITECTURE.md` Section 3.1. |
-| Activities stored in localStorage only | Data loss on clear, no cross-device | Medium (partially resolved) | Strava-sourced activities now sync server-side to `users/{uid}/strava_activities` (Firestore). GPX/TCX/Apple-Health-imported activities and locally-planned routes (`savedPlans.ts`) remain localStorage-only — Phase 3 for activities, GitHub issue #23 / ADR-0004 for planned routes. |
+| Activities stored in localStorage only | Data loss on clear, no cross-device | Medium (partially resolved) | Strava-sourced activities now sync server-side to `users/{uid}/strava_activities` (Firestore). GPX/Apple-Health-imported activities and locally-planned routes (`savedPlans.ts`) remain localStorage-only — Phase 3 for activities, GitHub issue #23 / ADR-0004 for planned routes. |
 | ADR-0003/0004 migration touches the map's core data flow | Regressions in route discovery, saved places, and readiness scoring during the Trip/geometry rewrite | Medium | Land the geometry model behind the existing Places-pin code path rather than replacing it in one PR; keep `docs/wiki/DATA.md` updated in the same PR that ships each schema change (see ADR-0005) |
 | Firebase cold starts on Vercel | Slow first request after idle | Medium | Firebase Admin singleton pattern; function warming via cron |
 | Gemini quota exhaustion | Chat assistant unavailable | Low | Rate limit in route (max 15 RPM free tier); upgrade for production |
@@ -1148,6 +1148,9 @@ flowchart TD
 - **The backend's separate Firestore schema (`docs/wiki/DATA.md` Section 3) is not accidentally disconnected — it was built for the FastAPI matching pipeline independently of the frontend's schema.** Any future work connecting the two should be a deliberate integration decision (likely its own ADR), not an assumption that they already share data.
 
 ### 15.3 Enhancements (Beyond the Committed Roadmap)
+
+- **See `docs/ux-audit-2026-08-14.md` for the full enhancement backlog.** That audit reviews the shipped product against this plan and the accepted ADRs, and adds several items this section does not cover: inverting readiness from a filter into a recommender (a "routes you're ready for" / stretch-band ladder, buildable on `computeReadiness()` with no new infrastructure), a progression and record layer computed from already-imported Activities, PWA/offline posture, and the weather-window computation ADR-0004 calls for. It also flags three defects worth reading before Phase 2 or 3 starts: unbacked landing-page claims (TCX import, "twenty-second" Garmin/COROS/Komoot connects, the Guide tier's group features), `hasEntitlement()` never being called anywhere so no paywall is enforced, and a missing ownership check on `training_sessions` in `firestore.rules`.
+
 
 - A doc-freshness spot-check as part of PR review for any PR touching `src/backend/` or changing a Firestore collection — lighter than a full gate, catches drift closer to when it happens.
 - Extending `useWeather()` as a shared hook (Phase 6, still pending) would also be the natural place to add the Firestore-backed cross-tab weather cache Section 5.3 describes as target state, rather than treating them as two separate efforts.

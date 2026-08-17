@@ -87,7 +87,7 @@ flowchart TD
     A["Connect Devices button (header or NavDock)"] --> B{"Method"}
     B -->|Strava| C["OAuth via /api/strava/exchange"]
     C --> D["POST /api/strava/sync<br/>paginated fetch, upsert to Firestore"]
-    B -->|"GPX/TCX file"| E["gpxParser.ts / appleHealthParser.ts<br/>client-side parse, no upload"]
+    B -->|"GPX file"| E["gpxParser.ts / appleHealthParser.ts<br/>client-side parse, no upload"]
     D --> F["Activities feed readiness scoring<br/>and the History tab"]
     E --> F
 ```
@@ -100,15 +100,21 @@ This is the only way readiness scoring has anything to score against — a user 
 
 ```mermaid
 flowchart TD
-    A["Open Planner (NavDock)"] --> B["Tap the map to add waypoints"]
-    B --> C["usePlannerRoute snaps waypoints<br/>via /api/directions (Google Routes API, server-side)"]
-    C --> D{"Snap succeeds?"}
-    D -->|Yes| E["Walking-route path drawn"]
-    D -->|No| F["Straight-line fallback, labeled as such"]
+    A["Open Planner (NavDock)"] --> M["Choose Walk or Bike"]
+    M --> B["Tap the map to add waypoints"]
+    B --> C["usePlannerRoute routes waypoints for that mode<br/>via /api/directions (Google Routes API, server-side)"]
+    C --> D{"Route found?"}
+    D -->|Yes| E["Routed path drawn, routed distance shown"]
+    D -->|No| F["No line, no distance —<br/>panel names the cause<br/>(not configured / no route / service down)"]
     E --> G["Export GPX (gpxBuilder.ts)"]
-    F --> G
+    F --> H
+    E --> H
     G --> H["Save plan locally<br/>(savedPlans.ts, localStorage, MAX_PLANS cap)"]
 ```
+
+Travel mode is not cosmetic: cycling routing prefers cycleways and roads and refuses steps and footpaths a bike cannot ride, so the same waypoints yield a different line and a different distance.
+
+There is **no straight-line fallback**. It was removed because a labelled straight line is still a wrong number — always short, ignoring terrain, and it was what got written into the saved plan and the GPX export. A plan saved without a route now carries `distanceKm: null` and reads "not routed" in the list rather than a figure the router never produced.
 
 Route planning is fully client-local today — plans live in `localStorage`, not Firestore. There is no server-side, cross-device persistence of user-drawn routes yet; that gap is what GitHub issue #23 ("Data model for user-created routes") is asking to close, and ADR-0004's route-geometry model is the natural target shape for it once built.
 

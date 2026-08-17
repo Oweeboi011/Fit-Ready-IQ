@@ -188,7 +188,7 @@ graph TD
 | `PlacesSidebar.tsx` + `sidebar/*` | Search box, tab strip, filters, and the five list-item renderers (one component each) plus their loading/error/empty states. | `RouteFilter.tsx`, the five `*ListItem.tsx` components |
 | `MapArea.tsx` + `map/*` | The map panel: `MapView`, `MapDirections`, `RoutePlanner`, and `NavDock` wiring (weather, terrain pulse, layers, admin/roadmap triggers). | `@react-google-maps/api`, `usePlannerRoute` |
 | `DetailsModal.tsx` | Displays detailed information for a selected route/mountain/campsite/activity: elevation profile, photos, gear recommendations, weather. Does **not** show Strava segments — that field was removed as fabricated data (see `placesTypes.ts`). | Google Elevation API, weather data |
-| `ConnectDevicesModal.tsx` | Strava OAuth flow, GPX/TCX/Apple Health file import, activity history display with source badges. | Strava routes, `gpxParser.ts`, `appleHealthParser.ts` |
+| `ConnectDevicesModal.tsx` | Strava OAuth flow, GPX/Apple Health file import, activity history display with source badges. Accepts `.gpx` only — `gpxParser.ts` reads `<trkpt>`, which TCX does not use. | Strava routes, `gpxParser.ts`, `appleHealthParser.ts` |
 | `ChatBot.tsx` | Conversational AI interface — message history, session persistence to `localStorage` + Firestore. No tool-use yet; see `docs/wiki/AI.md`. | `/api/chat` route |
 | `useFirebaseAuth.ts` | Auth-listener effect, sign-in/out handlers, auth error state (not `alert()`). | `firebaseClient.ts` |
 | `useStravaSync.ts` | Paginated Strava activity fetch (capped at 10 pages), localStorage load, Firestore background sync. | `stravaAuth.ts`, `/api/strava/sync` |

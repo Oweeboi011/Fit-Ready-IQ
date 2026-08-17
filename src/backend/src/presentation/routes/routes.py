@@ -65,7 +65,15 @@ async def get_best_fit_routes(
             limit=limit,
         )
     except ValueError as exc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+        # The message is logged, not returned. A ValueError raised deep in the
+        # use case describes our internals ("no UserDocument for <uuid>"), which
+        # tells the caller nothing they can act on and us rather more than we
+        # meant to say.
+        logger.warning("best_fit_routes_unavailable", user_id=user_id, reason=str(exc))
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            "No profile or route data available for this request.",
+        ) from exc
 
     logger.info("best_fit_routes_computed", user_id=user_id, count=len(results))
 
