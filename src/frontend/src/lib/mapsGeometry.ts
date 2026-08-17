@@ -66,6 +66,59 @@ export function fetchElevations(
   });
 }
 
+/**
+ * Google's cap on samples for one `getElevationAlongPath` call.
+ *
+ * 256 is plenty for a profile strip a few hundred pixels wide — more samples
+ * than pixels buys nothing but quota.
+ */
+const MAX_PATH_SAMPLES = 256;
+
+/**
+ * Elevation sampled at even intervals *along* a path.
+ *
+ * Distinct from {@link fetchElevations}, which answers for points you name. A
+ * profile needs the ground between the waypoints, and asking for the waypoints
+ * alone is how the planner ended up reporting ascent as the sum of a handful of
+ * corner elevations — a route that climbs a hill and comes back down between two
+ * waypoints reads as flat.
+ *
+ * `getElevationAlongPath` does the interpolation server-side and returns exactly
+ * `samples` results, evenly spaced, which is what a distance axis wants.
+ *
+ * Failure yields nulls rather than an exception, on the same principle as its
+ * sibling: an unknown elevation must stay unknown rather than becoming zero.
+ */
+export function fetchElevationAlongPath(
+  path: google.maps.LatLngLiteral[],
+  samples = 128
+): Promise<{ values: (number | null)[]; failed: boolean }> {
+  return new Promise((resolve) => {
+    // Two points is the minimum that describes a path; one is a location.
+    if (path.length < 2) {
+      resolve({ values: [], failed: false });
+      return;
+    }
+
+    const count = Math.max(2, Math.min(samples, MAX_PATH_SAMPLES));
+    const elevationService = new google.maps.ElevationService();
+
+    elevationService.getElevationAlongPath({ path, samples: count }, (results, status) => {
+      if (status === google.maps.ElevationStatus.OK && results) {
+        resolve({
+          values: results.map((r) => (r.elevation != null ? Math.round(r.elevation) : null)),
+          failed: false,
+        });
+        return;
+      }
+      // Surfaced rather than swallowed: an unenabled or over-quota Elevation API
+      // is a configuration problem, and a silent empty profile hides it.
+      console.error(`ElevationService (along path) failed: ${status}`);
+      resolve({ values: [], failed: true });
+    });
+  });
+}
+
 export function fetchTravelDistances(
   origin: google.maps.LatLngLiteral,
   destinations: google.maps.LatLngLiteral[]

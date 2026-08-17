@@ -72,6 +72,7 @@ export function toDetailsModalData(selectedDetails: SelectedDetails): DetailsDat
         max_heartrate: selectedDetails.data.max_heartrate,
         external_id: selectedDetails.data.external_id,
         coordinates: selectedDetails.data.start_latlng,
+        polyline: selectedDetails.data.polyline,
       };
     default:
       return null;
