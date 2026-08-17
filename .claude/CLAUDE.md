@@ -37,11 +37,18 @@ The dependencies live in Poetry's virtualenv, not in the system Python, so every
 command needs the `poetry run` prefix — a bare `uvicorn` or `pytest` reports
 `No module named uvicorn` even though the package is installed.
 
-Requires `src/backend/.env`: six settings in `src/config/settings.py` have no
-default (`firebase_project_id`, the three `strava_*`, `mapbox_access_token`,
-`openweather_api_key`), so without it the app dies on a Pydantic
-`ValidationError` before serving anything. Copy `.env.example` and leave values
-blank if you have no keys — blank still satisfies the type. `CORS_ORIGINS` is the
+Requires `src/backend/.env`, but only `FIREBASE_PROJECT_ID` has no default — copy
+`.env.example` and set that one. It used to be six: the three `strava_*`,
+`mapbox_access_token` and `openweather_api_key` were required and **read by
+nothing**, so the app died on a Pydantic `ValidationError` unless you supplied
+values it then ignored. They have been removed along with seven other unused
+settings; weather and Strava belong to the Next routes, which hold their own
+credentials.
+
+Two consequences of `extra="forbid"`, which pydantic-settings applies by default:
+a variable in `.env` that is *not* a settings field is a hard startup failure,
+not dead weight — so removing a field means removing it from `.env` too. And
+`CORS_ORIGINS` is the
 exception: it is a `list[str]`, and pydantic-settings JSON-decodes complex types
 straight from the dotenv file before any validator runs, so it must be a JSON
 array (`["http://localhost:4790"]`), not the comma-separated form the
@@ -383,11 +390,25 @@ Copy `src/frontend/.env.example` to `src/frontend/.env.local`. Required keys tha
 
 - `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
 - `GEMINI_API_KEY`
-- `NEXT_PUBLIC_FIREBASE_*` (6 keys)
+- `NEXT_PUBLIC_FIREBASE_*` — **4 keys**, not 6: `API_KEY`, `AUTH_DOMAIN`,
+  `PROJECT_ID`, `APP_ID`. `STORAGE_BUCKET` and `MESSAGING_SENDER_ID` were
+  documented and set but never passed to `initializeApp`, because nothing uses
+  Firebase Storage or FCM. Re-add them with the code that needs them.
 - `FIREBASE_PROJECT_ID` + one of the Admin credential options above
-- `STRAVA_CLIENT_ID` + `STRAVA_CLIENT_SECRET`
+- `NEXT_PUBLIC_STRAVA_CLIENT_ID` **and** `STRAVA_CLIENT_ID` + `STRAVA_CLIENT_SECRET`.
+  The client id is needed in both forms and this is easy to miss: the browser
+  reads the `NEXT_PUBLIC_` one to build the authorize URL, so without it the
+  Connect Strava button cannot start the flow. It was absent from `.env.example`
+  entirely. The **secret** must never gain a `NEXT_PUBLIC_` prefix.
 
-Optional (graceful degradation): `GOOGLE_WEATHER_API_KEY`, `OPENWEATHER_API_KEY`.
+Optional (graceful degradation): `GOOGLE_WEATHER_API_KEY` and
+`OPENWEATHER_API_KEY` — two *different* providers, not aliases; Google is tried
+first and OpenWeather is the fallback. Also `GOOGLE_ROUTES_API_KEY`,
+`OPENWEATHER_BASE_URL`, `ADVISORY_FEED_URL`, `LOG_LEVEL`, `CSP_ENFORCE_RESOURCES`,
+`CSP_REPORT_URI`.
+
+`envCoverage.test.ts` fails the build if `.env.example` and the code disagree in
+either direction, and if a secret-looking name gains a `NEXT_PUBLIC_` prefix.
 
 ## Auth providers
 

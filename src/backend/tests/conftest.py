@@ -12,14 +12,21 @@ os.environ.setdefault("FIRESTORE_EMULATOR_HOST", "localhost:8080")
 os.environ.setdefault("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
 os.environ.setdefault("FIREBASE_STORAGE_EMULATOR_HOST", "localhost:9199")
 
-# Stub required API keys so Settings validation passes in tests
-os.environ.setdefault("STRAVA_CLIENT_ID", "test-strava-id")
-os.environ.setdefault("STRAVA_CLIENT_SECRET", "test-strava-secret")
+# No API-key stubs needed any more: the five required-but-unused settings they
+# existed to satisfy have been removed. `firebase_project_id` above is now the
+# only setting without a default, and it is one the app actually reads.
+
+# Pin CORS rather than inheriting it from the developer's .env.
+#
+# `Settings` reads `src/backend/.env`, so without this the suite asserts against
+# whatever origins the machine running it happens to have configured — a test
+# that passes on CI and fails locally, or the reverse, for reasons that have
+# nothing to do with the code. Environment variables outrank the dotenv file in
+# pydantic-settings, so setting it here wins. JSON, not comma-separated: it is a
+# `list[str]`, and complex types are JSON-decoded before any validator runs.
 os.environ.setdefault(
-    "STRAVA_REDIRECT_URI", "http://localhost:8000/auth/strava/callback"
+    "CORS_ORIGINS", '["http://localhost:3000", "http://localhost:3001"]'
 )
-os.environ.setdefault("MAPBOX_ACCESS_TOKEN", "test-mapbox-token")
-os.environ.setdefault("OPENWEATHER_API_KEY", "test-weather-key")
 
 import pytest
 from fastapi.testclient import TestClient
