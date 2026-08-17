@@ -371,7 +371,7 @@ cd Fit-Ready-IQ
 # Frontend setup
 cd src/frontend
 npm install  # Also installs Husky hooks automatically via the prepare script
-cp .env.example .env.local  # Copy from src/frontend/.env.example, then fill in API keys
+cp .env.example .env.local  # One file at the repo root, read by BOTH the Next app and the backend
 
 # Start development
 npm run dev

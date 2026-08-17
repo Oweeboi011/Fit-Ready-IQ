@@ -1,6 +1,7 @@
 """Application configuration using Pydantic settings."""
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -28,9 +29,24 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        # The repo-root `.env.local`, shared with the Next app — one file for the
+        # whole repository rather than one per runtime. Resolved from this file's
+        # location so it works whatever directory uvicorn is launched from.
+        # parents: 0=config 1=src 2=backend 3=src 4=<repo root>. The doubled
+        # "src" is why this is 4 and not 3 — the backend lives at src/backend/src.
+        env_file=Path(__file__).resolve().parents[4] / ".env.local",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        # Sharing the file means every NEXT_PUBLIC_* and frontend-only variable
+        # is visible here too, and the default `extra="forbid"` would reject all
+        # of them at startup.
+        #
+        # The cost is real: "forbid" used to catch a stale or misspelled name as
+        # a hard failure. `tests/unit/test_settings.py` recovers that check at
+        # test time instead, asserting that every field appears in .env.example
+        # and that the removed ones stay removed — a build failure rather than a
+        # 3am one.
+        extra="ignore",
     )
 
     # Application
