@@ -1,6 +1,19 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
+
+/**
+ * Deliberately still a credential-*presence* check, not a live probe.
+ *
+ * Proving ADC really works would mean fetching an access token, which is a
+ * network round trip on an endpoint an uptime monitor hits every 15 minutes and
+ * which is edge-cached for 30 s. `existsSync` keeps it honest and free.
+ * `/api/integrations/firebase` remains the deep, admin-gated probe that actually
+ * writes to Firestore.
+ */
 
 interface ServiceStatus {
   ok: boolean;
@@ -20,33 +33,65 @@ interface HealthReport {
   };
 }
 
-function checkEnv(key: string): ServiceStatus {
-  const val = process.env[key];
-  if (!val || val.startsWith('YOUR_') || val === '') {
-    return { ok: false, message: `${key} not configured` };
+/**
+ * Where Application Default Credentials would come from, if anywhere.
+ *
+ * `src/lib/firebaseAdmin.ts` tries three credential sources in order — the
+ * service-account JSON, the client-email/private-key pair, then
+ * `applicationDefault()`. This check only knew about the first two, so a
+ * deployment running on ADC reported `firebase_admin` as failed while Firestore
+ * worked perfectly. That is not a cosmetic wrong answer: health returns 503 when
+ * enough checks fail, and `uptime.yml` fails the run on a non-2xx — so a
+ * correctly configured Cloud Run or GKE service using workload identity would
+ * have been alarmed on continuously.
+ */
+function findAdcSource(): string | null {
+  // An explicit pointer wins, exactly as the Google auth libraries treat it.
+  const explicit = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  if (explicit && existsSync(explicit)) return 'GOOGLE_APPLICATION_CREDENTIALS';
+
+  // The well-known file written by `gcloud auth application-default login`.
+  const wellKnown =
+    process.platform === 'win32'
+      ? process.env.APPDATA && join(process.env.APPDATA, 'gcloud', WELL_KNOWN_ADC_FILE)
+      : process.env.HOME && join(process.env.HOME, '.config', 'gcloud', WELL_KNOWN_ADC_FILE);
+  if (wellKnown && existsSync(wellKnown)) return 'gcloud application-default login';
+
+  // On Google infrastructure the metadata server supplies credentials and there
+  // is no file to look for. These variables are set by the platform itself.
+  if (process.env.K_SERVICE || process.env.GAE_ENV || process.env.FUNCTION_TARGET) {
+    return 'GCP metadata server';
   }
-  return { ok: true, message: 'configured' };
+
+  return null;
 }
+
+const WELL_KNOWN_ADC_FILE = 'application_default_credentials.json';
 
 function checkFirebaseAdmin(): ServiceStatus {
   const projectId = process.env.FIREBASE_PROJECT_ID;
   if (!projectId) return { ok: false, message: 'FIREBASE_PROJECT_ID not set' };
 
-  const hasJson = !!(
-    process.env.FIREBASE_SERVICE_ACCOUNT_KEY_JSON &&
-    process.env.FIREBASE_SERVICE_ACCOUNT_KEY_JSON.trim() !== ''
-  );
+  const hasJson = !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY_JSON?.trim();
   const hasKeyPair = !!(process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY);
 
-  if (!hasJson && !hasKeyPair) {
-    return {
-      ok: false,
-      message:
-        'No service account credentials — set FIREBASE_SERVICE_ACCOUNT_KEY_JSON or FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY',
-    };
-  }
+  // Reported in the same order firebaseAdmin.ts resolves them, so the message
+  // names the credential the SDK will actually use rather than one that happens
+  // to be present.
+  if (hasJson) return { ok: true, message: `Service account JSON (project: ${projectId})` };
+  if (hasKeyPair)
+    return { ok: true, message: `Client email + private key (project: ${projectId})` };
 
-  return { ok: true, message: `Credentials present (project: ${projectId})` };
+  const adc = findAdcSource();
+  if (adc) return { ok: true, message: `Application Default Credentials via ${adc}` };
+
+  return {
+    ok: false,
+    message:
+      'No credentials — set FIREBASE_SERVICE_ACCOUNT_KEY_JSON, or ' +
+      'FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY, or run ' +
+      '`gcloud auth application-default login` for local development',
+  };
 }
 
 function checkWeather(): ServiceStatus {
