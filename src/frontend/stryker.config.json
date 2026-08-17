@@ -3,7 +3,17 @@
   "vitest": {
     "configFile": "vitest.config.ts"
   },
-  "mutate": ["src/lib/gpxParser.ts", "src/lib/polylineDecoder.ts", "src/lib/activityTypes.ts"],
+  "mutate": [
+    "src/lib/gpxParser.ts",
+    "src/lib/polylineDecoder.ts",
+    "src/lib/activityTypes.ts",
+    "src/lib/adminAuth.ts",
+    "src/lib/rateLimit.ts",
+    "src/lib/logger.ts",
+    "src/lib/elevationProfile.ts",
+    "src/lib/plannerLine.ts",
+    "src/lib/theme.ts"
+  ],
   "thresholds": {
     "high": 80,
     "low": 70,
