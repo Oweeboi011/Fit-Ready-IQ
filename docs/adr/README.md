@@ -12,6 +12,10 @@ Numbers are sequential and never reused, even if a later decision supersedes an 
 | [0004](0004-routes-have-real-geometry.md) | Routes have real geometry, from three producers | Accepted, not yet implemented | A Route is an ordered `[lng, lat]` line with length/elevation computed along it, from OSM import, GPX upload, or user-drawn routes snapped via OpenRouteService — not a Google Places pin with fabricated metrics. |
 | [0005](0005-documentation-governance-harnessing.md) | Documentation governance and harnessing | Accepted | Extends the Gated/Reviewed/Advisory ratchet from ADR-0002 to documentation: a PR that changes branch flow, directory structure, or a data model an ADR describes must update that doc in the same PR. |
 
+## Related Audits
+
+ADRs record decisions; audits record how far reality has moved toward them. `docs/ux-audit-2026-08-14.md` assesses the product against 0003 and 0004 in particular — both are Accepted but unimplemented, and that audit is where the consequences of the gap (and the unscoped notification-channel prerequisite for 0003's safety timer) are written down.
+
 ## When to Write One
 
 Per ADR-0002's own precedent: if the decision is mechanically decidable, it belongs in a gate, not a document (see `docs/wiki/CODE-QUALITY.md`). Write an ADR when the decision is a judgment call that a future contributor could plausibly reverse without knowing why it was made — an entity model change (0003, 0004), a tooling/process stance (0001, 0002, 0005), a rejected alternative worth remembering.
