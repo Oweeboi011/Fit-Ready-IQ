@@ -21,6 +21,7 @@ import type { Difficulty } from '@/lib/routeDifficulty';
 import { layerForActivityType, type MapLayer } from '@/lib/mapLayers';
 import { buttonPrimary, buttonSize } from '@/lib/ui';
 import { fetchLatestRadarFrame, radarTileUrl } from '@/lib/radarLayer';
+import { plannerLine } from '@/lib/plannerLine';
 
 interface Route {
   id: string;
@@ -788,34 +789,26 @@ export default function MapView({
             /**
              * One line, and it says which kind it is.
              *
-             * Two problems used to live here. The fallback drew a straight line
-             * between waypoints styled *identically* to a measured route, so a
-             * route that had not been snapped yet — or had failed to snap —
-             * looked exactly like one that had. `usePlannerRoute` clears the path
-             * precisely to avoid that ("nothing is drawn while we wait"), and
-             * this component then drew the provisional line anyway. And the solid
-             * stroke carried dash icons on top of it, which reads as a second
-             * line laid over the first.
+             * The decision lives in `plannerLine` so it can be tested without a
+             * Google map — including the case that matters most, that clearing
+             * the waypoints clears the line even when routed geometry is still
+             * sitting in state.
              *
-             * Now: a measured route is a solid line. Un-snapped waypoints are a
-             * dashed guide — no solid stroke at all, so the dashes *are* the line
-             * — which is the "labelled as such" the API table promises. Nothing
-             * is drawn mid-route, so adding a waypoint no longer flashes a
-             * straight line across the map.
+             * A measured route is solid. Un-snapped waypoints are a dashed guide
+             * with no solid stroke, so the dashes *are* the line — the "labelled
+             * as such" the API table promises, rather than something identical to
+             * a real route. Nothing is drawn mid-route.
              */
-            const snapped = plannerPath && plannerPath.length > 1;
-            if (plannerWaypoints.length < 2) return null;
-            if (!snapped && plannerRouteStatus === 'routing') return null;
+            const line = plannerLine(plannerWaypoints, plannerPath, plannerRouteStatus);
+            if (line.kind === 'none') return null;
 
-            const path = (snapped ? plannerPath! : plannerWaypoints.map((w) => w.coordinates)).map(
-              ([lng, lat]) => ({ lat, lng })
-            );
+            const path = line.path.map(([lng, lat]) => ({ lat, lng }));
 
             return (
               <Polyline
                 path={path}
                 options={
-                  snapped
+                  line.kind === 'route'
                     ? {
                         strokeColor: '#f97316',
                         strokeOpacity: 0.95,
