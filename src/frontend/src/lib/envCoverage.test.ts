@@ -19,8 +19,14 @@ import { describe, expect, it } from 'vitest';
  */
 
 const FRONTEND = path.join(__dirname, '..', '..');
+const REPO_ROOT = path.join(FRONTEND, '..', '..');
 const SRC = path.join(__dirname, '..');
-const ENV_EXAMPLE = path.join(FRONTEND, '.env.example');
+
+/** One env file for the whole repo — see the header of .env.example. */
+const ENV_EXAMPLE = path.join(REPO_ROOT, '.env.example');
+
+/** The backend reads the same file, so its settings count as declared-and-used. */
+const BACKEND_SETTINGS = path.join(REPO_ROOT, 'src', 'backend', 'src', 'config', 'settings.py');
 
 /**
  * Configuration read outside `src/`.
@@ -65,6 +71,24 @@ function readVars(): Set<string> {
   return names;
 }
 
+/**
+ * Backend settings, as env-var names.
+ *
+ * Read from settings.py rather than duplicated here: the file is the source of
+ * truth, and a hard-coded copy would be the very drift this test exists to
+ * catch. `model_config` is skipped — it is pydantic's own, not a setting.
+ */
+function backendVars(): Set<string> {
+  const source = readFileSync(BACKEND_SETTINGS, 'utf8');
+  const names = Array.from(source.matchAll(/^ {4}([a-z][a-z0-9_]*)\s*:/gm), (m) => m[1]);
+  return new Set(names.filter((n) => n !== 'model_config').map((n) => n.toUpperCase()));
+}
+
+/** Every variable either runtime reads. */
+function allUsedVars(): Set<string> {
+  return new Set([...readVars(), ...backendVars()]);
+}
+
 /** Every variable declared in `.env.example`. */
 function declaredVars(): Set<string> {
   const source = readFileSync(ENV_EXAMPLE, 'utf8');
@@ -74,23 +98,24 @@ function declaredVars(): Set<string> {
 describe('.env.example', () => {
   it('finds variables at all, so a broken scan cannot pass silently', () => {
     expect(readVars().size).toBeGreaterThan(10);
+    expect(backendVars().size).toBeGreaterThan(5);
     expect(declaredVars().size).toBeGreaterThan(10);
   });
 
   it('declares every variable the app reads', () => {
-    const undeclared = [...readVars()].filter((name) => !declaredVars().has(name)).sort();
+    const undeclared = [...allUsedVars()].filter((name) => !declaredVars().has(name)).sort();
     expect(
       undeclared,
-      `Read in src/ or next.config.js but missing from .env.example: ${undeclared.join(', ')}. ` +
+      `Read by the app or the backend settings but missing from .env.example: ${undeclared.join(', ')}. ` +
         `Anyone setting the project up from the docs will not know to set these.`
     ).toEqual([]);
   });
 
   it('declares nothing the app no longer reads', () => {
-    const unused = [...declaredVars()].filter((name) => !readVars().has(name)).sort();
+    const unused = [...declaredVars()].filter((name) => !allUsedVars().has(name)).sort();
     expect(
       unused,
-      `Declared in .env.example but read nowhere in src/ or next.config.js: ${unused.join(', ')}. ` +
+      `Declared in .env.example but read by neither runtime: ${unused.join(', ')}. ` +
         `Remove it, or wire up whatever was meant to read it.`
     ).toEqual([]);
   });

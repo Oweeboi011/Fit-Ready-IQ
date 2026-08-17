@@ -37,17 +37,20 @@ The dependencies live in Poetry's virtualenv, not in the system Python, so every
 command needs the `poetry run` prefix — a bare `uvicorn` or `pytest` reports
 `No module named uvicorn` even though the package is installed.
 
-Requires `src/backend/.env`, but only `FIREBASE_PROJECT_ID` has no default — copy
-`.env.example` and set that one. It used to be six: the three `strava_*`,
+Reads the repo-root `.env.local` (one file for the whole repository — see
+"Environment variables"), and only `FIREBASE_PROJECT_ID` has no default. It used to be six: the three `strava_*`,
 `mapbox_access_token` and `openweather_api_key` were required and **read by
 nothing**, so the app died on a Pydantic `ValidationError` unless you supplied
 values it then ignored. They have been removed along with seven other unused
 settings; weather and Strava belong to the Next routes, which hold their own
 credentials.
 
-Two consequences of `extra="forbid"`, which pydantic-settings applies by default:
-a variable in `.env` that is *not* a settings field is a hard startup failure,
-not dead weight — so removing a field means removing it from `.env` too. And
+Settings run with `extra="ignore"` rather than pydantic's default
+`extra="forbid"`, because the shared file is full of `NEXT_PUBLIC_*` names the
+backend has no fields for and `forbid` would reject every one at startup. The
+cost is that a stale or misspelled name no longer fails fast, so
+`tests/unit/test_settings.py` asserts the field set instead.
+
 `CORS_ORIGINS` is the
 exception: it is a `list[str]`, and pydantic-settings JSON-decodes complex types
 straight from the dotenv file before any validator runs, so it must be a JSON
@@ -386,7 +389,23 @@ Commit format: `type(scope): subject` — types: `feat fix docs style refactor p
 
 ## Environment variables
 
-Copy `src/frontend/.env.example` to `src/frontend/.env.local`. Required keys that will break functionality if missing:
+**One env file for the whole repo: `.env.local` at the root.** Copy
+`.env.example` to `.env.local` and fill it in. There is no
+`src/frontend/.env.local` or `src/backend/.env` any more.
+
+Both runtimes read that one file:
+
+- The Next app loads it with `process.loadEnvFile()` at the top of
+  `next.config.js`. Next only auto-loads env files in its own directory, so a
+  root file must be loaded explicitly — and it has to happen in the config,
+  because that runs before compilation, which is when `NEXT_PUBLIC_*` gets
+  inlined into the browser bundle. Loading later leaves those undefined client-side.
+- The backend points `env_file` at it from `src/config/settings.py`, with
+  `extra="ignore"` so the frontend's variables do not trip pydantic's default
+  `extra="forbid"`. The trade — losing startup detection of a stale name — is
+  recovered at test time by `tests/unit/test_settings.py`.
+
+Required keys that will break functionality if missing:
 
 - `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
 - `GEMINI_API_KEY`

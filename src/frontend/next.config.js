@@ -1,3 +1,30 @@
+const fs = require('node:fs');
+const path = require('node:path');
+
+/**
+ * Load the repo-root `.env.local`.
+ *
+ * Next only auto-loads env files sitting in its own project directory
+ * (`src/frontend`), so a single file at the repo root — shared with the FastAPI
+ * backend, which reads it via `env_file` in src/config/settings.py — has to be
+ * loaded explicitly, and it has to happen here: this module is evaluated before
+ * compilation, which is when `NEXT_PUBLIC_*` values get inlined into the client
+ * bundle. Loading any later would leave those undefined in the browser.
+ *
+ * `process.loadEnvFile` is Node's own parser (20.12+), so there is no dependency
+ * to add and quoting behaves exactly as `--env-file` does — which matters for
+ * FIREBASE_PRIVATE_KEY, whose value carries escaped newlines.
+ *
+ * Existence-guarded rather than wrapped in a bare try/catch: on Vercel there is
+ * no file and the variables arrive from the dashboard, so absence is the normal
+ * production case and must not look like an error. Real env vars already in
+ * `process.env` are not clobbered.
+ */
+const ROOT_ENV = path.resolve(__dirname, '..', '..', '.env.local');
+if (fs.existsSync(ROOT_ENV)) {
+  process.loadEnvFile(ROOT_ENV);
+}
+
 /**
  * Content-Security-Policy, in two parts.
  *
