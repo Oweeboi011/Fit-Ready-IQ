@@ -7,7 +7,25 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Application settings loaded from environment variables."""
+    """Application settings loaded from environment variables.
+
+    Every field here is read by something. Twelve were not, and five of those
+    were *required* — `strava_client_id`, `strava_client_secret`,
+    `strava_redirect_uri`, `mapbox_access_token` and `openweather_api_key` had
+    no default, so the app died on a Pydantic ValidationError before serving
+    anything unless you supplied values it then never read. That is why the
+    setup docs told you to "leave the values blank": the workaround existed to
+    satisfy configuration that did nothing.
+
+    Removed with them: `strava_webhook_verify_token`, `openweather_base_url`,
+    `osm_overpass_url`, `hiking_project_api_key` and the three `cache_*_ttl`
+    values, none of which had a consumer either. Weather and Strava are handled
+    entirely by the Next routes in `src/frontend/src/app/api/`, which read their
+    own credentials; duplicating them here only made two sources of truth.
+
+    Re-adding a setting is one line. Keeping an unused one that blocks startup
+    is not free, so the bar for adding is a caller that reads it.
+    """
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -35,32 +53,26 @@ class Settings(BaseSettings):
     firebase_auth_emulator_port: int = 9099
     firebase_storage_emulator_port: int = 9199
 
-    # Strava API
-    strava_client_id: str
-    strava_client_secret: str
-    strava_redirect_uri: str
-    strava_webhook_verify_token: str | None = None
-
-    # External APIs
-    mapbox_access_token: str
-    openweather_api_key: str
-    openweather_base_url: str = "https://api.openweathermap.org/data/2.5"
-
-    # Route data sources
-    osm_overpass_url: str = "https://overpass-api.de/api/interpreter"
-    hiking_project_api_key: str | None = None
-
-    # Rate limiting
+    # Rate limiting — enforced by slowapi, wired in src/main.py.
     rate_limit_per_minute: int = 60
     rate_limit_per_hour: int = 1000
-
-    # Cache TTL (seconds)
-    cache_activities_ttl: int = 900  # 15 minutes
-    cache_routes_ttl: int = 86400  # 24 hours
-    cache_weather_ttl: int = 3600  # 1 hour
+    # In-memory by default: each worker then keeps its own counters, so the
+    # effective limit is this number times the worker count. Point at Redis
+    # (e.g. "redis://host:6379") for any multi-worker deployment.
+    rate_limit_storage_uri: str = "memory://"
 
     # CORS
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:3001"]
+    #
+    # The frontend dev server runs on 4790 (see src/frontend/package.json), not
+    # Next's default 3000 — the old default here matched neither runtime, so a
+    # local backend rejected every call the local frontend made.
+    #
+    # Note this is a `list[str]`, and pydantic-settings JSON-decodes complex
+    # types straight from the dotenv file before any validator runs. In `.env`
+    # it must therefore be a JSON array — `["http://localhost:4790"]` — not the
+    # comma-separated form `parse_cors_origins` below accepts. That validator
+    # still covers values passed programmatically or via a plain env var.
+    cors_origins: list[str] = ["http://localhost:4790", "http://127.0.0.1:4790"]
 
     # Error tracking
     sentry_dsn: str | None = None
