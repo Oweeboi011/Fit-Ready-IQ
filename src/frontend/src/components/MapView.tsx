@@ -481,14 +481,24 @@ export default function MapView({
   // Centre on whatever the page resolved. This component no longer asks for
   // geolocation itself — useUserLocation owns that, so there is exactly one
   // permission prompt and one set of coordinates in the app.
+  //
+  // Keyed on the coordinate *values*, never on the array.
+  //
+  // `userLocation` arrives as a freshly built `[lng, lat]` tuple on every render
+  // of the parent, so an effect depending on the array itself re-ran whenever
+  // anything upstream changed — including adding a planner waypoint. It then set
+  // `mapCenter` to a new object, `<GoogleMap center>` is controlled, and the map
+  // snapped back to the user's location mid-edit: drop a waypoint, lose your
+  // place. Comparing numbers means this runs only when the location genuinely
+  // moves, which for a one-shot `getCurrentPosition` is approximately never.
+  const userLng = userLocationProp?.[0];
+  const userLat = userLocationProp?.[1];
+
   useEffect(() => {
-    if (!userLocationProp) return;
-    setUserLocation(userLocationProp);
-    setMapCenter({
-      lat: userLocationProp[1],
-      lng: userLocationProp[0],
-    });
-  }, [userLocationProp]);
+    if (userLng == null || userLat == null) return;
+    setUserLocation([userLng, userLat]);
+    setMapCenter({ lat: userLat, lng: userLng });
+  }, [userLng, userLat]);
 
   const getDifficultyColor = (difficulty: string): string => {
     switch (difficulty.toLowerCase()) {

@@ -1,4 +1,5 @@
 import dynamic from 'next/dynamic';
+import { useMemo } from 'react';
 import { MapDirections, type DirectionsTarget } from '@/components/MapDirections';
 import { RoutePlanner } from '@/components/RoutePlanner';
 import type { PlannerRoute, PlannerTravelMode } from '@/lib/usePlannerRoute';
@@ -101,6 +102,22 @@ export default function MapCanvas({
   onFocusUserLocation,
   activityPolylines,
 }: MapCanvasProps) {
+  /**
+   * Stable `[lng, lat]` tuple.
+   *
+   * Built inline, this allocated a new array on every render, so any effect in
+   * MapView keyed on it fired constantly — which is how adding a planner
+   * waypoint used to snap the camera back to the user's location. MapView now
+   * compares the coordinates rather than the array, and this keeps the prop from
+   * churning in the first place.
+   */
+  const lng = userLocation?.lng;
+  const lat = userLocation?.lat;
+  const userLocationTuple = useMemo<[number, number] | undefined>(
+    () => (lng == null || lat == null ? undefined : [lng, lat]),
+    [lng, lat]
+  );
+
   return (
     <>
       <MapDirections
@@ -152,7 +169,7 @@ export default function MapCanvas({
         mountains={mountains}
         campsites={campsites}
         savedPlaces={savedPlaces}
-        userLocation={userLocation ? [userLocation.lng, userLocation.lat] : undefined}
+        userLocation={userLocationTuple}
         hasPreciseLocation={hasPreciseLocation}
         isLoaded={isLoaded}
         loadError={loadError}
