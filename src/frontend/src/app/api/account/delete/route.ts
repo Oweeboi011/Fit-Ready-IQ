@@ -11,7 +11,11 @@ import {
 import { rateLimit, tooManyRequests } from '@/lib/rateLimit';
 import { ACCOUNT_DELETE_RATE_LIMIT } from '@/lib/rateLimitRules';
 import { requireUser } from '@/lib/serverAuth';
-import { USER_OWNED_COLLECTIONS, USER_OWNED_TREE_COLLECTIONS } from '@/lib/userDataFootprint';
+import {
+  USER_KEYED_DOCUMENTS,
+  USER_OWNED_COLLECTIONS,
+  USER_OWNED_TREE_COLLECTIONS,
+} from '@/lib/userDataFootprint';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -114,6 +118,14 @@ export async function POST(request: Request) {
         await db.recursiveDelete(doc.ref);
       }
       deleted[name] = snap.size;
+    }
+
+    // Documents keyed by uid outside the user tree — currently the Strava OAuth
+    // tokens. A deleted account must not leave a live, non-expiring refresh
+    // token behind; that is the worst possible remnant of an erasure.
+    for (const name of USER_KEYED_DOCUMENTS) {
+      await db.collection(name).doc(uid).delete();
+      deleted[name] = 1;
     }
 
     // Last: the credential itself. Everything above is now unreachable.

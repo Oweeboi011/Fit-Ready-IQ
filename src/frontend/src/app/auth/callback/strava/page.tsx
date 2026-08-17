@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 
+import { authedFetch } from '@/lib/firebaseClient';
 import { consumeStravaOAuthState } from '@/lib/stravaAuth';
 import { buttonGhost, buttonPrimary, buttonSize } from '@/lib/ui';
 
@@ -73,43 +74,31 @@ function StravaCallbackInner() {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), EXCHANGE_TIMEOUT_MS);
 
-    fetch('/api/strava/exchange', {
+    // `authedFetch`, not `fetch`: the exchange stores the tokens against the
+    // signed-in uid, so it needs to know who that is. Nothing comes back except
+    // whether it worked and which athlete it is — the browser no longer holds a
+    // Strava credential at all, so there is nothing here to save.
+    authedFetch('/api/strava/exchange', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code }),
       signal: controller.signal,
     })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.access_token) {
+      .then(async (res) => ({ ok: res.ok, status: res.status, body: await res.json() }))
+      .then(({ ok, status, body }) => {
+        if (!ok || !body?.connected) {
           setOutcome({
             state: 'failed',
-            title: 'Strava did not accept the connection',
-            detail: 'The authorisation code may have already been used. Try connecting again.',
-            canRetry: true,
-          });
-          return;
-        }
-
-        // If we cannot store the token, the connection did not really happen —
-        // saying "Connected!" here would strand the user on a map with no data.
-        try {
-          localStorage.setItem(
-            'fri_strava_token',
-            JSON.stringify({
-              access_token: data.access_token,
-              refresh_token: data.refresh_token,
-              expires_at: data.expires_at,
-              athlete: data.athlete,
-            })
-          );
-        } catch {
-          setOutcome({
-            state: 'failed',
-            title: 'We could not save your Strava connection',
+            title:
+              status === 401
+                ? 'Sign in first, then connect Strava'
+                : 'Strava did not accept the connection',
             detail:
-              'Your browser is blocking local storage. Private browsing usually causes this — try again in a normal window.',
-            canRetry: false,
+              status === 401
+                ? 'Your Strava tokens are kept on our side and have to belong to an account, so this needs you signed in.'
+                : (body?.error ??
+                  'The authorisation code may have already been used. Try connecting again.'),
+            canRetry: true,
           });
           return;
         }

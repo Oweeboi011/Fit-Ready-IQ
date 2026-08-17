@@ -1,29 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { rateLimit, tooManyRequests } from '@/lib/rateLimit';
+import { requireUser } from '@/lib/serverAuth';
+import { getValidStravaAccessToken } from '@/lib/stravaTokens';
 import { STRAVA_ACTIVITIES_RATE_LIMIT } from '@/lib/rateLimitRules';
 
 export const runtime = 'nodejs';
 
 /**
  * GET /api/strava/activities?page=1
- * Header: `X-Strava-Token: <access_token>`
+ * Header: `Authorization: Bearer <firebaseIdToken>`
  *
- * Fetches the calling athlete's activities from the Strava API. The token is the
- * caller's own credential rather than server config, so it travels per-request —
- * but in a header, not the query string. As a query param it was written verbatim
- * into Vercel's access logs, the browser's history and any Referer we emit, which
- * is a live OAuth token sitting in three places that outlive the request.
+ * The calling athlete's activities. The Strava token is fetched server-side from
+ * `strava_tokens/{uid}` and refreshed if stale — it is never accepted from, or
+ * returned to, the caller.
+ *
+ * It used to arrive in an `X-Strava-Token` header, which was already better than
+ * the query string it replaced, but still meant the browser held a credential
+ * that does not expire. Now the only thing the browser presents is its Firebase
+ * ID token, which we can revoke.
  */
 export async function GET(request: NextRequest) {
-  // An open proxy to a third-party API is worth metering even though the caller
-  // supplies their own credential: unmetered, it lets anyone route unlimited
-  // traffic through our origin at our egress cost, and Strava attributes the
-  // volume to our client id rather than to them.
+  const auth = await requireUser(request);
+  if (!auth.ok) return auth.response;
+
+  // Still metered after the identity check: one signed-in account can otherwise
+  // route unlimited traffic through our origin, and Strava attributes the volume
+  // to our client id rather than to them.
   const limit = await rateLimit(request, STRAVA_ACTIVITIES_RATE_LIMIT);
   if (!limit.ok) return tooManyRequests(limit);
 
-  const token = request.headers.get('x-strava-token');
+  const token = await getValidStravaAccessToken(auth.user.uid, request);
   // Strava pages are numbered; anything else is a caller bug, and interpolating
   // it unescaped would let it smuggle extra query parameters upstream.
   const pageParam = Number.parseInt(request.nextUrl.searchParams.get('page') ?? '1', 10);
@@ -31,7 +38,12 @@ export async function GET(request: NextRequest) {
   const perPage = '30';
 
   if (!token) {
-    return NextResponse.json({ error: 'Missing access token' }, { status: 401 });
+    // 409 rather than 401: the caller is authenticated, it is the *Strava* link
+    // that is absent or revoked. The UI offers to reconnect on this.
+    return NextResponse.json(
+      { error: 'Strava is not connected. Connect it again to sync activities.' },
+      { status: 409 }
+    );
   }
 
   const res = await fetch(

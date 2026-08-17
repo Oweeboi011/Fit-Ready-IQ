@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ChevronDown } from 'lucide-react';
 import Modal from '@/components/Modal';
+import { authedFetch } from '@/lib/firebaseClient';
 import { buttonGhost, buttonPrimary, buttonSecondary, buttonSize } from '@/lib/ui';
 import {
   type Activity,
@@ -12,7 +13,7 @@ import {
 } from '@/lib/activityTypes';
 import { parseGpxFile } from '@/lib/gpxParser';
 import { parseAppleHealthXml, appleHealthWorkoutsToActivities } from '@/lib/appleHealthParser';
-import { createStravaOAuthState, getValidStravaToken } from '@/lib/stravaAuth';
+import { createStravaOAuthState } from '@/lib/stravaAuth';
 
 interface ConnectDevicesModalProps {
   isOpen: boolean;
@@ -97,18 +98,30 @@ export default function ConnectDevicesModal({
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [expandedHelp, setExpandedHelp] = useState<string | null>(null);
 
-  // On open — reflect persisted connection state from localStorage
+  // On open — ask the server whether Strava is connected.
+  //
+  // It used to look for a token in localStorage. The tokens are server-side now,
+  // so the browser cannot answer this by introspection and has to ask; the reply
+  // carries the athlete, never a credential.
   useEffect(() => {
     if (!isOpen) return;
+    let cancelled = false;
     (async () => {
-      const token = await getValidStravaToken();
-      if (token) {
+      try {
+        const res = await authedFetch('/api/strava/connection');
+        if (cancelled || !res.ok) return;
+        const connection = (await res.json()) as { connected: boolean };
+        if (!connection.connected) return;
+
         const stravaCount = loadActivities().filter((a) => a.source === 'strava').length;
         setDevices((prev) =>
           prev.map((d) =>
             d.id === 'strava' ? { ...d, status: 'connected', activityCount: stravaCount } : d
           )
         );
+      } catch {
+        // Signed out, or offline. Strava simply reads as not connected, which is
+        // true from this browser's point of view either way.
       }
     })();
     try {
@@ -275,11 +288,13 @@ export default function ConnectDevicesModal({
 
   const handleDisconnect = (deviceId: Device['id']) => {
     if (deviceId === 'strava') {
-      try {
-        localStorage.removeItem('fri_strava_token');
-      } catch {
-        // ignore
-      }
+      // Ask the server to forget the tokens. Fire-and-forget: the local state
+      // below is what the user sees, and a failed delete leaves a connection they
+      // can disconnect again — whereas blocking the UI on it would make the
+      // button feel broken when they are offline.
+      authedFetch('/api/strava/connection', { method: 'DELETE' }).catch(() => {
+        /* they are signed out or offline; nothing was stored for us to clear */
+      });
     }
     const filtered = loadActivities().filter(
       (a) => a.source !== (deviceId === 'apple_health' ? 'apple_health' : deviceId)

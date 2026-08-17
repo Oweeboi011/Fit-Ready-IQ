@@ -1,17 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { consumeStravaOAuthState, createStravaOAuthState, getValidStravaToken } from './stravaAuth';
+import {
+  clearLegacyStravaToken,
+  consumeStravaOAuthState,
+  createStravaOAuthState,
+} from './stravaAuth';
 
-const TOKEN_KEY = 'fri_strava_token';
-
-/** Seconds-since-epoch, the unit Strava's `expires_at` uses. */
-function epochSecondsFromNow(offsetSeconds: number): number {
-  return Math.floor(Date.now() / 1000) + offsetSeconds;
-}
-
-function storeToken(token: Record<string, unknown>) {
-  localStorage.setItem(TOKEN_KEY, JSON.stringify(token));
-}
+/**
+ * The token-custody tests that used to live here are gone with the behaviour:
+ * access and refresh tokens are held server-side in `strava_tokens/{uid}` now,
+ * because a Strava refresh token does not expire and localStorage is readable by
+ * any XSS on the origin.
+ *
+ * What remains is the OAuth nonce, which is not a credential, plus the migration
+ * that removes the token earlier versions left behind.
+ */
+const LEGACY_TOKEN_KEY = 'fri_strava_token';
 
 beforeEach(() => {
   sessionStorage.clear();
@@ -71,105 +75,31 @@ describe('Strava OAuth state', () => {
   });
 });
 
-describe('getValidStravaToken', () => {
-  it('returns null when no connection was ever stored', async () => {
-    await expect(getValidStravaToken()).resolves.toBeNull();
+describe('clearing the legacy token', () => {
+  it('removes a token left in localStorage by an earlier version', () => {
+    // The reason this exists: without it, every existing user keeps a live,
+    // non-expiring refresh token in their browser for ever.
+    localStorage.setItem(LEGACY_TOKEN_KEY, JSON.stringify({ refresh_token: 'never-expires' }));
+    clearLegacyStravaToken();
+    expect(localStorage.getItem(LEGACY_TOKEN_KEY)).toBeNull();
   });
 
-  it('returns null rather than throwing on corrupt stored JSON', async () => {
-    localStorage.setItem(TOKEN_KEY, 'not json');
-    await expect(getValidStravaToken()).resolves.toBeNull();
+  it('is a no-op when there is nothing to clear', () => {
+    expect(() => clearLegacyStravaToken()).not.toThrow();
+    expect(localStorage.getItem(LEGACY_TOKEN_KEY)).toBeNull();
   });
 
-  it('uses a still-valid token without calling the refresh endpoint', async () => {
-    const fetchSpy = vi.fn();
-    vi.stubGlobal('fetch', fetchSpy);
-    storeToken({
-      access_token: 'live',
-      refresh_token: 'r1',
-      expires_at: epochSecondsFromNow(3600),
+  it('does not throw when storage is blocked', () => {
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new Error('SecurityError');
     });
-
-    const token = await getValidStravaToken();
-
-    expect(token?.access_token).toBe('live');
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(() => clearLegacyStravaToken()).not.toThrow();
   });
 
-  it('refreshes an expired token and persists the new one', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          access_token: 'fresh',
-          refresh_token: 'r2',
-          expires_at: epochSecondsFromNow(3600),
-        }),
-      })
-    );
-    storeToken({
-      access_token: 'stale',
-      refresh_token: 'r1',
-      expires_at: epochSecondsFromNow(-60),
-    });
-
-    const token = await getValidStravaToken();
-
-    expect(token?.access_token).toBe('fresh');
-    // Persisted, so the next call does not have to refresh again.
-    expect(JSON.parse(localStorage.getItem(TOKEN_KEY)!).access_token).toBe('fresh');
-  });
-
-  it('keeps the old refresh token when Strava does not rotate it', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ access_token: 'fresh', expires_at: epochSecondsFromNow(3600) }),
-      })
-    );
-    storeToken({
-      access_token: 'stale',
-      refresh_token: 'r1',
-      expires_at: epochSecondsFromNow(-60),
-    });
-
-    const token = await getValidStravaToken();
-
-    // Dropping it here would strand the user: the next expiry has nothing to
-    // refresh with, and the connection dies silently an hour later.
-    expect(token?.refresh_token).toBe('r1');
-  });
-
-  it('reports disconnected when the refresh is rejected', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 400 }));
-    storeToken({
-      access_token: 'stale',
-      refresh_token: 'r1',
-      expires_at: epochSecondsFromNow(-60),
-    });
-
-    await expect(getValidStravaToken()).resolves.toBeNull();
-  });
-
-  it('reports disconnected when the network is down', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
-    storeToken({
-      access_token: 'stale',
-      refresh_token: 'r1',
-      expires_at: epochSecondsFromNow(-60),
-    });
-
-    await expect(getValidStravaToken()).resolves.toBeNull();
-  });
-
-  it('does not attempt a refresh it has no refresh token for', async () => {
-    const fetchSpy = vi.fn();
-    vi.stubGlobal('fetch', fetchSpy);
-    storeToken({ access_token: 'stale', expires_at: epochSecondsFromNow(-60) });
-
-    await expect(getValidStravaToken()).resolves.toBeNull();
-    expect(fetchSpy).not.toHaveBeenCalled();
+  it('leaves other stored values alone', () => {
+    localStorage.setItem('fri_activities', '[]');
+    localStorage.setItem(LEGACY_TOKEN_KEY, '{}');
+    clearLegacyStravaToken();
+    expect(localStorage.getItem('fri_activities')).toBe('[]');
   });
 });

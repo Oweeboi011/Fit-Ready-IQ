@@ -60,16 +60,6 @@ export function callerKey(request: Request): string {
     return `u_${createHash('sha256').update(token).digest('hex').slice(0, 32)}`;
   }
 
-  // /api/strava/activities carries the caller's Strava credential instead of a
-  // Firebase one, and it is the only identity that request has. Without this
-  // branch it would fall to the IP key below, which buckets an entire office
-  // behind one NAT together — exactly the case the token branch exists to fix.
-  // Hashed for the same reason: a live credential must not become a document id.
-  const stravaToken = request.headers.get('x-strava-token')?.trim();
-  if (stravaToken) {
-    return `s_${createHash('sha256').update(stravaToken).digest('hex').slice(0, 32)}`;
-  }
-
   // `x-forwarded-for` is a client-settable header everywhere except behind a
   // proxy that overwrites it. Vercel does overwrite it, and its left-most entry
   // is the real client. Off-Vercel this is spoofable, which is precisely why

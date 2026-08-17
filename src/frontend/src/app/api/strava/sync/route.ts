@@ -4,6 +4,7 @@ import { getFirestoreAdmin } from '@/lib/firebaseAdmin';
 import { rateLimit, tooManyRequests } from '@/lib/rateLimit';
 import { STRAVA_SYNC_RATE_LIMIT } from '@/lib/rateLimitRules';
 import { requireUser } from '@/lib/serverAuth';
+import { getValidStravaAccessToken } from '@/lib/stravaTokens';
 
 export const runtime = 'nodejs';
 
@@ -15,7 +16,7 @@ export const runtime = 'nodejs';
  *   users/{uid}/strava_activities/{strava_activity_id}
  *
  * Headers: `Authorization: Bearer <firebaseIdToken>`
- * Body: { token: string }   — the Strava access token
+ * Body: none — the Strava token is held server-side under `strava_tokens/{uid}`
  *
  * The destination `uid` comes from the verified Firebase token, never from the
  * body. It used to be a body field, which — because the Admin SDK bypasses
@@ -80,16 +81,14 @@ export async function POST(request: NextRequest) {
   const limit = await rateLimit(request, STRAVA_SYNC_RATE_LIMIT);
   if (!limit.ok) return tooManyRequests(limit);
 
-  let token: string;
-
-  try {
-    const body = await request.json();
-    token = body.token;
-    if (!token || typeof token !== 'string') throw new Error('missing token');
-  } catch (err) {
+  // No token in the body any more: it lives server-side, keyed to the verified
+  // uid. Accepting one would have meant trusting the caller with a credential
+  // that outlives every other thing they hold.
+  const token = await getValidStravaAccessToken(uid, request);
+  if (!token) {
     return NextResponse.json(
-      { error: `Invalid request body: ${err instanceof Error ? err.message : 'unknown'}` },
-      { status: 400 }
+      { error: 'Strava is not connected. Connect it again to sync activities.' },
+      { status: 409 }
     );
   }
 
