@@ -29,6 +29,7 @@ interface HealthReport {
     firebase_admin: ServiceStatus;
     gemini: ServiceStatus;
     weather: ServiceStatus;
+    routing: ServiceStatus;
     strava: ServiceStatus;
   };
 }
@@ -94,6 +95,40 @@ function checkFirebaseAdmin(): ServiceStatus {
   };
 }
 
+/**
+ * Catches the configuration mistake a presence check would otherwise miss: a
+ * server-side variable and the browser variable holding the *same* key.
+ *
+ * Both values are then perfectly valid keys and both variables are populated, so
+ * presence is satisfied while one of the two uses is guaranteed to be wrong —
+ * either a referrer-restricted key rejected server-side with 403 "Requests from
+ * referer <empty> are blocked", or an unrestricted key compiled into the client
+ * bundle for anyone to lift.
+ *
+ * Worth doing here precisely because it costs nothing: it is string equality,
+ * not a network round trip.
+ */
+function sharesKeyWithBrowser(key: string | undefined): boolean {
+  const publicKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim();
+  return !!key?.trim() && !!publicKey && key.trim() === publicKey;
+}
+
+/**
+ * Deliberately says "the same key as" rather than naming which one is wrong.
+ *
+ * Equality is all this check can see, and it happens in both directions: a
+ * browser key copied into the server slot (rejected server-side for having a
+ * referrer restriction), or a server key copied into `NEXT_PUBLIC_…` — which is
+ * worse, because that one is compiled into the client bundle and an unrestricted
+ * key published to every visitor is a spending liability, not just a broken map.
+ * Claiming it is the browser key sent someone looking in the wrong place.
+ */
+const SHARED_KEY_ADVICE =
+  'is the same key as NEXT_PUBLIC_GOOGLE_MAPS_API_KEY. These must be two ' +
+  'different keys: the browser one HTTP-referrer restricted, the server one with ' +
+  'no referrer restriction. A referrer-restricted key is rejected server-side, ' +
+  'and an unrestricted key must never be exposed to the browser.';
+
 function checkWeather(): ServiceStatus {
   const googleKey = process.env.GOOGLE_WEATHER_API_KEY;
   const openWeatherKey = process.env.OPENWEATHER_API_KEY;
@@ -105,10 +140,41 @@ function checkWeather(): ServiceStatus {
     };
   }
 
+  if (sharesKeyWithBrowser(googleKey) && !openWeatherKey) {
+    return { ok: false, message: `GOOGLE_WEATHER_API_KEY ${SHARED_KEY_ADVICE}` };
+  }
+
   return {
     ok: true,
     message: googleKey ? 'Google Weather API key present' : 'OpenWeather API key present',
   };
+}
+
+/**
+ * Routing was not reported at all, so a misconfigured planner was invisible here
+ * — the only signal was a 503 at the moment a user dragged a waypoint.
+ */
+function checkRouting(): ServiceStatus {
+  const routesKey = process.env.GOOGLE_ROUTES_API_KEY?.trim();
+
+  if (sharesKeyWithBrowser(routesKey)) {
+    return { ok: false, message: `GOOGLE_ROUTES_API_KEY ${SHARED_KEY_ADVICE}` };
+  }
+
+  if (routesKey) return { ok: true, message: 'Dedicated Routes API key present' };
+
+  // Falling back to the public key is only viable if that key is unrestricted,
+  // which it should not be — so say it is unlikely to work rather than "fine".
+  if (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim()) {
+    return {
+      ok: false,
+      message:
+        'No GOOGLE_ROUTES_API_KEY; falling back to the browser key, which will be ' +
+        'rejected server-side unless it has no referrer restriction',
+    };
+  }
+
+  return { ok: false, message: 'GOOGLE_ROUTES_API_KEY not configured' };
 }
 
 function checkGemini(): ServiceStatus {
@@ -126,6 +192,7 @@ function checkGemini(): ServiceStatus {
 export function GET() {
   const firebaseAdmin = checkFirebaseAdmin();
   const weather = checkWeather();
+  const routing = checkRouting();
   const gemini = checkGemini();
 
   const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -152,6 +219,7 @@ export function GET() {
     firebase_admin: firebaseAdmin,
     gemini,
     weather,
+    routing,
     strava,
   };
 
