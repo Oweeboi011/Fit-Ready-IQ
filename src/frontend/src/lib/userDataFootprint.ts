@@ -20,6 +20,17 @@
  * `ownsExisting()`. If a collection is added to one, it belongs in the other.
  */
 
+/**
+ * Documents keyed directly by uid, outside `users/{uid}`.
+ *
+ * `strava_tokens` holds OAuth credentials rather than user content, so erasure
+ * must remove it — leaving a live, non-expiring refresh token behind for a
+ * deleted account would be the worst possible remnant. It is deliberately absent
+ * from the export: handing someone their own OAuth tokens in a JSON file is not
+ * fulfilling an access request, it is minting a new copy of a credential.
+ */
+export const USER_KEYED_DOCUMENTS = ['strava_tokens'] as const;
+
 /** Subcollections of `users/{uid}`. Deleted by deleting the parent recursively. */
 export const USER_SUBCOLLECTIONS = ['saved_places', 'strava_activities'] as const;
 

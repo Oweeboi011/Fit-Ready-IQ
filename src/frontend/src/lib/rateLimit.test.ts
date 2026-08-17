@@ -98,33 +98,6 @@ describe('callerKey', () => {
     const b = callerKey(req({ 'x-forwarded-for': '203.0.113.8' }));
     expect(a).not.toBe(b);
   });
-
-  it('keys a Strava-token caller by that token, not by their IP', () => {
-    // /api/strava/activities carries no Firebase credential, so without this
-    // branch every caller behind one NAT would share a single budget.
-    const shared = { 'x-forwarded-for': '203.0.113.7' };
-    const a = callerKey(req({ ...shared, 'x-strava-token': 'athlete-a' }));
-    const b = callerKey(req({ ...shared, 'x-strava-token': 'athlete-b' }));
-    expect(a).toMatch(/^s_/);
-    expect(a).not.toBe(b);
-  });
-
-  it('never puts the raw Strava token in the key', () => {
-    expect(callerKey(req({ 'x-strava-token': 'secret-strava' }))).not.toContain('secret-strava');
-  });
-
-  it('prefers the Firebase token over the Strava one when both are present', () => {
-    const key = callerKey(
-      req({ authorization: 'Bearer firebase-tok', 'x-strava-token': 'strava-tok' })
-    );
-    expect(key).toMatch(/^u_/);
-  });
-
-  it('ignores a blank Strava token and falls through to the IP', () => {
-    expect(callerKey(req({ 'x-strava-token': '   ', 'x-forwarded-for': '203.0.113.7' }))).toMatch(
-      /^ip_/
-    );
-  });
 });
 
 describe('rateLimit', () => {

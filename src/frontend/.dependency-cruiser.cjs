@@ -30,6 +30,10 @@ const SERVER_ONLY = [
   'src/lib/auditLog\\.ts',
   // Reads LOG_LEVEL and node:crypto, and writes to the server's stdout.
   'src/lib/logger\\.ts',
+  // Holds the Strava OAuth tokens and reads STRAVA_CLIENT_SECRET. Client-reachable
+  // code must never import it — the whole point is that the browser cannot see
+  // these credentials.
+  'src/lib/stravaTokens\\.ts',
   // Pure data, but it is the policy half of the limiter and only route handlers
   // have any use for it. Listing it keeps the graph honest: without this, a
   // client module could import the table and reach rateLimit.ts through it.

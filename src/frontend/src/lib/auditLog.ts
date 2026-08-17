@@ -48,7 +48,8 @@ export type AuditAction =
   | 'admin.firebase_probe'
   | 'admin.access_denied'
   | 'account.export'
-  | 'account.delete';
+  | 'account.delete'
+  | 'strava.disconnect';
 
 export interface AuditActor {
   uid: string;

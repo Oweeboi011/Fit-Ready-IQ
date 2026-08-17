@@ -41,6 +41,7 @@ const SERVER_ONLY = [
   'src/lib/rateLimit.ts',
   'src/lib/auditLog.ts',
   'src/lib/logger.ts',
+  'src/lib/stravaTokens.ts',
   'src/lib/rateLimitRules.ts',
 ];
 

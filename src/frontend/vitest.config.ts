@@ -23,6 +23,7 @@ export default defineConfig({
         'src/lib/rateLimit.ts',
         'src/lib/auditLog.ts',
         'src/lib/logger.ts',
+        'src/lib/stravaTokens.ts',
 
         'src/lib/theme.ts',
         'src/lib/activityTypes.ts',

@@ -108,6 +108,20 @@ service cloud.firestore {
       }
     }
 
+    // Strava OAuth tokens — written and read only by the Admin SDK.
+    //
+    // Closed to clients, and that is the entire point of the collection. These
+    // used to live in the browser's localStorage, where any XSS on the origin
+    // could read them — and a Strava *refresh* token does not expire, so that was
+    // permanent access to someone's training history.
+    //
+    // They are deliberately NOT on `users/{uid}`: that document grants
+    // `isOwner(userId)` read access, so anything stored there is readable by that
+    // user's browser, which would put the credential straight back where it was.
+    match /strava_tokens/{userId} {
+      allow read, write: if false; // Admin SDK only
+    }
+
     // Audit trail — privileged actions, erasures, and denied admin attempts.
     //
     // Closed in both directions, which is the point. No client reads it: the

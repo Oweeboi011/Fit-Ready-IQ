@@ -57,12 +57,19 @@ export const STRAVA_EXCHANGE_RATE_LIMIT: RateLimitRule = {
 };
 
 /**
- * Token refresh. An access token lasts six hours, so a real client needs this
- * a handful of times a day; the headroom is for multiple tabs and devices.
+ * Reading or clearing the Strava connection.
+ *
+ * Cheap — one Firestore read — but the UI asks on every Connect Devices open, so
+ * the ceiling is set for a person opening that panel repeatedly rather than for
+ * one visit.
+ *
+ * There is no `strava_refresh` budget any more: refreshing is internal to
+ * `lib/stravaTokens.ts`, reached only through the routes that already have their
+ * own limits, so a client cannot drive it directly.
  */
-export const STRAVA_REFRESH_RATE_LIMIT: RateLimitRule = {
-  name: 'strava_refresh',
-  limit: 30,
+export const STRAVA_CONNECTION_RATE_LIMIT: RateLimitRule = {
+  name: 'strava_connection',
+  limit: 60,
   windowSeconds: 3600,
 };
 
