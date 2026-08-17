@@ -47,6 +47,21 @@
      * it sits on accent fills that do not change. */
     --c-ink: 255 255 255;
 
+    /* Chart ink for the elevation profile.
+     *
+     * One hue, because the profile is a single series — there is no identity to
+     * distinguish, only magnitude. Emerald reads as terrain without colliding
+     * with the accents that already carry meaning here (blue = the primary
+     * action, amber/red = warnings).
+     *
+     * Each theme gets its OWN step from the ramp rather than the same value on
+     * both surfaces: WCAG 1.4.11 wants 3:1 for a graphical object, and emerald-500
+     * manages that against near-black but only ~2.2:1 against near-white. So dark
+     * takes the light step and light takes the dark one. */
+    --chart-elevation-line: #34d399; /* emerald-400 on a dark surface */
+    --chart-elevation-fill: rgba(52, 211, 153, 0.16);
+    --chart-elevation-grid: rgba(148, 163, 184, 0.18);
+
     /* Surfaces used by hand-written CSS below, which cannot use Tailwind. */
     --surface-base: rgb(2 6 23);
     --skeleton-from: rgba(30, 41, 59, 0.9);
@@ -78,6 +93,11 @@
     --c-slate-950: 248 250 252;
 
     --c-ink: 15 23 42;
+
+    /* emerald-700: the dark step, for contrast against a near-white surface. */
+    --chart-elevation-line: #047857;
+    --chart-elevation-fill: rgba(4, 120, 87, 0.14);
+    --chart-elevation-grid: rgba(71, 85, 105, 0.2);
 
     --surface-base: rgb(248 250 252);
     --skeleton-from: rgba(226, 232, 240, 0.9);

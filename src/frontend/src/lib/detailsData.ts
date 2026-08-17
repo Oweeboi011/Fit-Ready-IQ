@@ -78,6 +78,15 @@ export interface ActivityDetails {
   max_heartrate?: number;
   coordinates?: [number, number];
   external_id?: string;
+  /**
+   * The recorded track, `[lng, lat]` pairs.
+   *
+   * The only real path geometry anywhere in this union: Strava supplies it as
+   * `summary_polyline` and GPX imports build it from `<trkpt>`. Routes and
+   * mountains come from the Places API, which answers with a point — which is
+   * why only an activity can show an elevation profile.
+   */
+  polyline?: [number, number][];
 }
 
 export type DetailsData = RouteDetails | MountainDetails | CampsiteDetails | ActivityDetails;

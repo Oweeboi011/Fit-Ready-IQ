@@ -14,10 +14,13 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { useElevationProfile, type ElevationProfileState } from '@/lib/useElevationProfile';
 import { buildGpx, gpxFilename, type PlannerWaypoint } from '@/lib/gpxBuilder';
 import { deletePlan, loadPlans, savePlan, type SavedPlan } from '@/lib/savedPlans';
 import type { PlannerRoute, PlannerTravelMode } from '@/lib/usePlannerRoute';
 import { buttonGhost, buttonPrimary, buttonSecondary, buttonSize } from '@/lib/ui';
+
+import ElevationProfile from './ElevationProfile';
 
 interface RoutePlannerProps {
   isOpen: boolean;
@@ -86,6 +89,28 @@ function RouteSummary({ route, ascent }: { route: PlannerRoute; ascent: number |
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The profile strip under the summary.
+ *
+ * Rendered only once there is real routed geometry: a profile of the straight
+ * lines between waypoints would describe terrain the route does not follow.
+ */
+function PlannerElevation({
+  route,
+  profile,
+}: {
+  route: PlannerRoute;
+  profile: ElevationProfileState;
+}) {
+  if (route.status !== 'ready' || route.path.length < 2) return null;
+
+  return (
+    <div className="mt-3 rounded-lg border border-ink/[0.06] bg-ink/[0.03] px-3 py-2">
+      <ElevationProfile samples={profile.samples} loading={profile.loading} error={profile.error} />
     </div>
   );
 }
@@ -326,6 +351,11 @@ export function RoutePlanner({
   const distance = route.status === 'ready' ? route.distanceKm : null;
   const ascent = useMemo(() => totalAscentM(waypoints), [waypoints]);
 
+  // Sampled along the snapped path, not at the waypoints: a route that climbs a
+  // hill and drops back down between two corners is flat by waypoint elevations
+  // alone, which is what `totalAscentM` above can see.
+  const profile = useElevationProfile(route.path, route.status === 'ready');
+
   const handleSave = useCallback(() => {
     if (waypoints.length === 0) return;
     const id = editingId ?? `plan-${Date.now()}`;
@@ -402,6 +432,8 @@ export function RoutePlanner({
             <WaypointList waypoints={waypoints} onRemove={onRemove} onMove={onMove} />
 
             <RouteSummary route={route} ascent={ascent} />
+
+            <PlannerElevation route={route} profile={profile} />
 
             <div className="mt-3 flex gap-2">
               <button

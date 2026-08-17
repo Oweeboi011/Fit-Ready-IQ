@@ -1,4 +1,5 @@
-'use client';
+import ElevationProfile from './ElevationProfile';
+('use client');
 
 // Place details: photos, real route metrics, live weather and Strava segments.
 import {
@@ -39,6 +40,7 @@ const weatherCacheTs = new Map<string, number>();
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 
+import { useElevationProfile } from '@/lib/useElevationProfile';
 import { formatActivityType } from '@/lib/activityTypes';
 import Modal from '@/components/Modal';
 import { ReadinessPanel } from '@/components/ReadinessPanel';
@@ -113,6 +115,19 @@ export default function DetailsModal({
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [photosFailed, setPhotosFailed] = useState(false);
   const [liveWeather, setLiveWeather] = useState<WeatherResult | null>(null);
+
+  /**
+   * The recorded track, when the selection is an activity that has one.
+   *
+   * Read out here rather than inside the activity branch because hooks cannot be
+   * conditional — and gated on `isOpen` so a closed modal never spends Elevation
+   * quota on a selection nobody is looking at.
+   */
+  const activityProfilePath =
+    isOpen && data?.type === 'activity' && data.polyline && data.polyline.length >= 2
+      ? data.polyline
+      : undefined;
+  const activityProfile = useElevationProfile(activityProfilePath);
 
   // Fetch live weather whenever the modal opens for a mountain or route
   useEffect(() => {
@@ -1735,6 +1750,20 @@ export default function DetailsModal({
                 </div>
               );
             })()}
+
+            {/* Elevation profile of the recorded track.
+                Only an activity reaches this: routes and peaks come from the
+                Places API, which answers with a point, and a profile drawn
+                between two points is invented terrain. */}
+            {activityProfilePath && (
+              <div className="rounded-lg border border-ink/[0.08] bg-ink/[0.03] px-4 py-3">
+                <ElevationProfile
+                  samples={activityProfile.samples}
+                  loading={activityProfile.loading}
+                  error={activityProfile.error}
+                />
+              </div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
