@@ -154,6 +154,7 @@ export default function MapCanvas({
         onMapReady={onMapReady}
         plannerWaypoints={plannerWaypoints}
         plannerPath={plannerRoute.path}
+        plannerRouteStatus={plannerRoute.status}
         onMapClick={onMapClick}
         showLegend={showLegend}
         showNativeControls={showNativeControls}

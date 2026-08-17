@@ -98,6 +98,11 @@ interface MapViewProps {
   /** The routed line through those waypoints; falls back to joining them. */
   plannerPath?: [number, number][];
   /**
+   * Whether {@link plannerPath} is measured geometry or nothing yet. The map
+   * draws a solid line only for a real route — see the planner polyline below.
+   */
+  plannerRouteStatus?: 'idle' | 'routing' | 'ready' | 'error';
+  /**
    * Set while the planner is open. A click on empty map drops a plain
    * waypoint; a click on a place adds that place by name, which is far more
    * useful than an unnamed dot and is what makes the exported GPX readable.
@@ -215,6 +220,7 @@ export default function MapView({
   onMapReady,
   plannerWaypoints = [],
   plannerPath,
+  plannerRouteStatus = 'idle',
   onMapClick,
 }: MapViewProps) {
   const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -778,27 +784,69 @@ export default function MapView({
 
           {/* Planned route — drawn above everything so the line being built is
               never lost under the discovery markers. */}
-          {plannerWaypoints.length > 1 && (
-            <Polyline
-              path={(plannerPath && plannerPath.length > 1
-                ? plannerPath
-                : plannerWaypoints.map((w) => w.coordinates)
-              ).map(([lng, lat]) => ({ lat, lng }))}
-              options={{
-                strokeColor: '#f97316',
-                strokeOpacity: 0.95,
-                strokeWeight: 4,
-                zIndex: 999,
-                icons: [
-                  {
-                    icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 3 },
-                    offset: '0',
-                    repeat: '14px',
-                  },
-                ],
-              }}
-            />
-          )}
+          {(() => {
+            /**
+             * One line, and it says which kind it is.
+             *
+             * Two problems used to live here. The fallback drew a straight line
+             * between waypoints styled *identically* to a measured route, so a
+             * route that had not been snapped yet — or had failed to snap —
+             * looked exactly like one that had. `usePlannerRoute` clears the path
+             * precisely to avoid that ("nothing is drawn while we wait"), and
+             * this component then drew the provisional line anyway. And the solid
+             * stroke carried dash icons on top of it, which reads as a second
+             * line laid over the first.
+             *
+             * Now: a measured route is a solid line. Un-snapped waypoints are a
+             * dashed guide — no solid stroke at all, so the dashes *are* the line
+             * — which is the "labelled as such" the API table promises. Nothing
+             * is drawn mid-route, so adding a waypoint no longer flashes a
+             * straight line across the map.
+             */
+            const snapped = plannerPath && plannerPath.length > 1;
+            if (plannerWaypoints.length < 2) return null;
+            if (!snapped && plannerRouteStatus === 'routing') return null;
+
+            const path = (snapped ? plannerPath! : plannerWaypoints.map((w) => w.coordinates)).map(
+              ([lng, lat]) => ({ lat, lng })
+            );
+
+            return (
+              <Polyline
+                path={path}
+                options={
+                  snapped
+                    ? {
+                        strokeColor: '#f97316',
+                        strokeOpacity: 0.95,
+                        strokeWeight: 4,
+                        zIndex: 999,
+                      }
+                    : {
+                        // strokeOpacity 0 is how Google draws a genuinely dashed
+                        // line: the icons become the line rather than decorating
+                        // a solid one underneath.
+                        strokeColor: '#f97316',
+                        strokeOpacity: 0,
+                        strokeWeight: 3,
+                        zIndex: 998,
+                        icons: [
+                          {
+                            icon: {
+                              path: 'M 0,-1 0,1',
+                              strokeOpacity: 0.75,
+                              strokeWeight: 3,
+                              scale: 3,
+                            },
+                            offset: '0',
+                            repeat: '12px',
+                          },
+                        ],
+                      }
+                }
+              />
+            );
+          })()}
           {plannerWaypoints.map((w, index) => (
             <OverlayView
               key={w.id}
