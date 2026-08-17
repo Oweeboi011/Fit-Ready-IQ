@@ -274,10 +274,22 @@ the app degrades honestly without them:
 | Maps JavaScript | The map | Error page with a retry |
 | Places (legacy) | Route/peak/campsite discovery | Empty lists with a retry |
 | Elevation | Relief, difficulty banding | "Relief unknown", difficulty "Unrated" |
+| Geocoding | The "near <place>" label | Falls back to whatever label the place carries |
+| Distance Matrix (legacy) | Walking distance to each result | Distance omitted |
 | **Routes** (not legacy Directions) | Directions, planner path snapping | Straight lines, labelled as such |
 
-`GOOGLE_ROUTES_API_KEY` may hold a separate server-side key; it falls back to
-`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`.
+**Two keys are required, of two different kinds.** The browser key is
+HTTP-referrer restricted and needs all five client-side APIs above plus
+Geocoding and Distance Matrix. `/api/directions` and `/api/weather` call Google
+*server-to-server*, which sends no referer, so a referrer-restricted key is
+rejected with "Requests from referer &lt;empty&gt; are blocked" — they need their
+own key with **no referrer restriction**, in `GOOGLE_ROUTES_API_KEY` and
+`GOOGLE_WEATHER_API_KEY`.
+
+`GOOGLE_ROUTES_API_KEY` falling back to `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is a
+trap for that reason: the fallback looks configured and can never work. The
+route now detects the referer rejection and says so rather than sending you to
+check billing, which is the answer that wastes an afternoon.
 
 ### Advisories
 

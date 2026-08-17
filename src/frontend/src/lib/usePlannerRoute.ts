@@ -83,7 +83,21 @@ const EMPTY: PlannerRoute = {
  * different problems with different fixes, and collapsing them into one silent
  * straight line hid both.
  */
-function messageFor(reason: string | null, travelMode: PlannerTravelMode): string {
+function messageFor(
+  reason: string | null,
+  travelMode: PlannerTravelMode,
+  serverMessage?: string
+): string {
+  // The server saw Google's actual response, so when it has something specific
+  // to say, say that. The generic copy below is the fallback for reasons the
+  // route did not elaborate on.
+  //
+  // This mattered concretely: a browser-restricted key used server-side is
+  // rejected with "Requests from referer <empty> are blocked", and the generic
+  // 'rejected' copy sent people to check billing and API enablement — all three
+  // of which were already correct. The fix was a second key.
+  if (serverMessage) return serverMessage;
+
   const vehicle = travelMode === 'bike' ? 'cycling' : 'walking';
   switch (reason) {
     case 'not_configured':
@@ -149,9 +163,13 @@ export function usePlannerRoute(
         if (!res.ok) {
           // The body carries the real cause; the status cannot distinguish
           // "no key set" from "Google refused this key".
-          const body = await res.json().catch(() => ({}) as { reason?: string });
-          const err = new Error(`Routing responded ${res.status}`) as Error & { reason?: string };
+          const body = await res.json().catch(() => ({}) as { reason?: string; error?: string });
+          const err = new Error(`Routing responded ${res.status}`) as Error & {
+            reason?: string;
+            serverMessage?: string;
+          };
           err.reason = body.reason;
+          err.serverMessage = body.error;
           throw err;
         }
         return res.json();
@@ -168,7 +186,7 @@ export function usePlannerRoute(
           error: null,
         });
       })
-      .catch((err: Error & { reason?: string }) => {
+      .catch((err: Error & { reason?: string; serverMessage?: string }) => {
         if (cancelled) return;
         // No line and no distance. The planner says why, and the user can move a
         // waypoint or fix the key — both of which a straight line hid.
@@ -177,7 +195,7 @@ export function usePlannerRoute(
           distanceKm: null,
           mode: SNAPPED_MODE[travelMode],
           status: 'error',
-          error: messageFor(err.reason ?? null, travelMode),
+          error: messageFor(err.reason ?? null, travelMode, err.serverMessage),
         });
       });
 
