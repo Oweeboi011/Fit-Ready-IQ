@@ -18,11 +18,25 @@ the product claims.
 
 ## Creating them
 
-Console: **Firestore → TTL → Create policy**, then give the collection ID and
-`expiresAt`. For the messages policy, choose **collection group** scope and use
-the collection group ID `messages`.
+**They are declared as code** in `firestore.indexes.json` under `fieldOverrides`,
+so the supported way to create them is:
 
-Or with gcloud:
+```bash
+firebase deploy --only firestore:indexes --project=<project>
+```
+
+That is deliberate, and not only for convenience. `firebase deploy` warns about
+"field overrides defined in your project that are not present in your firestore
+indexes file" and offers `--force` to delete them — so a TTL policy created by
+hand is a policy the next `--force` deploy silently removes, taking the retention
+guarantee with it. Declared in the file, it survives, and it is reviewable.
+
+`indexes: []` on each override disables single-field indexing for `expiresAt`.
+Nothing queries that field — it exists only for the TTL sweeper — so indexing it
+would be storage nobody reads.
+
+The console (**Firestore → TTL → Create policy**) and gcloud both still work, and
+are useful for inspecting state:
 
 ```bash
 gcloud firestore fields ttls update expiresAt \
