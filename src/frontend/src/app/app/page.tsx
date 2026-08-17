@@ -170,6 +170,24 @@ export default function Home() {
   const [roadmapOpen, setRoadmapOpen] = useState(false);
   const [plannerWaypoints, setPlannerWaypoints] = useState<PlannerWaypoint[]>([]);
 
+  /**
+   * Move the map to a searched place.
+   *
+   * Zooms in only when the view is wider than the place is useful at — panning a
+   * regional view to a summit leaves it an invisible dot, while yanking the zoom
+   * on someone already looking at a valley is the camera fighting the user, which
+   * this app has form for.
+   */
+  const goToPlace = useCallback(
+    (coordinates: [number, number]) => {
+      const map = mapInstance;
+      if (!map) return;
+      map.panTo({ lat: coordinates[1], lng: coordinates[0] });
+      if ((map.getZoom() ?? 0) < 12) map.setZoom(13);
+    },
+    [mapInstance]
+  );
+
   const addWaypoint = useCallback((coordinates: [number, number], name?: string) => {
     const id = `wp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     setPlannerWaypoints((prev) => [
@@ -191,6 +209,21 @@ export default function Home() {
       }
     );
   }, []);
+
+  /**
+   * Add a searched place to the plan, opening the planner if it is closed.
+   *
+   * Opening it is the point: the search box exists so a plan can start from a
+   * place you found, and making the user open the planner first would be asking
+   * them to say the same thing twice.
+   */
+  const addSearchedPlace = useCallback(
+    (coordinates: [number, number], name: string) => {
+      setPlannerOpen(true);
+      addWaypoint(coordinates, name);
+    },
+    [addWaypoint]
+  );
 
   // Held here rather than inside RoutePlanner: the hook that does the routing
   // lives at this level, and the panel stays presentational like RouteFilter.
@@ -820,6 +853,8 @@ export default function Home() {
           onClearPlanner={() => setPlannerWaypoints([])}
           onLoadPlan={setPlannerWaypoints}
           onMapClick={plannerOpen ? addWaypoint : undefined}
+          onGoToPlace={goToPlace}
+          onAddSearchedPlace={addSearchedPlace}
           hasPreciseLocation={hasPreciseLocation}
           isLoaded={isLoaded}
           // A missing key is reported as a load failure, because to the person
