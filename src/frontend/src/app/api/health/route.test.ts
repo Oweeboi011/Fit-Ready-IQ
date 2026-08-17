@@ -151,7 +151,10 @@ describe('overall status', () => {
     process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = 'fit-ready-iq';
     process.env.NEXT_PUBLIC_FIREBASE_API_KEY = 'AIzaKEY';
     process.env.GEMINI_API_KEY = 'AIzaSyLongEnoughToPassTheLengthCheck';
-    process.env.GOOGLE_WEATHER_API_KEY = 'AIzaKEY';
+    // Distinct from the browser key on purpose: reusing that one is the
+    // misconfiguration checkRouting/checkWeather exist to catch.
+    process.env.GOOGLE_ROUTES_API_KEY = 'AIzaSERVERKEY';
+    process.env.GOOGLE_WEATHER_API_KEY = 'AIzaSERVERKEY';
     process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID = '260217';
     process.env.STRAVA_CLIENT_SECRET = 'secret';
 
@@ -160,5 +163,49 @@ describe('overall status', () => {
     const res = GET() as Response;
     expect(res.status).toBe(200);
     expect((await res.json()).status).toBe('healthy');
+  });
+});
+
+describe('browser key reused server-side', () => {
+  const BROWSER = 'AIzaBROWSERKEY';
+
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = BROWSER;
+  });
+
+  it('rejects a routes key that is really the browser key', async () => {
+    // The exact mistake that produced "Requests from referer <empty> are
+    // blocked": a valid key, present, and unusable from a server.
+    process.env.GOOGLE_ROUTES_API_KEY = BROWSER;
+    const { routing } = await health();
+    expect(routing.ok).toBe(false);
+    expect(routing.message).toContain('referrer restriction');
+  });
+
+  it('accepts a distinct dedicated routes key', async () => {
+    process.env.GOOGLE_ROUTES_API_KEY = 'AIzaSERVERKEY';
+    const { routing } = await health();
+    expect(routing.ok).toBe(true);
+  });
+
+  it('warns when routing silently falls back to the browser key', async () => {
+    delete process.env.GOOGLE_ROUTES_API_KEY;
+    const { routing } = await health();
+    expect(routing.ok).toBe(false);
+    expect(routing.message).toContain('falling back');
+  });
+
+  it('rejects a weather key that is really the browser key', async () => {
+    process.env.GOOGLE_WEATHER_API_KEY = BROWSER;
+    const { weather } = await health();
+    expect(weather.ok).toBe(false);
+    expect(weather.message).toContain('referrer restriction');
+  });
+
+  it('still passes weather when OpenWeather can carry the fallback', async () => {
+    process.env.GOOGLE_WEATHER_API_KEY = BROWSER;
+    process.env.OPENWEATHER_API_KEY = 'ow-key';
+    const { weather } = await health();
+    expect(weather.ok).toBe(true);
   });
 });
