@@ -23,7 +23,7 @@ geopy = "^2.4.1"
 shapely = "^2.0.2"
 python-dotenv = "^1.0.0"
 structlog = "^24.1.0"
-sentry-sdk = {extras = ["fastapi"], version = "^1.39.0"}
+sentry-sdk = {extras = ["fastapi"], version = ">=1.39,<3.0"}
 gevent = "<26.8.0"
 
 [tool.poetry.group.dev.dependencies]
