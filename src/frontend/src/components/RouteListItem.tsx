@@ -46,7 +46,7 @@ export default function RouteListItem({
   showDistanceFromUser,
 }: RouteListItemProps) {
   const ds = DIFFICULTY_STYLE[route.difficulty] ?? {
-    pill: 'bg-white/10 text-slate-400 ring-white/10',
+    pill: 'bg-ink/10 text-slate-400 ring-ink/10',
     dot: 'bg-slate-400',
     bar: 'bg-slate-500',
   };
@@ -54,7 +54,7 @@ export default function RouteListItem({
     <button
       type="button"
       onClick={onClick}
-      className="card-enter group w-full rounded-xl border border-white/[0.07] bg-white/5 text-left transition-all hover:border-blue-500/30 hover:bg-blue-500/10 active:scale-[0.99]"
+      className="card-enter group w-full rounded-xl border border-ink/[0.07] bg-ink/5 text-left transition-all hover:border-blue-500/30 hover:bg-blue-500/10 active:scale-[0.99]"
       style={{ animationDelay: `${index * 30}ms` }}
     >
       <div className="flex items-stretch gap-0">

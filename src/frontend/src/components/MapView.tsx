@@ -21,6 +21,7 @@ import type { Difficulty } from '@/lib/routeDifficulty';
 import { layerForActivityType, type MapLayer } from '@/lib/mapLayers';
 import { buttonPrimary, buttonSize } from '@/lib/ui';
 import { fetchLatestRadarFrame, radarTileUrl } from '@/lib/radarLayer';
+import { plannerLine } from '@/lib/plannerLine';
 
 interface Route {
   id: string;
@@ -97,6 +98,11 @@ interface MapViewProps {
   plannerWaypoints?: { id: string; coordinates: [number, number]; name: string }[];
   /** The routed line through those waypoints; falls back to joining them. */
   plannerPath?: [number, number][];
+  /**
+   * Whether {@link plannerPath} is measured geometry or nothing yet. The map
+   * draws a solid line only for a real route — see the planner polyline below.
+   */
+  plannerRouteStatus?: 'idle' | 'routing' | 'ready' | 'error';
   /**
    * Set while the planner is open. A click on empty map drops a plain
    * waypoint; a click on a place adds that place by name, which is far more
@@ -215,6 +221,7 @@ export default function MapView({
   onMapReady,
   plannerWaypoints = [],
   plannerPath,
+  plannerRouteStatus = 'idle',
   onMapClick,
 }: MapViewProps) {
   const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -470,19 +477,35 @@ export default function MapView({
       }
     });
     return () => google.maps.event.removeListener(listener);
+    // Deliberately keyed on the source collections rather than on
+    // `visibleRoutes`/`isLayerVisible`. This effect moves the viewport, and
+    // `visibleRoutes` is derived — a new array on most renders — so depending on
+    // it would refit the bounds continuously and drag the map back every time
+    // the user panned. Toggling a layer should hide pins, not re-frame the map.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refitting on derived state fights the user's pan/zoom
   }, [map, routes, mountains, campsites, userLocation]);
 
   // Centre on whatever the page resolved. This component no longer asks for
   // geolocation itself — useUserLocation owns that, so there is exactly one
   // permission prompt and one set of coordinates in the app.
+  //
+  // Keyed on the coordinate *values*, never on the array.
+  //
+  // `userLocation` arrives as a freshly built `[lng, lat]` tuple on every render
+  // of the parent, so an effect depending on the array itself re-ran whenever
+  // anything upstream changed — including adding a planner waypoint. It then set
+  // `mapCenter` to a new object, `<GoogleMap center>` is controlled, and the map
+  // snapped back to the user's location mid-edit: drop a waypoint, lose your
+  // place. Comparing numbers means this runs only when the location genuinely
+  // moves, which for a one-shot `getCurrentPosition` is approximately never.
+  const userLng = userLocationProp?.[0];
+  const userLat = userLocationProp?.[1];
+
   useEffect(() => {
-    if (!userLocationProp) return;
-    setUserLocation(userLocationProp);
-    setMapCenter({
-      lat: userLocationProp[1],
-      lng: userLocationProp[0],
-    });
-  }, [userLocationProp]);
+    if (userLng == null || userLat == null) return;
+    setUserLocation([userLng, userLat]);
+    setMapCenter({ lat: userLat, lng: userLng });
+  }, [userLng, userLat]);
 
   const getDifficultyColor = (difficulty: string): string => {
     switch (difficulty.toLowerCase()) {
@@ -563,7 +586,7 @@ export default function MapView({
             </p>
           )}
           {showDiagnostics && (
-            <div className="mt-4 rounded-md border border-white/10 bg-slate-900 p-3 text-left text-xs text-slate-400">
+            <div className="mt-4 rounded-md border border-ink/10 bg-slate-900 p-3 text-left text-xs text-slate-400">
               <p className="font-semibold text-slate-300">Quick checks (dev only)</p>
               <ul className="mt-2 list-disc space-y-1 pl-5">
                 <li>Enable Maps JavaScript API, Places API, and Elevation API.</li>
@@ -762,27 +785,61 @@ export default function MapView({
 
           {/* Planned route — drawn above everything so the line being built is
               never lost under the discovery markers. */}
-          {plannerWaypoints.length > 1 && (
-            <Polyline
-              path={(plannerPath && plannerPath.length > 1
-                ? plannerPath
-                : plannerWaypoints.map((w) => w.coordinates)
-              ).map(([lng, lat]) => ({ lat, lng }))}
-              options={{
-                strokeColor: '#f97316',
-                strokeOpacity: 0.95,
-                strokeWeight: 4,
-                zIndex: 999,
-                icons: [
-                  {
-                    icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 3 },
-                    offset: '0',
-                    repeat: '14px',
-                  },
-                ],
-              }}
-            />
-          )}
+          {(() => {
+            /**
+             * One line, and it says which kind it is.
+             *
+             * The decision lives in `plannerLine` so it can be tested without a
+             * Google map — including the case that matters most, that clearing
+             * the waypoints clears the line even when routed geometry is still
+             * sitting in state.
+             *
+             * A measured route is solid. Un-snapped waypoints are a dashed guide
+             * with no solid stroke, so the dashes *are* the line — the "labelled
+             * as such" the API table promises, rather than something identical to
+             * a real route. Nothing is drawn mid-route.
+             */
+            const line = plannerLine(plannerWaypoints, plannerPath, plannerRouteStatus);
+            if (line.kind === 'none') return null;
+
+            const path = line.path.map(([lng, lat]) => ({ lat, lng }));
+
+            return (
+              <Polyline
+                path={path}
+                options={
+                  line.kind === 'route'
+                    ? {
+                        strokeColor: '#f97316',
+                        strokeOpacity: 0.95,
+                        strokeWeight: 4,
+                        zIndex: 999,
+                      }
+                    : {
+                        // strokeOpacity 0 is how Google draws a genuinely dashed
+                        // line: the icons become the line rather than decorating
+                        // a solid one underneath.
+                        strokeColor: '#f97316',
+                        strokeOpacity: 0,
+                        strokeWeight: 3,
+                        zIndex: 998,
+                        icons: [
+                          {
+                            icon: {
+                              path: 'M 0,-1 0,1',
+                              strokeOpacity: 0.75,
+                              strokeWeight: 3,
+                              scale: 3,
+                            },
+                            offset: '0',
+                            repeat: '12px',
+                          },
+                        ],
+                      }
+                }
+              />
+            );
+          })()}
           {plannerWaypoints.map((w, index) => (
             <OverlayView
               key={w.id}
@@ -1091,7 +1148,7 @@ export default function MapView({
       {/* Legend — bottom-left, so it doesn't stack under Google Maps' native
           zoom control or the ChatBot floating button, which both sit bottom-right */}
       {showLegend && (
-        <div className="absolute bottom-24 left-4 hidden rounded-xl border border-white/10 bg-slate-900/90 p-4 shadow-xl backdrop-blur sm:block">
+        <div className="absolute bottom-24 left-4 hidden rounded-xl border border-ink/10 bg-slate-900/90 p-4 shadow-xl backdrop-blur sm:block">
           <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             Legend
           </h3>
@@ -1116,7 +1173,7 @@ export default function MapView({
               </div>
             </div>
             {(mountains.length > 0 || campsites.length > 0) && (
-              <div className="border-t border-white/10 pt-2">
+              <div className="border-t border-ink/10 pt-2">
                 <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                   Points of Interest
                 </p>

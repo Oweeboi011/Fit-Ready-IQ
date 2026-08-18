@@ -61,6 +61,30 @@ function toFirestoreFields(place: Omit<SavedPlace, 'savedAt'>): Record<string, u
   return data;
 }
 
+/**
+ * Why the listener failed, in words that point at the actual cause.
+ *
+ * This used to say "check your connection" for every failure, which is wrong for
+ * the most likely one: Firestore answers `permission-denied` when the deployed
+ * security rules do not grant the read, and no amount of reconnecting fixes
+ * that. It sent people to their wifi while the real problem was that
+ * `firestore.rules` had been edited but never deployed — the rules file gained an
+ * explicit `saved_places` block precisely because rules do not cascade into
+ * subcollections, and production was still running a ruleset without it.
+ */
+function listenerMessage(err: unknown): string {
+  const code = (err as { code?: string } | null)?.code;
+
+  if (code === 'permission-denied') {
+    return "We couldn't load your saved places: this account is not allowed to read them. If you just signed in, try again — otherwise the security rules need deploying.";
+  }
+  if (code === 'unauthenticated') {
+    return 'Sign in again to see your saved places.';
+  }
+  // `unavailable` genuinely is the offline case Firestore reports.
+  return "We couldn't load your saved places. Check your connection.";
+}
+
 export function useSavedPlaces(uid: string | null) {
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [loading, setLoading] = useState(false);
@@ -119,7 +143,7 @@ export function useSavedPlaces(uid: string | null) {
         },
         (err) => {
           console.error('Saved places listener failed:', err);
-          setSaveError("We couldn't load your saved places. Check your connection.");
+          setSaveError(listenerMessage(err));
           setLoading(false);
         }
       );

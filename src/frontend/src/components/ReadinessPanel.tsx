@@ -47,10 +47,10 @@ export function ReadinessPanel({
         Your readiness
       </h3>
 
-      <div className="rounded-lg border border-white/[0.06] bg-slate-800/60 p-4">
+      <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 p-4">
         <div className="flex items-center gap-4">
           {readiness.score == null ? (
-            <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full border-2 border-dashed border-white/15">
+            <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full border-2 border-dashed border-ink/15">
               <ActivityIcon aria-hidden="true" className="h-5 w-5 text-slate-600" />
             </div>
           ) : (
@@ -90,7 +90,7 @@ export function ReadinessPanel({
         </div>
 
         {readiness.factors.length > 0 && (
-          <dl className="mt-4 space-y-2 border-t border-white/[0.06] pt-3">
+          <dl className="mt-4 space-y-2 border-t border-ink/[0.06] pt-3">
             {readiness.factors.map((factor) => (
               <div key={factor.id}>
                 <div className="mb-1 flex items-baseline justify-between gap-2">
@@ -99,7 +99,7 @@ export function ReadinessPanel({
                     {factor.capacity} <span className="text-slate-600">of</span> {factor.demand}
                   </dd>
                 </div>
-                <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
+                <div className="h-1 w-full overflow-hidden rounded-full bg-ink/10">
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{
@@ -153,7 +153,7 @@ export function TrainingPlanPanel({ readiness }: { readiness: Readiness }) {
   if (plan.status === 'unknown') return null;
 
   return (
-    <div className="mt-4 border-t border-white/[0.06] pt-4">
+    <div className="mt-4 border-t border-ink/[0.06] pt-4">
       <div className="flex items-start gap-2.5">
         <CalendarRange
           aria-hidden="true"
@@ -183,9 +183,9 @@ export function TrainingPlanPanel({ readiness }: { readiness: Readiness }) {
           </button>
 
           {expanded && (
-            <div className="mt-2 overflow-x-auto rounded-lg border border-white/[0.06]">
+            <div className="mt-2 overflow-x-auto rounded-lg border border-ink/[0.06]">
               <table className="w-full text-left">
-                <thead className="bg-white/[0.04]">
+                <thead className="bg-ink/[0.04]">
                   <tr>
                     {[
                       'Week',
@@ -203,7 +203,7 @@ export function TrainingPlanPanel({ readiness }: { readiness: Readiness }) {
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/[0.04]">
+                <tbody className="divide-y divide-ink/[0.04]">
                   {plan.targets.map((target) => (
                     <tr key={target.week}>
                       <th

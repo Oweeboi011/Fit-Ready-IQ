@@ -126,7 +126,7 @@ export default function AdminModal({ isOpen, onClose }: AdminModalProps) {
         <div
           role="tablist"
           aria-label="Admin sections"
-          className="mb-5 grid grid-cols-3 gap-1 rounded-xl border border-white/[0.06] bg-white/[0.03] p-1 sm:grid-cols-5"
+          className="mb-5 grid grid-cols-3 gap-1 rounded-xl border border-ink/[0.06] bg-ink/[0.03] p-1 sm:grid-cols-5"
         >
           {TABS.map(({ id, label, Icon }) => (
             <button
@@ -138,7 +138,7 @@ export default function AdminModal({ isOpen, onClose }: AdminModalProps) {
               className={`flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
                 tab === id
                   ? 'bg-blue-600 text-white shadow'
-                  : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                  : 'text-slate-400 hover:bg-ink/5 hover:text-slate-200'
               }`}
             >
               <Icon aria-hidden="true" className="h-3.5 w-3.5" />
@@ -153,7 +153,7 @@ export default function AdminModal({ isOpen, onClose }: AdminModalProps) {
         {tab === 'caching' && <CachingTab data={data} onRefresh={load} />}
         {tab === 'efficiency' && <EfficiencyTab data={data} />}
 
-        <div className="mt-5 border-t border-white/[0.06] pt-4">
+        <div className="mt-5 border-t border-ink/[0.06] pt-4">
           <a href="/admin/settings" className={`${buttonSecondary} ${buttonSize.sm}`}>
             Open the full console
           </a>

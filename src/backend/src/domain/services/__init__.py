@@ -1,6 +1,6 @@
 """Domain services: Business logic that operates across multiple entities."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from ..entities import Activity, Route
 from ..value_objects import (
@@ -111,8 +111,15 @@ class FitnessScoreCalculator:
 
     def _calculate_volume_score(self, activities: list[Activity]) -> float:
         """Calculate training volume score."""
-        # Get activities from last 4 weeks
-        four_weeks_ago = datetime.utcnow() - timedelta(weeks=4)
+        # Get activities from last 4 weeks.
+        #
+        # `datetime.now(UTC)`, not `utcnow()`: Activity.start_date is
+        # timezone-aware (see the entity default and the Firestore mapper), and
+        # `utcnow()` returns a *naive* datetime. Comparing the two raises
+        # TypeError, which meant this method — and therefore the whole fitness
+        # score — crashed for every non-empty activity list. `utcnow()` is also
+        # deprecated from Python 3.12.
+        four_weeks_ago = datetime.now(UTC) - timedelta(weeks=4)
         recent = [a for a in activities if a.start_date >= four_weeks_ago]
 
         if not recent:
@@ -135,18 +142,27 @@ class FitnessScoreCalculator:
 
     def _calculate_consistency_score(self, activities: list[Activity]) -> float:
         """Calculate training consistency score."""
-        # Get last 8 weeks
-        eight_weeks_ago = datetime.utcnow() - timedelta(weeks=8)
+        # Get last 8 weeks — see the note in _calculate_volume_score on why this
+        # is `now(UTC)` and not `utcnow()`.
+        eight_weeks_ago = datetime.now(UTC) - timedelta(weeks=8)
         recent = [a for a in activities if a.start_date >= eight_weeks_ago]
 
         if not recent:
             return 0.0
 
-        # Count activities per week
-        weeks_dict: dict[int, int] = {}
+        # Count activities per week.
+        #
+        # Keyed on (ISO year, ISO week), not the week number alone: an 8-week
+        # window starting in November spans a year boundary, and week 1 of the
+        # new year would otherwise be counted into week 1 of the old one. That
+        # merges two distinct weeks, inflating activities-per-week while
+        # shrinking weeks-with-activity — so training through the New Year
+        # scored as *less* consistent than the same training in mid-year.
+        weeks_dict: dict[tuple[int, int], int] = {}
         for activity in recent:
-            week_num = activity.start_date.isocalendar()[1]
-            weeks_dict[week_num] = weeks_dict.get(week_num, 0) + 1
+            iso = activity.start_date.isocalendar()
+            key = (iso[0], iso[1])
+            weeks_dict[key] = weeks_dict.get(key, 0) + 1
 
         if not weeks_dict:
             return 0.0
