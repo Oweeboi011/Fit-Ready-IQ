@@ -34,7 +34,16 @@ const LEGACY_OVERSIZED = [
  * this in step with SERVER_ONLY in .dependency-cruiser.cjs, which stops anything
  * client-reachable from importing them in the first place.
  */
-const SERVER_ONLY = ['src/lib/firebaseAdmin.ts', 'src/lib/adminAuth.ts'];
+const SERVER_ONLY = [
+  'src/lib/firebaseAdmin.ts',
+  'src/lib/adminAuth.ts',
+  'src/lib/serverAuth.ts',
+  'src/lib/rateLimit.ts',
+  'src/lib/auditLog.ts',
+  'src/lib/logger.ts',
+  'src/lib/stravaTokens.ts',
+  'src/lib/rateLimitRules.ts',
+];
 
 const LEGACY_COMPLEX = [
   'src/app/api/chat/route.ts', // POST: 17

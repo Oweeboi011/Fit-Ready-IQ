@@ -18,8 +18,11 @@ test.describe('route planner', () => {
     await page.mouse.click(760, 250);
     await page.waitForTimeout(500);
     await page.mouse.click(1000, 480);
+    // Either the router answered, or it said why it could not. There is no
+    // straight-line fallback any more, so "no route" is a valid outcome here —
+    // what must never appear is a distance the router did not produce.
     await expect(
-      page.getByText(/Following walking paths|Straight line — no mapped path/i)
+      page.getByText(/Following walking paths|Following cycling routes|No route/i)
     ).toBeVisible({ timeout: 15_000 });
 
     const download = page.waitForEvent('download');

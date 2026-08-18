@@ -66,6 +66,123 @@ export function fetchElevations(
   });
 }
 
+/**
+ * Google's cap on samples for one `getElevationAlongPath` call.
+ *
+ * 256 is plenty for a profile strip a few hundred pixels wide — more samples
+ * than pixels buys nothing but quota.
+ */
+const MAX_PATH_SAMPLES = 256;
+
+/**
+ * How many vertices of the route we send to describe its shape.
+ *
+ * The service encodes the whole path into its request, and a long route carries
+ * far more detail than the shape needs: a 1.5 km snapped walk already decodes to
+ * ~56 vertices, so a mountain route runs to hundreds or thousands. Past some
+ * size the call comes back `INVALID_REQUEST` — which is what it did — and even
+ * below that, sending 2 000 points to receive 96 interpolated ones is waste.
+ *
+ * 100 vertices describes the *course* of any hikeable route closely enough for
+ * the interpolation to land on the same ground.
+ */
+const MAX_PATH_VERTICES = 100;
+
+/**
+ * Reduces a path to at most `max` vertices, keeping its start and end.
+ *
+ * Also drops consecutive duplicates, which the polyline decoder can emit and
+ * which contribute a zero-length leg — another way to earn `INVALID_REQUEST`.
+ *
+ * Exported for its tests: this is arithmetic, and it is the part that was wrong.
+ */
+export function downsamplePath<TPoint extends { lat: number; lng: number }>(
+  path: TPoint[],
+  max = MAX_PATH_VERTICES
+): TPoint[] {
+  const deduped = path.filter(
+    (point, i) => i === 0 || point.lat !== path[i - 1].lat || point.lng !== path[i - 1].lng
+  );
+
+  if (deduped.length <= max) return deduped;
+
+  // Even stride across the interior, with the final vertex appended: the end of
+  // a route is not a point to approximate, it is where the distance axis stops.
+  const stride = (deduped.length - 1) / (max - 1);
+  const picked: TPoint[] = [];
+  for (let i = 0; i < max - 1; i++) picked.push(deduped[Math.round(i * stride)]);
+  picked.push(deduped[deduped.length - 1]);
+  return picked;
+}
+
+/**
+ * Elevation sampled at even intervals *along* a path.
+ *
+ * Distinct from {@link fetchElevations}, which answers for points you name. A
+ * profile needs the ground between the waypoints, and asking for the waypoints
+ * alone is how the planner ended up reporting ascent as the sum of a handful of
+ * corner elevations — a route that climbs a hill and comes back down between two
+ * waypoints reads as flat.
+ *
+ * `getElevationAlongPath` does the interpolation server-side and returns exactly
+ * `samples` results, evenly spaced, which is what a distance axis wants.
+ *
+ * Failure yields nulls rather than an exception, on the same principle as its
+ * sibling: an unknown elevation must stay unknown rather than becoming zero.
+ */
+export function fetchElevationAlongPath(
+  path: google.maps.LatLngLiteral[],
+  samples = 128
+): Promise<{ values: (number | null)[]; failed: boolean }> {
+  return new Promise((resolve) => {
+    // The shape, not every vertex of it — see MAX_PATH_VERTICES.
+    const reduced = downsamplePath(path);
+
+    // Two *distinct* points is the minimum that describes a path; one is a
+    // location, and a path of repeats has no length to sample along.
+    if (reduced.length < 2) {
+      resolve({ values: [], failed: false });
+      return;
+    }
+
+    const count = Math.max(2, Math.min(samples, MAX_PATH_SAMPLES));
+    const elevationService = new google.maps.ElevationService();
+
+    const attempt = (retriesLeft: number) => {
+      elevationService.getElevationAlongPath(
+        { path: reduced, samples: count },
+        (results, status) => {
+          if (status === google.maps.ElevationStatus.OK && results) {
+            resolve({
+              values: results.map((r) => (r.elevation != null ? Math.round(r.elevation) : null)),
+              failed: false,
+            });
+            return;
+          }
+
+          // UNKNOWN_ERROR is documented as a server-side failure that may succeed
+          // if the same request is made again — the one status worth retrying.
+          // REQUEST_DENIED and INVALID_REQUEST will fail identically for ever.
+          if (status === google.maps.ElevationStatus.UNKNOWN_ERROR && retriesLeft > 0) {
+            setTimeout(() => attempt(retriesLeft - 1), 400);
+            return;
+          }
+
+          // Surfaced rather than swallowed: an unenabled or over-quota Elevation
+          // API is a configuration problem, and a silent empty profile hides it.
+          console.error(
+            `ElevationService (along path) failed: ${status} ` +
+              `(${reduced.length} vertices, ${count} samples)`
+          );
+          resolve({ values: [], failed: true });
+        }
+      );
+    };
+
+    attempt(1);
+  });
+}
+
 export function fetchTravelDistances(
   origin: google.maps.LatLngLiteral,
   destinations: google.maps.LatLngLiteral[]

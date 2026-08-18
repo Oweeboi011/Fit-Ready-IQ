@@ -2,7 +2,7 @@ export default function LoadingSkeletonList() {
   return (
     <div className="space-y-2">
       {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="rounded-xl border border-white/[0.06] bg-white/5 p-3.5">
+        <div key={i} className="rounded-xl border border-ink/[0.06] bg-ink/5 p-3.5">
           <div className="flex items-start gap-3">
             <div className="skeleton h-14 w-14 flex-shrink-0 rounded-lg" />
             <div className="flex-1 space-y-2">

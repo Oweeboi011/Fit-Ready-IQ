@@ -3,25 +3,20 @@
 // Fit Ready IQ - Main Page
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useJsApiLoader } from '@react-google-maps/api';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import AppHeader from '@/components/AppHeader';
 import PlacesSidebar from '@/components/PlacesSidebar';
 import MapArea from '@/components/MapArea';
 import { DEFAULT_FILTERS, type FilterState } from '@/components/RouteFilter';
-import ConnectDevicesModal from '@/components/ConnectDevicesModal';
-import DetailsModal from '@/components/DetailsModal';
-import ProfileModal from '@/components/ProfileModal';
 import { haversineDistanceKm } from '@/lib/gpxParser';
 import { saveActivities, mergeActivities } from '@/lib/activityTypes';
-import ChatBot from '@/components/ChatBot';
 import { computeReadiness } from '@/lib/readiness';
 import { recordWeatherAlerts } from '@/lib/weatherAlertCache';
 import type { DockAlert, DockWeather } from '@/components/NavDock';
 import type { DirectionsTarget } from '@/components/MapDirections';
-import AdminModal from '@/components/admin/AdminModal';
-import RoadmapModal from '@/components/RoadmapModal';
 import type { PlannerWaypoint } from '@/lib/gpxBuilder';
-import { usePlannerRoute } from '@/lib/usePlannerRoute';
+import { usePlannerRoute, type PlannerTravelMode } from '@/lib/usePlannerRoute';
 import type { Advisory } from '@/lib/advisories';
 import {
   layerForActivityType,
@@ -39,6 +34,26 @@ import { toDetailsModalData, type SelectedDetails } from '@/lib/detailsModalMapp
 import { useFirebaseAuth } from '@/lib/useFirebaseAuth';
 import { useStravaSync } from '@/lib/useStravaSync';
 import { usePlacesData, COLLECTION_LABELS } from '@/lib/usePlacesData';
+
+/**
+ * The modals are code-split and rendered only while open.
+ *
+ * Statically imported, all six shipped in the initial `/app` bundle for every
+ * visitor — including the admin console, to people who can never open it, and
+ * `DetailsModal`, the largest file in the repo, before anyone had clicked a
+ * place. Each already guards its own effects on `isOpen` and renders `null`
+ * when closed, so gating the render is behaviour-preserving; it is also what
+ * makes the split real, since a mounted component loads its chunk regardless.
+ */
+const ConnectDevicesModal = dynamic(() => import('@/components/ConnectDevicesModal'), {
+  ssr: false,
+});
+const DetailsModal = dynamic(() => import('@/components/DetailsModal'), { ssr: false });
+const ProfileModal = dynamic(() => import('@/components/ProfileModal'), { ssr: false });
+const AdminModal = dynamic(() => import('@/components/admin/AdminModal'), { ssr: false });
+const RoadmapModal = dynamic(() => import('@/components/RoadmapModal'), { ssr: false });
+/** Not gated on open state — it renders its own launcher button. */
+const ChatBot = dynamic(() => import('@/components/ChatBot'), { ssr: false });
 
 const libraries: ('places' | 'geometry')[] = ['places', 'geometry'];
 
@@ -89,15 +104,35 @@ export default function Home() {
   } = useUserLocation();
   const isLocating = locationStatus === 'locating';
 
+  const googleMapsApiKey = (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '').trim();
+
   const googleMapsLoaderOptions = useMemo(
-    () => ({
-      googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
-      libraries,
-    }),
-    []
+    () => ({ googleMapsApiKey, libraries }),
+    [googleMapsApiKey]
   );
 
   const { isLoaded, loadError } = useJsApiLoader(googleMapsLoaderOptions);
+
+  /**
+   * A blank key is a configuration failure, and it has to be detected here
+   * rather than left to the SDK.
+   *
+   * `useJsApiLoader` only reports `loadError` when the *script* fails to fetch.
+   * With an empty key the script loads perfectly well, and Google then paints
+   * its own grey "This page can't load Google Maps correctly" watermark over
+   * our UI. `gm_authFailure` does not rescue us either: that fires for auth
+   * rejections such as `RefererNotAllowedMapError`, not for `NoApiKeys`, and it
+   * is registered in an effect that runs after the SDK has already given up.
+   *
+   * So the absence is checked directly, and the map surface renders its own
+   * error state — which already carries a retry and, on localhost, the exact
+   * setup checklist. Degrading honestly is the rule this codebase holds to; a
+   * third party's error overlay is not us degrading honestly.
+   */
+  const mapConfigError = useMemo(
+    () => (googleMapsApiKey ? undefined : new Error('NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is not set')),
+    [googleMapsApiKey]
+  );
 
   const {
     routes,
@@ -135,6 +170,24 @@ export default function Home() {
   const [roadmapOpen, setRoadmapOpen] = useState(false);
   const [plannerWaypoints, setPlannerWaypoints] = useState<PlannerWaypoint[]>([]);
 
+  /**
+   * Move the map to a searched place.
+   *
+   * Zooms in only when the view is wider than the place is useful at — panning a
+   * regional view to a summit leaves it an invisible dot, while yanking the zoom
+   * on someone already looking at a valley is the camera fighting the user, which
+   * this app has form for.
+   */
+  const goToPlace = useCallback(
+    (coordinates: [number, number]) => {
+      const map = mapInstance;
+      if (!map) return;
+      map.panTo({ lat: coordinates[1], lng: coordinates[0] });
+      if ((map.getZoom() ?? 0) < 12) map.setZoom(13);
+    },
+    [mapInstance]
+  );
+
   const addWaypoint = useCallback((coordinates: [number, number], name?: string) => {
     const id = `wp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     setPlannerWaypoints((prev) => [
@@ -157,7 +210,25 @@ export default function Home() {
     );
   }, []);
 
-  const plannerRoute = usePlannerRoute(plannerWaypoints, plannerOpen);
+  /**
+   * Add a searched place to the plan, opening the planner if it is closed.
+   *
+   * Opening it is the point: the search box exists so a plan can start from a
+   * place you found, and making the user open the planner first would be asking
+   * them to say the same thing twice.
+   */
+  const addSearchedPlace = useCallback(
+    (coordinates: [number, number], name: string) => {
+      setPlannerOpen(true);
+      addWaypoint(coordinates, name);
+    },
+    [addWaypoint]
+  );
+
+  // Held here rather than inside RoutePlanner: the hook that does the routing
+  // lives at this level, and the panel stays presentational like RouteFilter.
+  const [plannerTravelMode, setPlannerTravelMode] = useState<PlannerTravelMode>('walk');
+  const plannerRoute = usePlannerRoute(plannerWaypoints, plannerOpen, plannerTravelMode);
 
   const moveWaypoint = useCallback((id: string, direction: -1 | 1) => {
     setPlannerWaypoints((prev) => {
@@ -570,7 +641,7 @@ export default function Home() {
 
     setSelectedDetails({ type: kind, data: found } as typeof selectedDetails);
     setPendingPlaceRef(null);
-  }, [pendingPlaceRef, routes, mountains, campsites, activities, isLoading]);
+  }, [pendingPlaceRef, routes, mountains, campsites, activities, isLoading, setError]);
 
   // Keep the query string in step with what is on screen, so the page is
   // shareable and a reload lands where the user left off.
@@ -626,27 +697,31 @@ export default function Home() {
       />
 
       {/* Connect Devices Modal */}
-      <ConnectDevicesModal
-        isOpen={isDeviceModalOpen}
-        onClose={() => setIsDeviceModalOpen(false)}
-        onActivitiesLoaded={(acts) => {
-          const merged = mergeActivities(activities, acts);
-          saveActivities(merged);
-          setActivities(merged);
-        }}
-      />
+      {isDeviceModalOpen && (
+        <ConnectDevicesModal
+          isOpen={isDeviceModalOpen}
+          onClose={() => setIsDeviceModalOpen(false)}
+          onActivitiesLoaded={(acts) => {
+            const merged = mergeActivities(activities, acts);
+            saveActivities(merged);
+            setActivities(merged);
+          }}
+        />
+      )}
 
       {/* Profile Modal */}
-      <ProfileModal
-        isOpen={isProfileModalOpen}
-        onClose={() => setIsProfileModalOpen(false)}
-        user={authUser}
-        activities={activities}
-        onSignOut={() => {
-          setIsProfileModalOpen(false);
-          signOut();
-        }}
-      />
+      {isProfileModalOpen && (
+        <ProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          user={authUser}
+          activities={activities}
+          onSignOut={() => {
+            setIsProfileModalOpen(false);
+            signOut();
+          }}
+        />
+      )}
 
       {/* Main Content */}
       <div className="relative z-10 flex flex-1 overflow-hidden">
@@ -773,12 +848,18 @@ export default function Home() {
           onRemoveWaypoint={(id) => setPlannerWaypoints((prev) => prev.filter((w) => w.id !== id))}
           onMoveWaypoint={moveWaypoint}
           plannerRoute={plannerRoute}
+          plannerTravelMode={plannerTravelMode}
+          onPlannerTravelModeChange={setPlannerTravelMode}
           onClearPlanner={() => setPlannerWaypoints([])}
           onLoadPlan={setPlannerWaypoints}
           onMapClick={plannerOpen ? addWaypoint : undefined}
+          onGoToPlace={goToPlace}
+          onAddSearchedPlace={addSearchedPlace}
           hasPreciseLocation={hasPreciseLocation}
           isLoaded={isLoaded}
-          loadError={loadError}
+          // A missing key is reported as a load failure, because to the person
+          // looking at the screen that is exactly what it is.
+          loadError={loadError ?? mapConfigError}
           filteredRoutes={filteredRoutes}
           mountains={mountains}
           campsites={campsites}
@@ -794,24 +875,28 @@ export default function Home() {
         />
       </div>
 
-      <AdminModal isOpen={adminModalOpen} onClose={() => setAdminModalOpen(false)} />
+      {adminModalOpen && (
+        <AdminModal isOpen={adminModalOpen} onClose={() => setAdminModalOpen(false)} />
+      )}
 
-      <RoadmapModal isOpen={roadmapOpen} onClose={() => setRoadmapOpen(false)} />
+      {roadmapOpen && <RoadmapModal isOpen={roadmapOpen} onClose={() => setRoadmapOpen(false)} />}
 
-      <DetailsModal
-        isOpen={selectedDetails !== null}
-        onClose={() => setSelectedDetails(null)}
-        onGetDirections={(target) => {
-          setDirectionsTarget(target);
-          setSidebarOpen(false);
-        }}
-        activities={activities}
-        onConnectDevices={() => {
-          setSelectedDetails(null);
-          setIsDeviceModalOpen(true);
-        }}
-        data={toDetailsModalData(selectedDetails)}
-      />
+      {selectedDetails !== null && (
+        <DetailsModal
+          isOpen={selectedDetails !== null}
+          onClose={() => setSelectedDetails(null)}
+          onGetDirections={(target) => {
+            setDirectionsTarget(target);
+            setSidebarOpen(false);
+          }}
+          activities={activities}
+          onConnectDevices={() => {
+            setSelectedDetails(null);
+            setIsDeviceModalOpen(true);
+          }}
+          data={toDetailsModalData(selectedDetails)}
+        />
+      )}
       <ChatBot />
     </main>
   );

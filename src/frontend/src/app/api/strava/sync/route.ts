@@ -1,16 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createLogger } from '@/lib/logger';
 import { getFirestoreAdmin } from '@/lib/firebaseAdmin';
+import { rateLimit, tooManyRequests } from '@/lib/rateLimit';
+import { STRAVA_SYNC_RATE_LIMIT } from '@/lib/rateLimitRules';
+import { requireUser } from '@/lib/serverAuth';
+import { getValidStravaAccessToken } from '@/lib/stravaTokens';
 
 export const runtime = 'nodejs';
 
 /**
  * POST /api/strava/sync
  *
- * Fetches ALL historical activities from Strava (all pages) for the authenticated
+ * Fetches ALL historical activities from Strava (all pages) for the calling
  * user and upserts them into Firestore under:
  *   users/{uid}/strava_activities/{strava_activity_id}
  *
- * Body: { token: string; uid: string }
+ * Headers: `Authorization: Bearer <firebaseIdToken>`
+ * Body: none — the Strava token is held server-side under `strava_tokens/{uid}`
+ *
+ * The destination `uid` comes from the verified Firebase token, never from the
+ * body. It used to be a body field, which — because the Admin SDK bypasses
+ * Firestore rules — let any unauthenticated caller write activity documents
+ * into any user's collection just by naming their uid.
  *
  * - Uses the Strava API server-side so the token never reaches the browser network layer.
  * - Idempotent: re-running will update existing docs, not create duplicates.
@@ -57,19 +68,27 @@ const PER_PAGE = 30;
 const COLLECTION = 'strava_activities';
 
 export async function POST(request: NextRequest) {
-  let token: string;
-  let uid: string;
+  const log = createLogger('/api/strava/sync', request);
+  const auth = await requireUser(request);
+  if (!auth.ok) return auth.response;
+  const { uid } = auth.user;
 
-  try {
-    const body = await request.json();
-    token = body.token;
-    uid = body.uid;
-    if (!token || typeof token !== 'string') throw new Error('missing token');
-    if (!uid || typeof uid !== 'string') throw new Error('missing uid');
-  } catch (err) {
+  // Metered *after* the identity check so an unauthenticated flood cannot
+  // consume a real user's budget, and keyed on their token rather than an IP.
+  // One call fans out into ten Strava round trips and up to 300 Firestore
+  // writes, which makes this the largest amplification factor in the product:
+  // the client self-limits to once an hour, so six is retries and nothing more.
+  const limit = await rateLimit(request, STRAVA_SYNC_RATE_LIMIT);
+  if (!limit.ok) return tooManyRequests(limit);
+
+  // No token in the body any more: it lives server-side, keyed to the verified
+  // uid. Accepting one would have meant trusting the caller with a credential
+  // that outlives every other thing they hold.
+  const token = await getValidStravaAccessToken(uid, request);
+  if (!token) {
     return NextResponse.json(
-      { error: `Invalid request body: ${err instanceof Error ? err.message : 'unknown'}` },
-      { status: 400 }
+      { error: 'Strava is not connected. Connect it again to sync activities.' },
+      { status: 409 }
     );
   }
 
@@ -77,7 +96,7 @@ export async function POST(request: NextRequest) {
   try {
     db = getFirestoreAdmin();
   } catch (err) {
-    console.error('strava/sync Firestore init failed:', err);
+    log.error('strava_sync_firestore_unavailable', err);
     return NextResponse.json({ error: 'Firestore unavailable' }, { status: 500 });
   }
   const collectionRef = db.collection('users').doc(uid).collection(COLLECTION);

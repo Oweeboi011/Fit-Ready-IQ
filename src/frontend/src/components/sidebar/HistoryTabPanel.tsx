@@ -29,7 +29,7 @@ export default function HistoryTabPanel({
           role="status"
           className={`mb-1.5 flex items-center gap-2 rounded-xl border px-3 py-2.5 ${
             stravaSyncState === 'syncing'
-              ? 'border-white/10 bg-white/5'
+              ? 'border-ink/10 bg-ink/5'
               : 'border-amber-500/20 bg-amber-500/10'
           }`}
         >
@@ -47,7 +47,7 @@ export default function HistoryTabPanel({
       )}
 
       {list.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-white/10 px-4 py-8 text-center">
+        <div className="rounded-lg border border-dashed border-ink/10 px-4 py-8 text-center">
           <Clock aria-hidden="true" className="mx-auto h-5 w-5 text-slate-500" />
           <p className="mt-2 text-xs text-slate-400">No activities yet</p>
           <p className="mt-1 text-[10px] text-slate-500">Connect Strava or import GPX files</p>

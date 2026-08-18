@@ -29,8 +29,8 @@ const KIND_TONE: Record<AdvisoryKind, string> = {
   emergency: 'border-red-500/30 bg-red-500/10 text-red-100',
   rescue: 'border-amber-500/30 bg-amber-500/10 text-amber-100',
   hazard: 'border-amber-500/30 bg-amber-500/10 text-amber-100',
-  report: 'border-white/10 bg-white/5 text-slate-300',
-  announcement: 'border-white/10 bg-white/5 text-slate-300',
+  report: 'border-ink/10 bg-ink/5 text-slate-300',
+  announcement: 'border-ink/10 bg-ink/5 text-slate-300',
 };
 
 function relativeDate(iso: string): string {

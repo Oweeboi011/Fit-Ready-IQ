@@ -65,6 +65,20 @@ export function getFirebaseAdminApp(): App {
   return createFirebaseApp();
 }
 
+/**
+ * Whether the Admin SDK has enough to initialise at all.
+ *
+ * Callers whose work is optional — the shared places cache, for instance — use
+ * this to skip Firestore entirely rather than letting `createFirebaseApp` throw
+ * and catching it. "Not configured" is an expected state on a fresh clone, not
+ * an error, and treating it as one turns every page load into a red 500 in the
+ * console for a feature that is only ever a cost optimisation.
+ */
+export function isFirebaseAdminConfigured(): boolean {
+  if (getApps().length > 0) return true;
+  return Boolean(getFirebaseConfig().projectId);
+}
+
 export function getFirestoreAdmin(): Firestore {
   const app = getFirebaseAdminApp();
   return getFirestore(app);

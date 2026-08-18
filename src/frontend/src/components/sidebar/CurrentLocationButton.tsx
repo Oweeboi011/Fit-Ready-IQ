@@ -22,7 +22,7 @@ export default function CurrentLocationButton({
       className={`flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all ${
         hasPreciseLocation
           ? 'border-blue-500/20 bg-blue-500/10 hover:border-blue-500/40 hover:bg-blue-500/20'
-          : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.08]'
+          : 'border-ink/10 bg-ink/5 hover:border-ink/20 hover:bg-ink/[0.08]'
       }`}
       title={hasPreciseLocation ? 'Focus map on your location' : 'Focus map on this area'}
     >
