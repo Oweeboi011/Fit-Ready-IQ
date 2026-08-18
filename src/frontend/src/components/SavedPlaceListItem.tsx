@@ -10,7 +10,7 @@ const TYPE_ICON: Record<string, ReactNode> = {
 
 const TYPE_COLOR: Record<string, string> = {
   route: 'border-blue-500/30 hover:bg-blue-500/10',
-  mountain: 'border-slate-500/30 hover:bg-white/[0.08]',
+  mountain: 'border-slate-500/30 hover:bg-ink/[0.08]',
   campsite: 'border-emerald-500/30 hover:bg-emerald-500/[0.07]',
 };
 
@@ -31,7 +31,7 @@ export default function SavedPlaceListItem({
     <button
       type="button"
       onClick={onClick}
-      className={`card-enter group w-full rounded-xl border border-white/[0.07] bg-white/5 px-3.5 py-3 text-left transition-all active:scale-[0.99] ${TYPE_COLOR[place.type] ?? ''}`}
+      className={`card-enter group w-full rounded-xl border border-ink/[0.07] bg-ink/5 px-3.5 py-3 text-left transition-all active:scale-[0.99] ${TYPE_COLOR[place.type] ?? ''}`}
       style={{ animationDelay: `${index * 30}ms` }}
     >
       <div className="flex items-start justify-between gap-2">
@@ -50,7 +50,7 @@ export default function SavedPlaceListItem({
           >
             <Bookmark aria-hidden="true" className="h-3.5 w-3.5 fill-amber-400" />
           </button>
-          <span className="flex h-5 w-5 items-center justify-center rounded bg-white/10">
+          <span className="flex h-5 w-5 items-center justify-center rounded bg-ink/10">
             {TYPE_ICON[place.type]}
           </span>
         </div>
@@ -59,19 +59,19 @@ export default function SavedPlaceListItem({
         <span className="capitalize">{place.type}</span>
         {place.elevation_m ? (
           <>
-            <span className="text-white/20">·</span>
+            <span className="text-ink/20">·</span>
             <span className="font-tabular">{place.elevation_m} m</span>
           </>
         ) : null}
         {place.distance_km ? (
           <>
-            <span className="text-white/20">·</span>
+            <span className="text-ink/20">·</span>
             <span className="font-tabular">{place.distance_km.toFixed(1)} km</span>
           </>
         ) : null}
         {place.difficulty ? (
           <>
-            <span className="text-white/20">·</span>
+            <span className="text-ink/20">·</span>
             <span className="capitalize">{place.difficulty}</span>
           </>
         ) : null}

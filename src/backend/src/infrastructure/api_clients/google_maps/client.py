@@ -52,14 +52,14 @@ class GoogleMapsClient(IMapClient, IRoutingClient):
                     latitude=location["lat"],
                     longitude=location["lng"],
                 )
-                logger.info("geocode_success", address=address, coordinates=coords)
+                logger.debug("geocode_success", address=address, coordinates=coords)
                 return coords
 
-            logger.warning("geocode_no_results", address=address, status=data["status"])
+            logger.warning("geocode_no_results", status=data["status"])
             return None
 
         except Exception as e:
-            logger.error("geocode_error", error=str(e), address=address)
+            logger.error("geocode_error", error=str(e))
             return None
 
     async def reverse_geocode(self, coordinates: Coordinates) -> Optional[str]:
@@ -84,16 +84,16 @@ class GoogleMapsClient(IMapClient, IRoutingClient):
 
             if data["status"] == "OK" and data["results"]:
                 address: str = data["results"][0]["formatted_address"]
-                logger.info(
+                logger.debug(
                     "reverse_geocode_success", coordinates=coordinates, address=address
                 )
                 return address
 
-            logger.warning("reverse_geocode_no_results", coordinates=coordinates)
+            logger.warning("reverse_geocode_no_results")
             return None
 
         except Exception as e:
-            logger.error("reverse_geocode_error", error=str(e), coordinates=coordinates)
+            logger.error("reverse_geocode_error", error=str(e))
             return None
 
     async def get_poi_nearby(

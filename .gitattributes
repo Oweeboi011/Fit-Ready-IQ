@@ -1,0 +1,35 @@
+# Line endings are normalised to LF everywhere.
+#
+# Without this file, Git on Windows honours `core.autocrlf=true` and checks
+# every text file out with CRLF, while the blobs stored in the repository are
+# LF. Prettier defaults to `endOfLine: "lf"`, so `prettier --check` then failed
+# on ~129 files on a Windows clone and passed in CI on Linux — a difference that
+# has nothing to do with the code and cannot be fixed by formatting, because the
+# next checkout puts the CRLFs straight back.
+#
+# `eol=lf` overrides `core.autocrlf` per-repository, so the working tree matches
+# the blobs and the formatter agrees with itself on every platform.
+* text=auto eol=lf
+
+# Windows-only scripts must keep CRLF or cmd.exe mis-parses them.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files: never normalise, never diff as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.zip binary
+*.gz binary
+
+# Lockfiles are generated. Collapsing them in diffs keeps reviews readable.
+package-lock.json linguist-generated=true -diff
+poetry.lock linguist-generated=true -diff

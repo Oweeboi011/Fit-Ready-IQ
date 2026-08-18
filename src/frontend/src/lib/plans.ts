@@ -83,10 +83,17 @@ export const PLANS: readonly Plan[] = [
     monthlyPrice: 29,
     annualMonthlyPrice: 24,
     tagline: 'For guides and clubs taking other people up.',
+    /**
+     * Multi-athlete, group planning and shared itineraries are not built — there
+     * is no multi-user primitive in the product yet. They are marked as planned
+     * rather than listed flat, because a plan card is a promise and this codebase
+     * does not make ones it cannot keep. Drop the "Planned" prefix per line as
+     * each ships.
+     */
     highlights: [
       'Everything in Pro',
-      'Readiness across up to 25 athletes',
-      'Group trip planning and shared itineraries',
+      'Planned — readiness across up to 25 athletes',
+      'Planned — group trip planning and shared itineraries',
       'Priority support',
     ],
     entitlements: [

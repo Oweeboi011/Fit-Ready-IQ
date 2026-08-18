@@ -1,5 +1,6 @@
 """Firebase Admin SDK initialization and Firestore/Auth/Storage client access."""
 
+import asyncio
 import json
 import os
 from typing import Any, Optional
@@ -80,6 +81,18 @@ async def verify_firebase_token(id_token: str) -> dict:
     Verify a Firebase ID token and return the decoded claims.
 
     Raises firebase_admin.auth.InvalidIdTokenError on failure.
+
+    `auth.verify_id_token` is synchronous and does network I/O — it fetches and
+    refreshes Google's signing keys, and with `check_revoked` it also looks the
+    user up. Awaiting it directly from a coroutine blocked the event loop for the
+    duration, so one slow key refresh stalled every other in-flight request on
+    the worker. `to_thread` keeps the loop free.
+
+    `check_revoked=True` so signing out, or an admin disabling a compromised
+    account, takes effect immediately rather than whenever the hour-long ID
+    token happens to expire. It matches the frontend's `requireUser`.
     """
-    decoded: dict[Any, Any] = auth.verify_id_token(id_token)
+    decoded: dict[Any, Any] = await asyncio.to_thread(
+        auth.verify_id_token, id_token, check_revoked=True
+    )
     return decoded

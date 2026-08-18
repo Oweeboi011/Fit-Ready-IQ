@@ -1,10 +1,11 @@
 import MapLoadingOverlay from '@/components/MapLoadingOverlay';
 import MapNotices from '@/components/map/MapNotices';
+import MapSearch from '@/components/map/MapSearch';
 import MapNavDock from '@/components/map/MapNavDock';
 import MapCanvas from '@/components/map/MapCanvas';
 import type { ContentTab, DockAlert, DockWeather, TerrainPulse } from '@/components/NavDock';
 import type { DirectionsTarget } from '@/components/MapDirections';
-import type { PlannerRoute } from '@/lib/usePlannerRoute';
+import type { PlannerRoute, PlannerTravelMode } from '@/lib/usePlannerRoute';
 import type { PlannerWaypoint } from '@/lib/gpxBuilder';
 import type { Advisory } from '@/lib/advisories';
 import type { MapLayer } from '@/lib/mapLayers';
@@ -59,10 +60,16 @@ interface MapAreaProps {
   onClearDirections: () => void;
   plannerOpen: boolean;
   plannerWaypoints: PlannerWaypoint[];
+  /** Moves the map to a searched place. */
+  onGoToPlace: (coordinates: [number, number]) => void;
+  /** Adds a searched place to the plan, opening the planner if needed. */
+  onAddSearchedPlace: (coordinates: [number, number], name: string) => void;
   onClosePlanner: () => void;
   onRemoveWaypoint: (id: string) => void;
   onMoveWaypoint: (id: string, direction: -1 | 1) => void;
   plannerRoute: PlannerRoute;
+  plannerTravelMode: PlannerTravelMode;
+  onPlannerTravelModeChange: (mode: PlannerTravelMode) => void;
   onClearPlanner: () => void;
   onLoadPlan: (waypoints: PlannerWaypoint[]) => void;
   onMapClick: ((coordinates: [number, number], name?: string) => void) | undefined;
@@ -90,6 +97,13 @@ export default function MapArea(props: MapAreaProps) {
         isLoading={isLoading || isLocating}
         message={isLocating ? 'Locating you' : 'Finding routes near you'}
         detail={!isLocating ? userLocation?.address : undefined}
+      />
+
+      <MapSearch
+        near={userLocation ? [userLocation.lng, userLocation.lat] : undefined}
+        onGoTo={props.onGoToPlace}
+        onAddToPlan={props.onAddSearchedPlace}
+        plannerOpen={props.plannerOpen}
       />
 
       <MapNotices
@@ -150,6 +164,8 @@ export default function MapArea(props: MapAreaProps) {
         onRemoveWaypoint={props.onRemoveWaypoint}
         onMoveWaypoint={props.onMoveWaypoint}
         plannerRoute={props.plannerRoute}
+        plannerTravelMode={props.plannerTravelMode}
+        onPlannerTravelModeChange={props.onPlannerTravelModeChange}
         onClearPlanner={props.onClearPlanner}
         onLoadPlan={props.onLoadPlan}
         onMapClick={props.onMapClick}

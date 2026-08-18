@@ -49,7 +49,7 @@ graph TB
     end
 
     subgraph External["External Services"]
-        Gemini["Gemini 1.5 Flash"]
+        Gemini["Gemini 2.5 Flash"]
         GoogleW["Google Weather API"]
         Strava["Strava API"]
         FS["Firebase Firestore"]
@@ -102,7 +102,7 @@ flowchart LR
 
 ### 3.1 POST /api/chat
 
-**Description:** Sends a conversation message to the Gemini 1.5 Flash AI model and returns the assistant's reply. Optionally persists the conversation to Firebase Firestore for session continuity.
+**Description:** Sends a conversation message to the Gemini 2.5 Flash AI model and returns the assistant's reply. Optionally persists the conversation to Firebase Firestore for session continuity.
 
 **Runtime:** Node.js (Firebase Admin SDK requirement)
 
@@ -341,7 +341,11 @@ GET /api/weather?lat=14.5995&lng=120.9842&persona=mountaineer
 | --- | --- | --- | --- |
 | `lat` | number | Yes | Latitude (-90 to 90) |
 | `lng` | number | Yes | Longitude (-180 to 180) |
-| `persona` | string | No | One of: `mountaineer`, `hiker`, `runner`, `cyclist`. Affects alert thresholds. |
+| `elevation` | number | No | Summit elevation in metres, used to adjust the summary. |
+| `hours` | number | No | How long the route takes. Scopes the weather window to the route rather than the location — the same forecast is a window for a two-hour walk and a no-go for an eight-hour summit day. Defaults to a short outing. |
+| `persona` | string | No | **Not implemented.** No persona branching exists in the route today; see `docs/wiki/USER-FLOW.md` §2. |
+
+> Two further details in this section are aspirational rather than current: there is no Firestore `weather_cache` (caching is a module-level 30-minute cache in `DetailsModal`, plus an HTTP `max-age=1800`), and alert thresholds are not persona-scoped. Both are Phase 1 targets in the solution plan.
 
 **Response:**
 
@@ -368,6 +372,15 @@ GET /api/weather?lat=14.5995&lng=120.9842&persona=mountaineer
   "alerts": [
     { "level": "caution", "type": "wind", "message": "Wind 18 kph -- exposed ridgeline risk for mountaineers" }
   ],
+  "window": {
+    "status": "clear",
+    "start": "2026-06-22T05:00:00Z",
+    "end": "2026-06-22T13:00:00Z",
+    "hours": 9,
+    "worst": null,
+    "hazards": [],
+    "summary": "9 clear hours in the forecast."
+  },
   "sunrise": "05:42",
   "sunset": "18:15",
   "cached_at": "2026-06-21T06:00:00Z",
@@ -375,7 +388,20 @@ GET /api/weather?lat=14.5995&lng=120.9842&persona=mountaineer
 }
 ```
 
-**Persona-Specific Alert Thresholds:**
+**`window` — when to go** (`src/frontend/src/lib/weatherWindow.ts`)
+
+The soonest span long enough for the route, which is the question ADR-0004 points out current conditions cannot answer. Computed from the same hourly fetch the alerts use, so it costs no extra call.
+
+| `status` | Meaning |
+| --- | --- |
+| `clear` | A span of `hours` with no hazard at all. `start`/`end` set. |
+| `marginal` | Long enough, but carries `watch`-level hazards. Named in `hazards`. |
+| `none` | No span long enough. `start`/`end` are `null`; `summary` says whether the forecast is entirely blocked or its good stretches are merely too short. |
+| `unknown` | No forecast, or one too short to cover the route. Never an invented span. |
+
+A `warning`-severity hour is disqualifying and never appears inside a window — this is output someone might use to decide whether to walk into a storm, so it errs toward saying no.
+
+**Persona-Specific Alert Thresholds** (target state — not implemented, see the note above)**:**
 
 | Condition | Mountaineer | Hiker | Trail Runner | Cyclist |
 | --- | --- | --- | --- | --- |
@@ -664,7 +690,12 @@ flowchart TD
 | Gemini API | 15 RPM (free) | Pay-per-token | Rate limit in route, session-based |
 | Strava API | 100 requests/15 min | Hard limit | Token-based rate tracking |
 
-### 7.2 Planned Rate Limiting (Phase 1+)
+### 7.2 Rate Limiting
+
+Implemented, Firestore-backed, and applied to every route that spends money,
+third-party quota or storage. The budgets live in one table —
+`src/frontend/src/lib/rateLimitRules.ts` — so the set is enumerable rather than
+scattered across route files.
 
 ```mermaid
 flowchart TD
@@ -673,6 +704,33 @@ flowchart TD
     B -->|Over limit| D["429 Too Many Requests"]
     D --> E["Retry-After header"]
 ```
+
+| Route | Budget / hour | Why that number |
+| --- | --- | --- |
+| `/api/strava/exchange` | 10 | Tightest in the table. A person connects Strava once; a caller hammering it burns our *client's* Strava quota, which locks out every real user at once |
+| `/api/strava/refresh` | 30 | An access token lasts six hours; the headroom is for multiple tabs and devices |
+| `/api/strava/sync` | 6 | One call is ten Strava round trips and up to 300 Firestore writes — the largest amplification factor in the product. The client already self-limits to once an hour |
+| `/api/strava/activities` | 200 | Ten pages per sync, and the client re-syncs on mount |
+| `/api/chat` | 20 | Unauthenticated and billed per call by Gemini |
+| `/api/weather` | 200 | Billed per call; the client caches 30 minutes per location |
+| `/api/directions` | 120 | Billed per call; the planner re-routes on every waypoint drag |
+| `/api/places/cache` GET | 300 | Public. Stops a scraper walking the 0.5° grid and turning our read quota into their dataset |
+| `/api/places/cache` POST | 60 | Bounds how much one account can rewrite of a shared, world-readable cache |
+| `/api/advisories` | 120 | The feed branch makes an outbound request to a park authority's server |
+| `/api/account/export` | 5 | Assembles every document a user owns |
+| `/api/account/delete` | 5 | Needs one call; the budget is for failed retries |
+
+**Callers are keyed by credential, not by IP** — the Firebase bearer token when
+there is one, then `X-Strava-Token`, then the forwarded IP. Keying only on IP
+would put everyone behind a corporate NAT or carrier gateway in one bucket, so a
+single heavy user would throttle a whole office. Tokens are hashed before use:
+bucket keys become Firestore document ids and appear in logs, and a live
+credential must not ride along.
+
+Exempt, deliberately: `/api/health` (an uptime probe must not be throttleable,
+and it makes no upstream calls) and the `/api/admin/*` routes (behind
+`requireRole`, where admins are few, named and audited). `rateLimitCoverage.test.ts`
+enforces that every other route has a budget.
 
 ---
 

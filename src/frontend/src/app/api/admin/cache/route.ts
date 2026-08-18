@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/adminAuth';
+import { createLogger } from '@/lib/logger';
+import { requireAdmin, requireRole } from '@/lib/adminAuth';
+import { recordAudit } from '@/lib/auditLog';
 import { getFirestoreAdmin } from '@/lib/firebaseAdmin';
 
 export const runtime = 'nodejs';
@@ -23,7 +25,9 @@ export interface CacheEntry {
  * Returns all entries in the places_cache collection with freshness info.
  */
 export async function GET(request: NextRequest) {
-  const auth = await requireAdmin(request);
+  const log = createLogger('/api/admin/cache', request);
+  // Cache freshness is operational telemetry about regions, not about people.
+  const auth = await requireRole(request, 'viewer');
   if (!auth.ok) return auth.response;
 
   try {
@@ -55,7 +59,7 @@ export async function GET(request: NextRequest) {
       entries,
     });
   } catch (err) {
-    console.error('admin/cache GET error:', err);
+    log.error('admin_cache_read_failed', err);
     return NextResponse.json({ error: 'Failed to read cache' }, { status: 500 });
   }
 }
@@ -66,6 +70,7 @@ export async function GET(request: NextRequest) {
  * No query params — purges the entire collection.
  */
 export async function DELETE(request: NextRequest) {
+  const log = createLogger('/api/admin/cache', request);
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
 
@@ -77,6 +82,13 @@ export async function DELETE(request: NextRequest) {
 
     if (gridKey) {
       await db.collection(COLLECTION).doc(gridKey).delete();
+      await recordAudit(request, {
+        action: 'admin.cache.purge',
+        actor: auth.admin,
+        target: gridKey,
+        outcome: 'success',
+        detail: { deleted: 1, scope: 'single' },
+      });
       return NextResponse.json({ ok: true, deleted: 1 });
     }
 
@@ -97,9 +109,27 @@ export async function DELETE(request: NextRequest) {
       deleted += chunk.length;
     }
 
+    await recordAudit(request, {
+      action: 'admin.cache.purge',
+      actor: auth.admin,
+      target: COLLECTION,
+      outcome: 'success',
+      detail: { deleted, scope: 'all' },
+    });
+
     return NextResponse.json({ ok: true, deleted });
   } catch (err) {
-    console.error('admin/cache DELETE error:', err);
+    log.error('admin_cache_purge_failed', err, { gridKey: gridKey ?? 'all' });
+    // A failed purge is recorded too: a half-completed batch delete leaves the
+    // cache in a state somebody will need to reconstruct, and "it errored" is
+    // the fact that explains it.
+    await recordAudit(request, {
+      action: 'admin.cache.purge',
+      actor: auth.admin,
+      target: gridKey ?? COLLECTION,
+      outcome: 'failure',
+      detail: { reason: err instanceof Error ? err.message.slice(0, 200) : 'unknown' },
+    });
     return NextResponse.json({ error: 'Failed to purge cache' }, { status: 500 });
   }
 }

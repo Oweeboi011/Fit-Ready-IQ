@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react';
 import { isFirebaseAuthConfigured, onFirebaseAuthStateChanged } from '@/lib/firebaseClient';
 import { buttonGhost, buttonSecondary, buttonSize } from '@/lib/ui';
 
+import ThemeToggle from '../ThemeToggle';
+
 import { StartTrialButton } from './StartTrialButton';
 
 /**
@@ -44,6 +46,8 @@ export function HeaderActions() {
       <Link href="#pricing" className={`${buttonGhost} ${buttonSize.sm} hidden sm:inline-flex`}>
         Pricing
       </Link>
+
+      <ThemeToggle className="h-8 w-8 !px-0" />
 
       {signedIn ? (
         <Link href="/app" className={`${buttonSecondary} ${buttonSize.sm}`}>

@@ -22,7 +22,7 @@ export const buttonSize = {
 export const buttonPrimary = `${base} bg-blue-600 text-white shadow-lg shadow-blue-900/30 hover:bg-blue-500 active:bg-blue-700`;
 
 /** A real alternative to the primary action. Outlined, not solid. */
-export const buttonSecondary = `${base} border border-white/15 bg-white/[0.03] text-slate-200 hover:border-white/25 hover:bg-white/[0.07] hover:text-white`;
+export const buttonSecondary = `${base} border border-ink/15 bg-ink/[0.03] text-slate-200 hover:border-ink/25 hover:bg-ink/[0.07] hover:text-white`;
 
 /** Navigation, tools and settings. Recedes until hovered. */
-export const buttonGhost = `${base} border border-transparent text-slate-400 hover:bg-white/[0.06] hover:text-white`;
+export const buttonGhost = `${base} border border-transparent text-slate-400 hover:bg-ink/[0.06] hover:text-white`;

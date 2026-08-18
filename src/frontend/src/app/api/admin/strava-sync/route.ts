@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/adminAuth';
+import { createLogger } from '@/lib/logger';
+import { requireRole } from '@/lib/adminAuth';
+import { recordAudit } from '@/lib/auditLog';
 import { getFirestoreAdmin } from '@/lib/firebaseAdmin';
 
 export const runtime = 'nodejs';
@@ -19,7 +21,10 @@ export interface StravaSyncEntry {
 }
 
 export async function GET(request: Request) {
-  const auth = await requireAdmin(request);
+  const log = createLogger('/api/admin/strava-sync', request);
+  // Operational health, not personal data — uids and sync counters only — so a
+  // viewer can watch it without also holding the destructive controls.
+  const auth = await requireRole(request, 'viewer');
   if (!auth.ok) return auth.response;
 
   try {
@@ -54,9 +59,19 @@ export async function GET(request: Request) {
       return new Date(b.last_synced_at).getTime() - new Date(a.last_synced_at).getTime();
     });
 
+    // A cross-user read: this walks every user document in the product, so it
+    // is recorded even on success.
+    await recordAudit(request, {
+      action: 'admin.strava_sync.read',
+      actor: auth.admin,
+      target: 'users',
+      outcome: 'success',
+      detail: { scanned: usersSnapshot.size, returned: entries.length },
+    });
+
     return NextResponse.json({ total: entries.length, entries });
   } catch (err) {
-    console.error('admin/strava-sync GET error:', err);
+    log.error('admin_strava_sync_read_failed', err);
     return NextResponse.json({ error: 'Failed to read sync status' }, { status: 500 });
   }
 }
