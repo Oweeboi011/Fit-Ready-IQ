@@ -30,7 +30,7 @@ Contributions should improve one or more of:
 
 ```mermaid
 flowchart TD
-    A[Identify task or issue] --> B[Create feature/* branch from main]
+    A[Identify task or issue] --> B[Create feature/* branch from develop]
     B --> C[Implement changes]
     C --> D[Run validation commands]
     D --> E{All checks pass?}
@@ -38,25 +38,29 @@ flowchart TD
     F --> D
     E -->|Yes| G[Update documentation]
     G --> H[Commit with conventional message]
-    H --> I[Push and open PR to main]
+    H --> I[Push and open PR to develop]
     I --> J[CI + E2E + security + mutation gates]
     J --> K[AI review comment posted automatically]
     K --> L[Address feedback + all gates pass]
-    L --> M[Merge to main]
-    M --> N[Auto-deploy to Vercel]
+    L --> M[Merge to develop]
+    M --> O[Open release PR: develop into main]
+    O --> P[Same gates re-run against main]
+    P --> Q[Merge to main with a real merge commit]
+    Q --> N[Auto-deploy to Vercel]
 ```
 
 ### 3.2 Detailed Steps
 
-1. **Branch** -- Create a `feature/*` branch from `main`.
+1. **Branch** -- Create a `feature/*` branch from `develop`.
 2. **Implement** -- Make changes following code standards (Section 5).
 3. **Validate** -- Run all validation commands (Section 6) and ensure zero errors.
 4. **Document** -- Update relevant docs if behavior changed (Section 7).
 5. **Commit** -- Use conventional commit messages (Section 4). The `commit-msg` hook enforces format automatically.
-6. **PR** -- Open a pull request directly to `main`. A PR template is pre-filled on GitHub -- complete all sections.
-7. **CI gates** -- `ci.yml` runs lint, type-check, unit tests, and build. `e2e.yml` runs Playwright. `security.yml` runs npm audit, pip-audit, gitleaks, and CodeQL. `mutation.yml` runs if `src/frontend/src/lib/**` changed. All must pass before merge.
+6. **PR** -- Open a pull request into `develop`. A PR template is pre-filled on GitHub -- complete all sections.
+7. **CI gates** -- `ci.yml` runs lint, type-check, unit tests, and build. `e2e.yml` runs Playwright. `security.yml` runs npm audit, pip-audit, gitleaks, and CodeQL. `mutation.yml` runs if `src/frontend/src/lib/**` changed. All must pass before merge. The same gates are required on both `develop` and `main`.
 8. **AI review** -- `agent-review.yml` posts an automated Claude Haiku review comment on every non-draft PR. Address any flagged issues.
-9. **Merge** -- After all gates pass and a reviewer approves, merge to `main`. Vercel deploys automatically.
+9. **Merge to develop** -- After all gates pass and a reviewer approves, merge to `develop` (feature branches use a squash merge -- the individual commits don't need preserving).
+10. **Release** -- Once `develop` is green and ready to ship, open a second PR from `develop` into `main`. Merge this one with a real merge commit, not a squash -- squashing a `develop -> main` release breaks the shared history between the branches and causes spurious conflicts on the next release. Vercel deploys automatically on merge to `main`.
 
 ---
 
@@ -81,9 +85,9 @@ flowchart LR
 | Documentation | `docs/<description>` | `docs/architecture-mermaid-diagrams` |
 | Refactor | `refactor/<description>` | `refactor/extract-places-hook` |
 | Testing | `test/<description>` | `test/weather-route-unit-tests` |
-| Maintenance | `chore/<description>` | `chore/upgrade-next-14.2` |
+| Maintenance | `chore/<description>` | `chore/upgrade-dependencies` |
 
-All branches should be created from `main`.
+All `feature/*`/`fix/*`/`docs/*`/`refactor/*`/`test/*`/`chore/*` branches are created from `develop`, not `main`. Only a release PR (`develop` into `main`) targets `main` directly.
 
 ### 4.2 Commit Message Format
 
@@ -218,7 +222,7 @@ npm run test:unit
 npm audit --audit-level=high
 ```
 
-### 6.2 Backend Validation (if backend/ files changed)
+### 6.2 Backend Validation (if src/backend/ files changed)
 
 ```bash
 cd src/backend
@@ -303,6 +307,7 @@ If your change affects any of the following, update the corresponding document:
 - [ ] New environment variables documented in DEPLOYMENT.md
 - [ ] Mermaid diagrams updated where architecture changed
 - [ ] Solution plan updated if behavior/feature changed
+- [ ] If this PR writes an ADR, changes branch flow, or changes a directory structure/data model a doc describes: the relevant doc is updated in this same PR, not a follow-up (see ADR-0005)
 - [ ] Commit messages follow conventional format (enforced by commitlint hook)
 - [ ] PR template on GitHub is fully completed
 
@@ -366,7 +371,7 @@ cd Fit-Ready-IQ
 # Frontend setup
 cd src/frontend
 npm install  # Also installs Husky hooks automatically via the prepare script
-cp .env.example .env.local  # Copy from src/frontend/.env.example, then fill in API keys
+cp .env.example .env.local  # One file at the repo root, read by BOTH the Next app and the backend
 
 # Start development
 npm run dev

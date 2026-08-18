@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { authedFetch } from '@/lib/firebaseClient';
 import type { Route as RouteData, Mountain as MountainData, Campsite } from '@/lib/placesTypes';
 import { withinSearchRadius } from '@/lib/placesGeometry';
 import { normaliseDifficulty } from '@/lib/routeDifficulty';
@@ -152,6 +153,13 @@ async function fetchFirestoreCache(
   return null;
 }
 
+/**
+ * Warms the shared regional cache. Signed-in callers only — the route requires a
+ * Firebase ID token because everything written here is served to every other
+ * visitor in the cell. Signed out, `authedFetch` throws and we skip the write:
+ * the caller already has its results, so the only cost is that this region stays
+ * cold until a signed-in user visits it.
+ */
 function writeFirestoreCache(
   userCoords: [number, number],
   payload: {
@@ -161,7 +169,7 @@ function writeFirestoreCache(
     location: unknown;
   }
 ) {
-  fetch('/api/places/cache', {
+  authedFetch('/api/places/cache', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -171,7 +179,7 @@ function writeFirestoreCache(
       ...payload,
     }),
   }).catch(() => {
-    /* non-critical */
+    /* non-critical: not signed in, or the shared cache is unavailable */
   });
 }
 

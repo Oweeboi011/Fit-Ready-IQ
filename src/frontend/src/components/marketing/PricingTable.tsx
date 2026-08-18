@@ -26,7 +26,7 @@ export function PricingTable() {
         <div
           role="radiogroup"
           aria-label="Billing period"
-          className="inline-flex items-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.03] p-1"
+          className="inline-flex items-center gap-1 rounded-full border border-ink/[0.08] bg-ink/[0.03] p-1"
         >
           {/* A radiogroup is expected to be one tab stop with arrow keys between
               options; this rendered as two independent tab stops with none. */}
@@ -45,7 +45,10 @@ export function PricingTable() {
               }}
               className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
                 billing === option
-                  ? 'bg-white text-slate-900'
+                  ? // The selected pill inverts against the page, so both halves have
+                    // to flip with the theme: a literal `bg-white text-slate-900`
+                    // becomes white-on-white once slate inverts for light mode.
+                    'bg-ink text-slate-950'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -65,7 +68,7 @@ export function PricingTable() {
               className={`relative flex flex-col rounded-2xl border p-6 ${
                 plan.featured
                   ? 'border-blue-500/40 bg-blue-500/[0.04]'
-                  : 'border-white/[0.07] bg-white/[0.02]'
+                  : 'border-ink/[0.07] bg-ink/[0.02]'
               }`}
             >
               {plan.featured && (

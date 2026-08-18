@@ -101,10 +101,14 @@ This is the rule with the sharpest teeth, because breaking it leaks a credential
 than merely making the code ugly. Two tools cover it from different angles:
 
 **dependency-cruiser** (`server-only-modules`) stops anything outside `src/app/api/**`
-from importing `src/lib/firebaseAdmin.ts` or `src/lib/adminAuth.ts`. The former holds
-the Firebase service account; the latter holds the `ADMIN_EMAILS` allowlist, which is
-deliberately not a `NEXT_PUBLIC_` variable — shipping the list of admin addresses to
-every browser hands an attacker the exact accounts worth phishing.
+from importing `src/lib/firebaseAdmin.ts`, `src/lib/adminAuth.ts` or
+`src/lib/serverAuth.ts`. The first holds the Firebase service account. The second holds
+the `ADMIN_EMAILS` allowlist, which is deliberately not a `NEXT_PUBLIC_` variable —
+shipping the list of admin addresses to every browser hands an attacker the exact
+accounts worth phishing. The third verifies Firebase ID tokens, and is the only
+acceptable answer to "which user is this?" in a route handler: a `uid` taken from a
+request body is an unverified claim, and the Admin SDK bypasses Firestore rules, so a
+route that believes one will write into whichever user's collection it is told to.
 
 **ESLint** (`no-restricted-syntax`) stops client-reachable modules under
 `src/components/` and `src/lib/` from reading any `process.env` key that is not prefixed

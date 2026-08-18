@@ -30,7 +30,7 @@ const FEATURES = [
   {
     icon: Watch,
     title: 'Your training, wherever it already lives',
-    body: 'Connect Strava in two clicks, or drop in a GPX, TCX or Apple Health export. Nothing to re-log, nothing to re-enter.',
+    body: 'Connect Strava in two clicks, or drop in a GPX file or Apple Health export. Nothing to re-log, nothing to re-enter.',
   },
   {
     icon: CloudSun,
@@ -43,7 +43,7 @@ const STEPS = [
   {
     n: '01',
     title: 'Connect your training',
-    body: 'Strava, Garmin, COROS, Komoot or Apple Health. Takes about twenty seconds.',
+    body: 'Strava connects directly. Garmin, COROS and Komoot import by GPX file, and Apple Health by its export.',
   },
   {
     n: '02',
@@ -61,7 +61,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       {/* Nav */}
-      <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-slate-950/85 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-ink/[0.06] bg-slate-950/85 backdrop-blur">
         <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
           <Link
             href="/"
@@ -88,7 +88,7 @@ export default function LandingPage() {
           <div className="relative mx-auto max-w-4xl px-5 pb-20 pt-24 text-center sm:pt-32">
             <Link
               href="#how"
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-xs text-slate-300 transition-colors hover:border-white/20 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+              className="inline-flex items-center gap-2 rounded-full border border-ink/10 bg-ink/[0.03] px-3.5 py-1.5 text-xs text-slate-300 transition-colors hover:border-ink/20 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
             >
               <Sparkles aria-hidden="true" className="h-3.5 w-3.5 text-blue-400" />
               Readiness scoring is live for every route
@@ -118,14 +118,22 @@ export default function LandingPage() {
             </p>
           </div>
 
-          {/* Product preview — real UI, not a mockup image. */}
+          {/*
+            Product preview, built from the real components rather than a screenshot —
+            but the figures in it are illustrative, not a live score. It is labelled as
+            an example on the card itself for the same reason the app never renders a
+            number the data does not support.
+          */}
           <div className="relative mx-auto max-w-3xl px-5 pb-24">
-            <div className="rounded-2xl border border-white/[0.08] bg-slate-900/60 p-6 shadow-2xl shadow-blue-950/30 sm:p-8">
+            <div className="rounded-2xl border border-ink/[0.08] bg-slate-900/60 p-6 shadow-2xl shadow-blue-950/30 sm:p-8">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <Mountain aria-hidden="true" className="h-3.5 w-3.5" />
                     Summit route
+                    <span className="rounded-full border border-ink/10 bg-ink/[0.04] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-400">
+                      Example
+                    </span>
                   </div>
                   <p className="mt-1.5 text-lg font-semibold text-white">Mount Pulag · Ambangeg</p>
                   <p className="mt-0.5 text-sm text-slate-500">14.8 km · 1,180 m gain · 7–9 hrs</p>
@@ -143,12 +151,12 @@ export default function LandingPage() {
               <div
                 role="img"
                 aria-label="Example readiness score: 82 out of 100"
-                className="mt-6 h-1.5 overflow-hidden rounded-full bg-white/[0.06]"
+                className="mt-6 h-1.5 overflow-hidden rounded-full bg-ink/[0.06]"
               >
                 <div className="h-full w-[82%] rounded-full bg-gradient-to-r from-blue-500 to-emerald-400" />
               </div>
 
-              <dl className="mt-6 grid grid-cols-2 gap-4 border-t border-white/[0.06] pt-6 sm:grid-cols-4">
+              <dl className="mt-6 grid grid-cols-2 gap-4 border-t border-ink/[0.06] pt-6 sm:grid-cols-4">
                 {[
                   ['Weekly volume', '31 km'],
                   ['Elevation base', '1,940 m'],
@@ -168,7 +176,7 @@ export default function LandingPage() {
         </section>
 
         {/* Features */}
-        <section className="border-t border-white/[0.06] py-24">
+        <section className="border-t border-ink/[0.06] py-24">
           <div className="mx-auto max-w-6xl px-5">
             <h2 className="max-w-2xl text-balance text-3xl font-bold tracking-tight text-white sm:text-4xl">
               Difficulty ratings describe the trail. We describe you on it.
@@ -189,7 +197,7 @@ export default function LandingPage() {
         </section>
 
         {/* How it works */}
-        <section id="how" className="scroll-mt-16 border-t border-white/[0.06] py-24">
+        <section id="how" className="scroll-mt-16 border-t border-ink/[0.06] py-24">
           <div className="mx-auto max-w-6xl px-5">
             <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
               Three steps, then you know.
@@ -217,7 +225,7 @@ export default function LandingPage() {
         </section>
 
         {/* Pricing */}
-        <section id="pricing" className="scroll-mt-16 border-t border-white/[0.06] py-24">
+        <section id="pricing" className="scroll-mt-16 border-t border-ink/[0.06] py-24">
           <div className="mx-auto max-w-6xl px-5">
             <div className="mx-auto max-w-2xl text-center">
               <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
@@ -236,7 +244,7 @@ export default function LandingPage() {
         </section>
 
         {/* Closing CTA */}
-        <section className="border-t border-white/[0.06] py-24">
+        <section className="border-t border-ink/[0.06] py-24">
           <div className="mx-auto max-w-2xl px-5 text-center">
             <Route aria-hidden="true" className="mx-auto h-7 w-7 text-blue-400" />
             <h2 className="mt-6 text-balance text-3xl font-bold tracking-tight text-white sm:text-4xl">
@@ -252,7 +260,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t border-white/[0.06] py-10">
+      <footer className="border-t border-ink/[0.06] py-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 text-xs text-slate-500 sm:flex-row">
           {/* This page is statically prerendered, so `new Date()` here would be
               the build date — the copyright froze at whenever we last deployed.

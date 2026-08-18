@@ -12,7 +12,7 @@ by attention decays at exactly the rate attention does, and the failure is silen
 We decided to sort every design rule into **Gated** (a tool fails the build), **Reviewed**
 (a human checklist item) or **Advisory** (reported, not blocking), with a deliberate bias
 toward Gated, and to wire the Gated ones into CI. `dependency-cruiser`
-(`frontend/.dependency-cruiser.cjs`) now holds the layering, forbids circular imports, and
+(`src/frontend/.dependency-cruiser.cjs`) now holds the layering, forbids circular imports, and
 stops anything outside `src/app/api/**` from importing `firebaseAdmin.ts` or
 `adminAuth.ts`. An ESLint `no-restricted-syntax` selector covers the same credential
 boundary from the other side, refusing any non-`NEXT_PUBLIC_` `process.env` read in a

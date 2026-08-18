@@ -1,7 +1,8 @@
 import dynamic from 'next/dynamic';
+import { useMemo } from 'react';
 import { MapDirections, type DirectionsTarget } from '@/components/MapDirections';
 import { RoutePlanner } from '@/components/RoutePlanner';
-import type { PlannerRoute } from '@/lib/usePlannerRoute';
+import type { PlannerRoute, PlannerTravelMode } from '@/lib/usePlannerRoute';
 import type { PlannerWaypoint } from '@/lib/gpxBuilder';
 import type { Advisory } from '@/lib/advisories';
 import type { MapLayer } from '@/lib/mapLayers';
@@ -38,6 +39,8 @@ interface MapCanvasProps {
   onRemoveWaypoint: (id: string) => void;
   onMoveWaypoint: (id: string, direction: -1 | 1) => void;
   plannerRoute: PlannerRoute;
+  plannerTravelMode: PlannerTravelMode;
+  onPlannerTravelModeChange: (mode: PlannerTravelMode) => void;
   onClearPlanner: () => void;
   onLoadPlan: (waypoints: PlannerWaypoint[]) => void;
   onMapClick: ((coordinates: [number, number], name?: string) => void) | undefined;
@@ -74,6 +77,8 @@ export default function MapCanvas({
   onRemoveWaypoint,
   onMoveWaypoint,
   plannerRoute,
+  plannerTravelMode,
+  onPlannerTravelModeChange,
   onClearPlanner,
   onLoadPlan,
   onMapClick,
@@ -97,6 +102,22 @@ export default function MapCanvas({
   onFocusUserLocation,
   activityPolylines,
 }: MapCanvasProps) {
+  /**
+   * Stable `[lng, lat]` tuple.
+   *
+   * Built inline, this allocated a new array on every render, so any effect in
+   * MapView keyed on it fired constantly — which is how adding a planner
+   * waypoint used to snap the camera back to the user's location. MapView now
+   * compares the coordinates rather than the array, and this keeps the prop from
+   * churning in the first place.
+   */
+  const lng = userLocation?.lng;
+  const lat = userLocation?.lat;
+  const userLocationTuple = useMemo<[number, number] | undefined>(
+    () => (lng == null || lat == null ? undefined : [lng, lat]),
+    [lng, lat]
+  );
+
   return (
     <>
       <MapDirections
@@ -113,6 +134,8 @@ export default function MapCanvas({
         onRemove={onRemoveWaypoint}
         onMove={onMoveWaypoint}
         route={plannerRoute}
+        travelMode={plannerTravelMode}
+        onTravelModeChange={onPlannerTravelModeChange}
         onClear={onClearPlanner}
         onLoadPlan={(waypoints) => {
           onLoadPlan(waypoints);
@@ -131,6 +154,7 @@ export default function MapCanvas({
         onMapReady={onMapReady}
         plannerWaypoints={plannerWaypoints}
         plannerPath={plannerRoute.path}
+        plannerRouteStatus={plannerRoute.status}
         onMapClick={onMapClick}
         showLegend={showLegend}
         showNativeControls={showNativeControls}
@@ -146,7 +170,7 @@ export default function MapCanvas({
         mountains={mountains}
         campsites={campsites}
         savedPlaces={savedPlaces}
-        userLocation={userLocation ? [userLocation.lng, userLocation.lat] : undefined}
+        userLocation={userLocationTuple}
         hasPreciseLocation={hasPreciseLocation}
         isLoaded={isLoaded}
         loadError={loadError}

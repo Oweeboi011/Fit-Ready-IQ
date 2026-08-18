@@ -15,14 +15,14 @@ flowchart TD
     Start["Issue Observed"] --> Q1{Where does it occur?}
 
     Q1 -->|Local dev only| Local["Section 3: Build & Dev Issues"]
-    Q1 -->|Production only| Prod["Section 8: Deployment Issues"]
+    Q1 -->|Production only| Prod["Section 9: Deployment Issues"]
     Q1 -->|Both| Feature{Which feature?}
 
     Feature -->|Map not loading| Maps["Section 4: Google Maps Issues"]
     Feature -->|Chat not working| Chat["Section 5: Chat Assistant Issues"]
     Feature -->|Firebase errors| FB["Section 6: Firebase Issues"]
-    Feature -->|Strava errors| Strava["Section 7: Strava Issues"]
-    Feature -->|Weather errors| Weather["Section 9: Weather API Issues"]
+    Feature -->|Strava errors| Strava["Section 8: Strava Issues"]
+    Feature -->|Weather errors| Weather["Section 10: Weather API Issues"]
 ```
 
 ---
@@ -241,10 +241,12 @@ flowchart TD
 **Cause:** The authorized domains list in Firebase Auth does not include the current domain.
 
 **Diagnostic Flow:**
-```
-Browser console shows:
-  "auth/unauthorized-domain" or
-  "auth/popup-closed-by-user"
+
+```mermaid
+flowchart TD
+    A["Browser console shows an error"] --> B{"Which error?"}
+    B -->|"auth/unauthorized-domain"| C["Domain not in Firebase Auth's authorized list"]
+    B -->|"auth/popup-closed-by-user"| D["User closed the popup before completing sign-in"]
 ```
 
 **Fix:**
@@ -286,7 +288,7 @@ Browser console shows:
 
 **Cause:** ChatBot FAB used invalid Tailwind classes (`h-13`, `w-13`) or `relative` overriding `fixed` position.
 This was fixed in the current version -- `h-12 w-12` and `right-5` are now set correctly on the FAB.
-If the button is missing, clear the Next.js build cache: `rm -rf frontend/.next && npm run build`
+If the button is missing, clear the Next.js build cache: `rm -rf src/frontend/.next && npm run build`
 
 ---
 
@@ -312,7 +314,7 @@ flowchart TD
 2. Verify `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` are set correctly
 3. Check that `/auth/callback/strava` page correctly extracts the `code` query parameter
 
-### 7.2 Activities Endpoint Returns 401
+### 8.2 Activities Endpoint Returns 401
 
 **Causes:**
 - Access token has expired (Strava tokens expire after 6 hours)
@@ -322,7 +324,7 @@ flowchart TD
 1. Re-connect Strava (triggers new OAuth flow for fresh token)
 2. Phase 3 will add automatic token refresh via server-managed lifecycle
 
-### 7.3 Activities List is Empty
+### 8.3 Activities List is Empty
 
 **Causes:**
 - User has no public activities on Strava
@@ -334,11 +336,21 @@ flowchart TD
 2. Check if user has activities visible in Strava app
 3. Try requesting page=1 explicitly
 
+### 8.4 Strava Sync Crashes Instead of Returning an Error
+
+**Cause:** `POST /api/strava/sync` (`src/frontend/src/app/api/strava/sync/route.ts`) called `getFirestoreAdmin()` directly, with no try/catch around it — the only Firestore-backed route in the codebase that didn't guard this call. When Firebase Admin credentials are missing or misconfigured (no `FIREBASE_PROJECT_ID` set), the call threw synchronously and crashed the whole request handler with an unhandled exception surfaced as:
+
+```
+FIREBASE_PROJECT_ID is required for Firebase integration.
+```
+
+**Fix:** Already fixed — the route now wraps the `getFirestoreAdmin()` call in a try/catch and returns a clean `500 { error: 'Firestore unavailable' }` instead of crashing, matching every other Firestore-backed route's pattern. If you still see a raw stack trace rather than a JSON error body from this endpoint, you're on a version of the route that predates this fix; pull the latest `main`.
+
 ---
 
-## 8. Deployment Issues
+## 9. Deployment Issues
 
-### 8.1 Vercel Build Fails
+### 9.1 Vercel Build Fails
 
 **Diagnostic Flow:**
 
@@ -351,7 +363,7 @@ flowchart TD
     B -->|Timeout| F["Build exceeds 45min limit<br/>(unusual -- check dependencies)"]
 ```
 
-### 8.2 Vercel Deployment Succeeds but APIs Fail
+### 9.2 Vercel Deployment Succeeds but APIs Fail
 
 **Causes:**
 - Environment variables not set for the correct scope (Production vs Preview)
@@ -364,7 +376,7 @@ flowchart TD
 3. Verify routes have `export const runtime = 'nodejs'` where Firebase Admin is used
 4. Check Vercel function logs for initialization errors
 
-### 8.3 Preview Deployment Works but Production Doesn't
+### 9.3 Preview Deployment Works but Production Doesn't
 
 **Cause:** Environment variables are scoped to Preview only, not Production.
 
@@ -372,24 +384,22 @@ flowchart TD
 
 ---
 
-## 9. Weather API Issues (Phase 1)
+## 10. Weather API Issues
 
-### 9.1 Weather Data Not Loading
+### 10.1 Weather Data Not Loading
 
 **Diagnostic Flow:**
 
 ```mermaid
 flowchart TD
-    A["Weather not loading"] --> B{API route exists?}
-    B -->|No| C["Phase 1 not yet implemented"]
-    B -->|Yes| D{GOOGLE_WEATHER_API_KEY set?}
-    D -->|No| E["Set key in environment"]
-    D -->|Yes| F{Weather API enabled in Cloud Console?}
+    A["Weather not loading"] --> B{"GOOGLE_WEATHER_API_KEY or<br/>OPENWEATHER_API_KEY set?"}
+    B -->|No| C["Set at least one key in environment"]
+    B -->|Yes| F{"Weather API enabled in Cloud Console?"}
     F -->|No| G["Enable Weather API"]
     F -->|Yes| H["Check Firestore weather_cache<br/>for error documents"]
 ```
 
-### 9.2 Weather Shows Stale Data
+### 10.2 Weather Shows Stale Data
 
 **Cause:** Firestore TTL cache has not expired (default 60 minutes).
 
@@ -398,7 +408,7 @@ flowchart TD
 2. Refresh the page to trigger a new API call
 3. To reduce staleness, lower the TTL value in the weather route configuration
 
-### 9.3 Weather Alerts Not Showing
+### 10.3 Weather Alerts Not Showing
 
 **Causes:**
 - `persona` query parameter not passed
@@ -408,9 +418,9 @@ flowchart TD
 
 ---
 
-## 10. Performance Issues
+## 11. Performance Issues
 
-### 10.1 Slow Initial Page Load
+### 11.1 Slow Initial Page Load
 
 **Causes:**
 - Large JavaScript bundle (DetailsModal is heavy)
@@ -427,7 +437,7 @@ flowchart TD
 - Deduplicate Places API calls
 - Memoize Google Maps service instances
 
-### 10.2 Elevation Profile Slow to Render
+### 11.2 Elevation Profile Slow to Render
 
 **Cause:** Elevation API batch for many points takes time.
 
@@ -437,9 +447,9 @@ flowchart TD
 
 ---
 
-## 11. Useful Validation Commands
+## 12. Useful Validation Commands
 
-### 11.1 Local Development Commands
+### 12.1 Local Development Commands
 
 ```bash
 cd src/frontend
@@ -460,7 +470,7 @@ npm audit --audit-level=high
 npm outdated
 ```
 
-### 11.2 Runtime Endpoint Validation
+### 12.2 Runtime Endpoint Validation
 
 | Endpoint | Method | Expected Success |
 | --- | --- | --- |
@@ -468,9 +478,9 @@ npm outdated
 | `/api/integrations/firebase` | GET | `{ "connected": true }` |
 | `/api/chat` | POST | `{ "message": "...", "sessionId": "..." }` |
 | `/api/strava/exchange` | POST | Token payload (requires valid code) |
-| `/api/weather?lat=14.5&lng=121.0` | GET | Forecast JSON (Phase 1) |
+| `/api/weather?lat=14.5&lng=121.0` | GET | Forecast JSON |
 
-### 11.3 PowerShell Diagnostic Commands
+### 12.3 PowerShell Diagnostic Commands
 
 ```powershell
 # Check if port is in use
@@ -491,7 +501,7 @@ npm --version
 
 ---
 
-## 12. Getting Help
+## 13. Getting Help
 
 If an issue is not covered in this guide:
 

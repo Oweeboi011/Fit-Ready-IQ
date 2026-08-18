@@ -29,7 +29,7 @@ export default function CampsitesTabPanel({
 
   if (list.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-white/10 px-4 py-10 text-center">
+      <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-ink/10 px-4 py-10 text-center">
         <Tent aria-hidden="true" className="h-6 w-6 text-slate-600" />
         <p className="text-xs font-medium text-slate-400">
           {searchQuery ? `No campsites match “${searchQuery}”` : 'No campsites found near here'}

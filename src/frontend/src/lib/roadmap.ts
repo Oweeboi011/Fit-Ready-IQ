@@ -127,10 +127,10 @@ export const ROADMAP: RoadmapPhase[] = [
         detail: 'Plans persist on the device and reload with their waypoints and name.',
       },
       {
-        title: 'Walking-path routing',
+        title: 'Walking and cycling routing',
         status: 'partial',
         detail:
-          'Routes snap to mapped paths via Directions. Unmapped trails fall back to a straight line, labelled as such.',
+          'Plan on foot or by bike; the line and the distance come from the router for that mode. Where no route exists the planner says so rather than drawing a straight line.',
       },
       {
         title: 'Plans synced to an account',
@@ -166,6 +166,43 @@ export const ROADMAP: RoadmapPhase[] = [
         status: 'done',
         detail:
           'Routes are scored against the last eight weeks of training, gated by the limiting factor so the answer names what to train.',
+      },
+      {
+        title: 'A weather window, not just conditions',
+        status: 'done',
+        detail:
+          'The forecast now answers when to go: the soonest span long enough for the route, scoped to its length rather than to the map pin.',
+      },
+    ],
+  },
+  {
+    id: 'record',
+    title: 'Make the effort add up',
+    goal: 'Reward the person who keeps going, and point them at what is next.',
+    items: [
+      {
+        title: 'Routes you are ready for',
+        status: 'done',
+        detail:
+          'Readiness asked the other way round: the biggest route you can finish now, and the stretch band just beyond it, above the list.',
+      },
+      {
+        title: 'A record that accumulates',
+        status: 'done',
+        detail:
+          'Year-to-date distance and climb, lifetime totals, personal bests, and lifetime ascent expressed in Everests.',
+      },
+      {
+        title: 'Installable on a phone',
+        status: 'partial',
+        detail:
+          'A manifest, icons and standalone display make it installable. It still needs the network — offline support is scoped to a Trip, which does not exist yet.',
+      },
+      {
+        title: 'Trip, check-in and the safety timer',
+        status: 'pending',
+        detail:
+          'The decided spine (ADR-0003): a trip you can file, an expected return, and a server that tells your contact if you do not check in. Not started.',
       },
     ],
   },
@@ -217,7 +254,7 @@ export const RECOMMENDATIONS: RoadmapNote[] = [
   },
   {
     title: 'Add a trail data source',
-    body: 'OpenStreetMap trail geometry would fix routing, distance and elevation profiles in one move, and remove the straight-line caveat from the planner.',
+    body: 'OpenStreetMap trail geometry would fix routing, distance and elevation profiles in one move. The planner now refuses to guess when the router cannot join two points, so on unmapped trails it correctly shows nothing — trail data is what would let it show something true instead.',
   },
   {
     title: 'Instrument before optimising',
