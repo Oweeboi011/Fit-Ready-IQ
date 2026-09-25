@@ -51,6 +51,29 @@ export const USER_OWNED_COLLECTIONS = [
  */
 export const USER_OWNED_TREE_COLLECTIONS = ['chat_sessions'] as const;
 
+/**
+ * Shared documents that are not the user's content but are stamped with the uid
+ * of whoever wrote them.
+ *
+ * `places_cache` holds Google Places results for a grid cell, served to every
+ * visitor in it, with `written_by` naming the account that filled it so a
+ * poisoned region can be traced. That stamp is personal data about the writer,
+ * so erasure deletes the cells they wrote — it is a 24-hour cache that the next
+ * visitor refills, so removing a cell costs one set of live lookups. They are
+ * left out of the export: the content is Google's data about places, not
+ * anything the person provided, and the only thing about them in it is the uid
+ * the export is already addressed to.
+ */
+export const USER_ATTRIBUTED_DOCUMENTS = [
+  { collection: 'places_cache', field: 'written_by' },
+] as const;
+
+/** Stated in every export, alongside what is retained on deletion. */
+export const ATTRIBUTED_NOT_EXPORTED =
+  'places_cache cells you filled carry your uid as written_by. They hold shared ' +
+  'Google Places results rather than your data, so they are not exported; they ' +
+  'are deleted with your account.';
+
 export type UserSubcollection = (typeof USER_SUBCOLLECTIONS)[number];
 export type UserOwnedCollection = (typeof USER_OWNED_COLLECTIONS)[number];
 export type UserOwnedTreeCollection = (typeof USER_OWNED_TREE_COLLECTIONS)[number];
@@ -71,9 +94,6 @@ export const RETAINED_ON_DELETE: Record<string, string> = {
     'Keyed on a hash of the uid or client IP — an HMAC under RATE_LIMIT_SALT ' +
     'when that is set, a plain SHA-256 when it is not — and holding only a ' +
     'counter. Self-expires within two windows (two hours) via TTL.',
-  places_cache:
-    'Regional and shared, derived from Google Places rather than from the user. ' +
-    'Contains no user identifiers.',
 };
 
 /**

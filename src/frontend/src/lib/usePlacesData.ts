@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { authedFetch } from '@/lib/firebaseClient';
 import type { Route as RouteData, Mountain as MountainData, Campsite } from '@/lib/placesTypes';
+import { PLACES_CACHE_VERSION } from '@/lib/placesCacheSchema';
 import { withinSearchRadius } from '@/lib/placesGeometry';
 import { normaliseDifficulty } from '@/lib/routeDifficulty';
 import {
@@ -18,21 +19,6 @@ export const COLLECTION_LABELS: Record<CollectionName, string> = {
   campsites: 'campsites',
 };
 
-/**
- * Schema version for cached place payloads.
- *
- * Both cache tiers store whole `Route`/`Mountain`/`Campsite` objects, so a
- * change to what a field *means* silently keeps serving the old meaning until
- * the entry expires — and the Firestore tier is shared, so one stale entry
- * feeds every visitor to that region for 24 hours. That is how a hardcoded
- * "50 m" elevation floor kept appearing long after the code that produced it
- * was deleted.
- *
- * Bump this whenever the shape or the semantics of a cached field change.
- *
- * v2 — elevation may be null, difficulty derived from terrain not star rating.
- */
-const PLACES_CACHE_VERSION = 2;
 const SESSION_CACHE_KEY = 'fri_places_cache';
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const GEO_TTL_MS = 24 * 60 * 60 * 1000;
@@ -166,7 +152,6 @@ function writeFirestoreCache(
     routes: RouteData[];
     mountains: MountainData[];
     campsites: Campsite[];
-    location: unknown;
   }
 ) {
   authedFetch('/api/places/cache', {
@@ -347,7 +332,6 @@ export function usePlacesData({
           routes,
           mountains,
           campsites,
-          location: resolvedLocation,
         });
       } catch (err) {
         console.error('Places pipeline failed:', err);

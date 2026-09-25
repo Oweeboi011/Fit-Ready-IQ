@@ -73,6 +73,35 @@ jobs:
           path: src/frontend/coverage/
           retention-days: 7
 
+  # Security rules are the one layer the Admin SDK routes never pass through,
+  # so no other test can catch a mistake in them. Runs firestore.rules against
+  # the emulator (which needs Java). Add "Firestore Rules" to the required
+  # checks on main and develop once it has a green run.
+  firestore-rules:
+    name: Firestore Rules
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - run: npm ci
+
+      - name: Rules tests
+        run: npm run test:rules
+
   backend:
     name: Backend Quality
     runs-on: ubuntu-latest

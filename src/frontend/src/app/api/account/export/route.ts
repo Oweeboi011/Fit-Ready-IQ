@@ -12,6 +12,7 @@ import { rateLimit, tooManyRequests } from '@/lib/rateLimit';
 import { ACCOUNT_EXPORT_RATE_LIMIT } from '@/lib/rateLimitRules';
 import { requireUser } from '@/lib/serverAuth';
 import {
+  ATTRIBUTED_NOT_EXPORTED,
   RETAINED_ON_DELETE,
   UNATTRIBUTED_LEGACY_DATA,
   USER_OWNED_COLLECTIONS,
@@ -155,6 +156,7 @@ export async function GET(request: Request) {
         // answered by what we hold *and* by what we do not.
         notes: {
           notIncluded: RETAINED_ON_DELETE,
+          attributedSharedData: ATTRIBUTED_NOT_EXPORTED,
           legacyChatTranscripts: UNATTRIBUTED_LEGACY_DATA,
         },
       },

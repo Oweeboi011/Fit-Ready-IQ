@@ -47,6 +47,10 @@ env/
 # Node.js
 node_modules/
 npm-debug.log*
+# Firebase emulator logs (npm run test:rules)
+firestore-debug.log
+ui-debug.log
+firebase-debug.log
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*

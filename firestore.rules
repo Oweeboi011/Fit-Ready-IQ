@@ -33,19 +33,66 @@ service cloud.firestore {
       return ownsExisting() && ownsIncoming();
     }
 
+    // Helpers for validating an incoming document's optional fields.
+    function optionalNumber(d, key) {
+      return !(key in d) || d[key] == null || d[key] is number;
+    }
+
+    function optionalString(d, key, maxLen) {
+      return !(key in d) || (d[key] is string && d[key].size() <= maxLen);
+    }
+
+    // A bookmark exactly as useSavedPlaces.ts writes it (`toFirestoreFields`
+    // plus a server timestamp), and nothing else. This rule used to be
+    // `isOwner` alone, so the browser could store any fields of any size under
+    // any id — the product's cheapest route to unbounded storage cost.
+    function isValidSavedPlace(placeId) {
+      let d = request.resource.data;
+      return placeId.size() <= 128
+        && d.keys().hasAll(['type', 'name', 'coordinates', 'savedAt'])
+        && d.keys().hasOnly([
+             'type', 'name', 'coordinates', 'savedAt',
+             'elevation_m', 'prominence_m', 'difficulty', 'activity_type',
+             'distance_km', 'elevation_gain_m', 'mountain_type', 'rating',
+             'photos', 'place_id'
+           ])
+        && d.type in ['route', 'mountain', 'campsite']
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 200
+        && d.coordinates is list && d.coordinates.size() == 2
+        && d.coordinates[0] is number && d.coordinates[1] is number
+        && d.savedAt == request.time
+        && optionalNumber(d, 'elevation_m')
+        && optionalNumber(d, 'prominence_m')
+        && optionalNumber(d, 'distance_km')
+        && optionalNumber(d, 'elevation_gain_m')
+        && optionalNumber(d, 'rating')
+        && optionalString(d, 'difficulty', 40)
+        && optionalString(d, 'activity_type', 40)
+        && optionalString(d, 'mountain_type', 40)
+        && optionalString(d, 'place_id', 512)
+        && (!('photos' in d) || (d.photos is list && d.photos.size() <= 10));
+    }
+
     // Users collection
     //
     // Rules do NOT cascade into subcollections: `match /users/{userId}` governs
     // the user document alone. Every subcollection needs its own match block, or
     // it falls through to the default deny — which is what happened to
     // saved_places, silently breaking every bookmark in the product.
+    //
+    // The user document itself is written only by the server (Admin SDK) —
+    // the browser never writes it. Owner writes used to be allowed, which let a
+    // user forge the `strava_sync` manifest that /api/strava/sync keeps there
+    // and that the admin sync dashboard trusts.
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read: if isOwner(userId);
+      allow write: if false; // Admin SDK only
 
       // Bookmarked routes, peaks and campsites. Written directly by the browser
       // via useSavedPlaces.ts, so this is the rule that has to allow it.
       match /saved_places/{placeId} {
-        allow read, write: if isOwner(userId);
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidSavedPlace(placeId);
       }
 
       // Strava historical activities synced server-side via Admin SDK
@@ -69,12 +116,18 @@ service cloud.firestore {
       allow write: if false; // backend service account only
     }
 
-    // Places cache — shared regional cache for Google Maps results
-    // Public read so unauthenticated users benefit from cached data
-    // Writes are restricted to the backend service account (via Admin SDK)
+    // Places cache — shared regional cache for Google Maps results.
+    //
+    // Closed to clients in both directions. Visitors reach it through
+    // /api/places/cache, which reads with the Admin SDK and is rate limited.
+    // Public read (what this used to be) let anyone page through the whole
+    // collection with the client SDK — unmetered, bypassing that limit, and
+    // exposing `written_by` uids alongside cached Google content.
+    //
+    // Entries carry `expiresAt`, deleted by the TTL policy declared in
+    // firestore.indexes.json.
     match /places_cache/{gridKey} {
-      allow read: if true;
-      allow write: if false; // backend Admin SDK only
+      allow read, write: if false; // Admin SDK only
     }
 
     // Rate-limit counters — written only by the Admin SDK from route handlers.

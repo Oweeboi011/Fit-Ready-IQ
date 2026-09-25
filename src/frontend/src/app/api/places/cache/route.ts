@@ -4,6 +4,13 @@ import { getFirestoreAdmin, isFirebaseAdminConfigured } from '@/lib/firebaseAdmi
 import { rateLimit, tooManyRequests } from '@/lib/rateLimit';
 import { PLACES_CACHE_READ_RATE_LIMIT, PLACES_CACHE_WRITE_RATE_LIMIT } from '@/lib/rateLimitRules';
 import { requireUser } from '@/lib/serverAuth';
+import {
+  PLACES_CACHE_VERSION,
+  parseCampsite,
+  parseList,
+  parseMountain,
+  parseRoute,
+} from '@/lib/placesCacheSchema';
 
 export const runtime = 'nodejs';
 
@@ -14,8 +21,14 @@ export const runtime = 'nodejs';
  * within a region share the same cached result set.
  *
  * TTL: 24 hours. After that the client falls through to live API calls.
+ *
+ * Entries carry `expiresAt` so a Firestore TTL policy (firestore.indexes.json)
+ * deletes them. Freshness used to be checked only on read, which kept stale
+ * cells from being served but never removed one — the collection grew by a
+ * document for every half-degree cell anyone ever opened the map in.
  */
 const CACHE_TTL_HOURS = 24;
+const CACHE_TTL_MS = CACHE_TTL_HOURS * 3_600_000;
 const COLLECTION = 'places_cache';
 
 /**
@@ -60,7 +73,9 @@ export async function GET(request: NextRequest) {
   const lat = parseFloat(searchParams.get('lat') ?? '');
   const lng = parseFloat(searchParams.get('lng') ?? '');
 
-  if (isNaN(lat) || isNaN(lng)) {
+  // Not just NaN: `parseFloat('Infinity')` is a number, and would look up a
+  // cell called "Infinity_0" on every such request.
+  if (!isValidCoordinate(lat, lng)) {
     return NextResponse.json({ error: 'lat and lng required' }, { status: 400 });
   }
 
@@ -93,7 +108,9 @@ export async function GET(request: NextRequest) {
       routes: data.routes,
       mountains: data.mountains,
       campsites: data.campsites,
-      location: data.location,
+      // No `location`. Entries used to carry the writer's own position and
+      // reverse-geocoded address, returned here to anyone who asked about the
+      // cell — and no client ever read it back.
       ts: data.ts,
     });
   } catch (err) {
@@ -104,27 +121,9 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Ceilings on a single cache entry.
- *
- * A grid cell holds one region's discovery results — a few dozen of each kind.
- * The caps are far above any honest payload and exist so one request cannot
- * park megabytes in a document every visitor to that region then downloads.
- */
-const MAX_ITEMS_PER_KIND = 200;
-
-/** Rejects anything that is not an array of plain objects within the cap. */
-function isPlaceList(value: unknown): value is Record<string, unknown>[] {
-  return (
-    Array.isArray(value) &&
-    value.length <= MAX_ITEMS_PER_KIND &&
-    value.every((item) => typeof item === 'object' && item !== null && !Array.isArray(item))
-  );
-}
-
-/**
  * POST /api/places/cache
  * Header: `Authorization: Bearer <firebaseIdToken>`
- * Body: { v, lat, lng, routes, mountains, campsites, location }
+ * Body: { v, lat, lng, routes, mountains, campsites }
  * Writes to Firestore. Called after a successful live fetch.
  *
  * Signed-in callers only. `places_cache` is world-readable and shared by every
@@ -135,6 +134,12 @@ function isPlaceList(value: unknown): value is Record<string, unknown>[] {
  * identifiable and revocable, and it takes the attack off the open internet.
  *
  * Anonymous visitors still *read* the cache; they simply no longer fill it.
+ *
+ * Every item is rebuilt through `lib/placesCacheSchema.ts`, so only fields the
+ * app writes, with plausible values, are stored. And while a cell is fresh only
+ * the account that filled it may refresh it (409 for anyone else): the old
+ * unconditional `set` let any account overwrite any region at will, and one
+ * account could rewrite dozens of cells an hour.
  */
 export async function POST(request: NextRequest) {
   const log = createLogger('/api/places/cache', request);
@@ -147,13 +152,12 @@ export async function POST(request: NextRequest) {
   if (!limit.ok) return tooManyRequests(limit);
 
   let body: {
-    v?: number;
-    lat: number;
-    lng: number;
+    v?: unknown;
+    lat: unknown;
+    lng: unknown;
     routes: unknown;
     mountains: unknown;
     campsites: unknown;
-    location: unknown;
   };
 
   try {
@@ -162,7 +166,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { v, lat, lng, routes, mountains, campsites, location } = body;
+  const { v, lat, lng } = body;
 
   if (!isValidCoordinate(lat, lng)) {
     return NextResponse.json(
@@ -171,9 +175,20 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!isPlaceList(routes) || !isPlaceList(mountains) || !isPlaceList(campsites)) {
+  if (v !== PLACES_CACHE_VERSION) {
+    return NextResponse.json({ error: 'Unsupported cache version' }, { status: 400 });
+  }
+
+  const routes = parseList(body.routes, parseRoute);
+  const mountains = parseList(body.mountains, parseMountain);
+  const campsites = parseList(body.campsites, parseCampsite);
+
+  if (!routes || !mountains || !campsites) {
     return NextResponse.json(
-      { error: 'routes, mountains and campsites must each be an array of at most 200 objects' },
+      {
+        error:
+          'routes, mountains and campsites must each be an array of at most 200 well-formed places',
+      },
       { status: 400 }
     );
   }
@@ -189,20 +204,39 @@ export async function POST(request: NextRequest) {
 
   try {
     const db = getFirestoreAdmin();
-    await db
-      .collection(COLLECTION)
-      .doc(gridKey(lat, lng))
-      .set({
-        v: v ?? 1,
+    // `isValidCoordinate` checked both; its type guard can only narrow one.
+    const ref = db.collection(COLLECTION).doc(gridKey(lat, lng as number));
+    const uid = auth.user.uid;
+
+    const outcome = await db.runTransaction(async (tx) => {
+      const existing = await tx.get(ref);
+      const current = existing.data();
+      const fresh =
+        existing.exists && Date.now() - new Date(current?.ts as string).getTime() < CACHE_TTL_MS;
+
+      // First writer wins while the entry is fresh. Honest clients only write
+      // after a miss, so a refusal here costs a legitimate user nothing.
+      if (fresh && current?.written_by !== uid) return 'held' as const;
+
+      const now = Date.now();
+      tx.set(ref, {
+        v,
         routes,
         mountains,
         campsites,
-        location,
-        ts: new Date().toISOString(),
-        // Who filled this cell. Nobody reads it in the app; it is here so a
-        // poisoned region can be traced to an account and that account cut off.
-        written_by: auth.user.uid,
+        ts: new Date(now).toISOString(),
+        expiresAt: new Date(now + CACHE_TTL_MS),
+        // Who filled this cell, so a poisoned region can be traced to an
+        // account and that account cut off. Erased with the account — see
+        // USER_ATTRIBUTED_DOCUMENTS in lib/userDataFootprint.ts.
+        written_by: uid,
       });
+      return 'written' as const;
+    });
+
+    if (outcome === 'held') {
+      return NextResponse.json({ ok: false, reason: 'fresh_entry_exists' }, { status: 409 });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
