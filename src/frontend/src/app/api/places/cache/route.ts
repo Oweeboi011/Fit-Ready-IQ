@@ -51,7 +51,9 @@ export async function GET(request: NextRequest) {
   // Public and cheap per call, but the grid is enumerable: 0.5° cells over a
   // country is a few thousand requests, and without a ceiling our shared cache
   // is a free bulk export of the Places data we paid to assemble.
-  const limit = await rateLimit(request, PLACES_CACHE_READ_RATE_LIMIT);
+  // Explicitly anonymous (`null`): reads never authenticate, so the budget is
+  // per IP. Only the POST below has a verified caller to charge.
+  const limit = await rateLimit(request, PLACES_CACHE_READ_RATE_LIMIT, null);
   if (!limit.ok) return tooManyRequests(limit);
 
   const { searchParams } = new URL(request.url);
@@ -141,7 +143,7 @@ export async function POST(request: NextRequest) {
 
   // Identity makes a poisoner revocable; the limit bounds how much one
   // authenticated account can rewrite before anyone notices.
-  const limit = await rateLimit(request, PLACES_CACHE_WRITE_RATE_LIMIT);
+  const limit = await rateLimit(request, PLACES_CACHE_WRITE_RATE_LIMIT, auth.user);
   if (!limit.ok) return tooManyRequests(limit);
 
   let body: {

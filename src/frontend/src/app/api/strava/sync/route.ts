@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
   // One call fans out into ten Strava round trips and up to 300 Firestore
   // writes, which makes this the largest amplification factor in the product:
   // the client self-limits to once an hour, so six is retries and nothing more.
-  const limit = await rateLimit(request, STRAVA_SYNC_RATE_LIMIT);
+  const limit = await rateLimit(request, STRAVA_SYNC_RATE_LIMIT, auth.user);
   if (!limit.ok) return tooManyRequests(limit);
 
   // No token in the body any more: it lives server-side, keyed to the verified

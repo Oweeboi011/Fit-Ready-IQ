@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
   const auth = await requireUser(request);
   if (!auth.ok) return auth.response;
 
-  const limit = await rateLimit(request, STRAVA_EXCHANGE_RATE_LIMIT);
+  const limit = await rateLimit(request, STRAVA_EXCHANGE_RATE_LIMIT, auth.user);
   if (!limit.ok) return tooManyRequests(limit);
 
   const clientId = process.env.STRAVA_CLIENT_ID;

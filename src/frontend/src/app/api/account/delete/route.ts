@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   if (!auth.ok) return auth.response;
   const { uid } = auth.user;
 
-  const limit = await rateLimit(request, ACCOUNT_DELETE_RATE_LIMIT);
+  const limit = await rateLimit(request, ACCOUNT_DELETE_RATE_LIMIT, auth.user);
   if (!limit.ok) return tooManyRequests(limit);
 
   // An explicit confirmation string, so that a stray POST — a retried request,

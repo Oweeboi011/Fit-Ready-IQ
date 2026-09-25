@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Bot, User, Loader2, Sparkles, Minimize2 } from 'lucide-react';
 
+import { optionallyAuthedFetch } from '@/lib/firebaseClient';
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -113,7 +115,9 @@ export default function ChatBot() {
     const timer = setTimeout(() => controller.abort(), CHAT_TIMEOUT_MS);
 
     try {
-      const res = await fetch('/api/chat', {
+      // Signed-in callers identify themselves so the transcript is filed under
+      // their uid — that is what lets account deletion and export find it.
+      const res = await optionallyAuthedFetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: next, sessionId }),

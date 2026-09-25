@@ -68,8 +68,9 @@ export const RETAINED_ON_DELETE: Record<string, string> = {
     'a uid and counters, never the erased content. GDPR Art. 17(3)(b): retention ' +
     'for compliance with a legal obligation.',
   rate_limits:
-    'Keyed on a salted hash of a credential, not a uid — there is nothing to ' +
-    'match against an account. Self-expires within the hour via TTL.',
+    'Keyed on a hash of the uid or client IP — an HMAC under RATE_LIMIT_SALT ' +
+    'when that is set, a plain SHA-256 when it is not — and holding only a ' +
+    'counter. Self-expires within two windows (two hours) via TTL.',
   places_cache:
     'Regional and shared, derived from Google Places rather than from the user. ' +
     'Contains no user identifiers.',
@@ -82,8 +83,12 @@ export const RETAINED_ON_DELETE: Record<string, string> = {
  *
  * The 90-day TTL on `expiresAt` clears them regardless of identity, so the
  * backlog drains on its own; this note exists so nobody reads the gap as a
- * decision. Sessions written from now on are erasable by uid.
+ * decision.
+ *
+ * The stamp itself was ineffective until the 2026-09-26 audit: the chat widget
+ * never sent a token, so every session — signed in or not — was written with
+ * `user_id: null`. Only sessions created after that fix are erasable by uid.
  */
 export const UNATTRIBUTED_LEGACY_DATA =
-  'chat_sessions documents created before the user_id stamp cannot be matched ' +
+  'chat_sessions documents created before the chat widget sent a token (2026-09-26) cannot be matched ' +
   'to an account. They expire via the 90-day TTL on expiresAt.';

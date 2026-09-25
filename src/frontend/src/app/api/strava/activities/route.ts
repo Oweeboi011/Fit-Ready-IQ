@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
   // Still metered after the identity check: one signed-in account can otherwise
   // route unlimited traffic through our origin, and Strava attributes the volume
   // to our client id rather than to them.
-  const limit = await rateLimit(request, STRAVA_ACTIVITIES_RATE_LIMIT);
+  const limit = await rateLimit(request, STRAVA_ACTIVITIES_RATE_LIMIT, auth.user);
   if (!limit.ok) return tooManyRequests(limit);
 
   const token = await getValidStravaAccessToken(auth.user.uid, request);

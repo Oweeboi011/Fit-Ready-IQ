@@ -51,38 +51,45 @@ afterEach(() => {
 });
 
 describe('callerKey', () => {
-  it('keys an authenticated caller by their token', () => {
-    expect(callerKey(req({ authorization: 'Bearer abc' }))).toMatch(/^u_/);
+  it('keys a verified caller by their uid', () => {
+    expect(callerKey(req(), { uid: 'user-1' })).toMatch(/^u_/);
   });
 
-  it('never puts the raw token in the key', () => {
+  it('never puts the raw uid or IP in the key', () => {
     // Keys become Firestore document ids and appear in logs.
-    const key = callerKey(req({ authorization: 'Bearer super-secret' }));
-    expect(key).not.toContain('super-secret');
+    expect(callerKey(req(), { uid: 'user-secret-uid' })).not.toContain('user-secret-uid');
+    expect(callerKey(req({ 'x-forwarded-for': '203.0.113.7' }))).not.toContain('203.0.113.7');
   });
 
   it('gives the same caller a stable key', () => {
-    const a = callerKey(req({ authorization: 'Bearer abc' }));
-    const b = callerKey(req({ authorization: 'Bearer abc' }));
+    expect(callerKey(req(), { uid: 'user-1' })).toBe(callerKey(req(), { uid: 'user-1' }));
+  });
+
+  it('separates two different users', () => {
+    expect(callerKey(req(), { uid: 'user-1' })).not.toBe(callerKey(req(), { uid: 'user-2' }));
+  });
+
+  it('ignores an unverified bearer token entirely', () => {
+    // The bypass this guards against: the key used to be a hash of whatever
+    // bearer string arrived, so a random token per request was a fresh bucket
+    // per request. Without a verified caller, only the IP counts.
+    const ip = { 'x-forwarded-for': '203.0.113.7' };
+    const bare = callerKey(req(ip));
+    expect(callerKey(req({ ...ip, authorization: 'Bearer made-up-1' }))).toBe(bare);
+    expect(callerKey(req({ ...ip, authorization: 'Bearer made-up-2' }))).toBe(bare);
+  });
+
+  it('keys one user identically whichever token they present', () => {
+    // A refreshed ID token must not be a refreshed budget.
+    const a = callerKey(req({ authorization: 'Bearer token-before-refresh' }), { uid: 'user-1' });
+    const b = callerKey(req({ authorization: 'Bearer token-after-refresh' }), { uid: 'user-1' });
     expect(a).toBe(b);
   });
 
-  it('separates two different tokens', () => {
-    const a = callerKey(req({ authorization: 'Bearer abc' }));
-    const b = callerKey(req({ authorization: 'Bearer xyz' }));
-    expect(a).not.toBe(b);
-  });
-
-  it('treats the bearer scheme case-insensitively', () => {
-    expect(callerKey(req({ authorization: 'bearer abc' }))).toBe(
-      callerKey(req({ authorization: 'Bearer abc' }))
-    );
-  });
-
-  it('falls back to the client IP when there is no usable token', () => {
+  it('falls back to the client IP when there is no verified caller', () => {
     expect(callerKey(req({ 'x-forwarded-for': '203.0.113.7' }))).toMatch(/^ip_/);
-    expect(callerKey(req({ authorization: 'Basic abc' }))).toMatch(/^ip_/);
-    expect(callerKey(req({ authorization: 'Bearer   ' }))).toMatch(/^ip_/);
+    expect(callerKey(req({ 'x-forwarded-for': '203.0.113.7' }), null)).toMatch(/^ip_/);
+    expect(callerKey(req(), { uid: '' })).toMatch(/^ip_/);
   });
 
   it('reads only the left-most forwarded address', () => {
@@ -97,6 +104,24 @@ describe('callerKey', () => {
     const a = callerKey(req({ 'x-forwarded-for': '203.0.113.7' }));
     const b = callerKey(req({ 'x-forwarded-for': '203.0.113.8' }));
     expect(a).not.toBe(b);
+  });
+
+  describe('with RATE_LIMIT_SALT', () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it('produces keys that differ from the unsalted hash', () => {
+      const ip = req({ 'x-forwarded-for': '203.0.113.7' });
+      const unsalted = callerKey(ip);
+      vi.stubEnv('RATE_LIMIT_SALT', 'test-salt');
+      expect(callerKey(ip)).not.toBe(unsalted);
+    });
+
+    it('still gives the same caller a stable key', () => {
+      vi.stubEnv('RATE_LIMIT_SALT', 'test-salt');
+      expect(callerKey(req(), { uid: 'user-1' })).toBe(callerKey(req(), { uid: 'user-1' }));
+    });
   });
 });
 
@@ -119,13 +144,20 @@ describe('rateLimit', () => {
   });
 
   it('budgets each caller separately', async () => {
-    const a = req({ authorization: 'Bearer aaa' });
-    const b = req({ authorization: 'Bearer bbb' });
-    for (let i = 0; i < RULE.limit; i++) await rateLimit(a, RULE);
+    for (let i = 0; i < RULE.limit; i++) await rateLimit(req(), RULE, { uid: 'aaa' });
 
-    expect((await rateLimit(a, RULE)).ok).toBe(false);
+    expect((await rateLimit(req(), RULE, { uid: 'aaa' })).ok).toBe(false);
     // One heavy caller must not throttle everyone else.
-    expect((await rateLimit(b, RULE)).ok).toBe(true);
+    expect((await rateLimit(req(), RULE, { uid: 'bbb' })).ok).toBe(true);
+  });
+
+  it('cannot be escaped by sending a different made-up token each time', async () => {
+    const ip = { 'x-forwarded-for': '198.51.100.4' };
+    for (let i = 0; i < RULE.limit; i++) {
+      await rateLimit(req({ ...ip, authorization: `Bearer forged-${i}` }), RULE);
+    }
+    const next = await rateLimit(req({ ...ip, authorization: 'Bearer forged-next' }), RULE);
+    expect(next.ok).toBe(false);
   });
 
   it('budgets each endpoint separately', async () => {

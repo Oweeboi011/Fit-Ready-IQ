@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 
 import { NextResponse } from 'next/server';
 
@@ -41,36 +41,67 @@ export interface RateLimitResult {
 }
 
 /**
+ * A caller whose identity a route has already verified.
+ *
+ * Structural rather than importing `VerifiedUser`, so a test or a future gate
+ * can hand one in without pulling the Admin SDK into this module's graph.
+ */
+export interface RateLimitCaller {
+  uid: string;
+}
+
+/**
+ * Hashes a bucket key, keyed by `RATE_LIMIT_SALT` when it is set.
+ *
+ * Keys become Firestore document ids and appear in logs, so neither a uid nor
+ * an IP is stored raw. A plain SHA-256 of an IPv4 address is not much of a
+ * disguise — the whole space is four billion guesses — so with a secret salt
+ * the hash is an HMAC and the table cannot be rebuilt offline. Without one it
+ * still hashes, and `userDataFootprint.ts` says which of the two is true.
+ */
+function hashKey(value: string): string {
+  const salt = process.env.RATE_LIMIT_SALT;
+  const digest = salt
+    ? createHmac('sha256', salt).update(value).digest('hex')
+    : createHash('sha256').update(value).digest('hex');
+  return digest.slice(0, 32);
+}
+
+/**
  * Identifies the caller.
  *
- * A bearer token when there is one, because it is far more precise than an IP:
- * keying only on IP puts everyone behind a corporate NAT or a mobile carrier
- * gateway into one bucket, so a single heavy user throttles a whole office.
+ * The verified uid when the route has one, because it is far more precise than
+ * an IP: keying only on IP puts everyone behind a corporate NAT or a mobile
+ * carrier gateway into one bucket, so a single heavy user throttles an office.
  *
- * The token is hashed, never used raw. Bucket keys become Firestore document
- * ids and appear in logs; a live credential must not ride along. Hashing also
- * guarantees the key is a safe document id, with no "/" to change its path.
+ * Only a *verified* uid. This used to hash whatever bearer string arrived,
+ * before anything had checked it, so `Authorization: Bearer <random>` on each
+ * request bought a fresh bucket every time and the limit on the paid endpoints
+ * was decorative. Keying on the token rather than the uid had the same hole for
+ * honest-looking callers too: `getIdToken(true)` mints a new token, and with it
+ * a new budget. The Authorization header is now ignored here entirely; a route
+ * that knows who is calling says so through `caller`.
  */
-export function callerKey(request: Request): string {
-  const header = request.headers.get('authorization') ?? '';
-  const [scheme, ...rest] = header.split(' ');
-  const token = rest.join(' ').trim();
-
-  if (scheme.toLowerCase() === 'bearer' && token) {
-    return `u_${createHash('sha256').update(token).digest('hex').slice(0, 32)}`;
+export function callerKey(request: Request, caller?: RateLimitCaller | null): string {
+  if (caller?.uid) {
+    return `u_${hashKey(caller.uid)}`;
   }
 
   // `x-forwarded-for` is a client-settable header everywhere except behind a
   // proxy that overwrites it. Vercel does overwrite it, and its left-most entry
   // is the real client. Off-Vercel this is spoofable, which is precisely why
-  // an authenticated caller is keyed by token instead.
+  // an authenticated caller is keyed by uid instead.
   const forwarded = request.headers.get('x-forwarded-for') ?? '';
   const ip = forwarded.split(',')[0]?.trim() || 'unknown';
-  return `ip_${createHash('sha256').update(ip).digest('hex').slice(0, 32)}`;
+  return `ip_${hashKey(ip)}`;
 }
 
 /**
  * Consumes one unit of the caller's budget.
+ *
+ * Pass `caller` whenever the route has verified one — call `requireUser` or
+ * `optionalUser` first. Without it the budget is per IP, which is the right
+ * ceiling for an anonymous visitor and the only one that cannot be forged.
  *
  * Fails **open**: if Firestore is unreachable or unconfigured, the request is
  * allowed. A limiter that fails closed converts a degraded dependency into a
@@ -78,7 +109,11 @@ export function callerKey(request: Request): string {
  * it is logged, because silently not rate-limiting is how you discover the
  * limiter was broken on the invoice.
  */
-export async function rateLimit(request: Request, rule: RateLimitRule): Promise<RateLimitResult> {
+export async function rateLimit(
+  request: Request,
+  rule: RateLimitRule,
+  caller?: RateLimitCaller | null
+): Promise<RateLimitResult> {
   const allowed: RateLimitResult = {
     ok: true,
     remaining: rule.limit,
@@ -91,7 +126,7 @@ export async function rateLimit(request: Request, rule: RateLimitRule): Promise<
   const windowStart = Math.floor(Date.now() / windowMs) * windowMs;
   // The window index is part of the id, so a new window is a new document and
   // there is no reset step that could race with an increment.
-  const docId = `${rule.name}_${callerKey(request)}_${windowStart}`;
+  const docId = `${rule.name}_${callerKey(request, caller)}_${windowStart}`;
 
   try {
     const db = getFirestoreAdmin();

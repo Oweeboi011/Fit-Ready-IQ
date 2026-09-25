@@ -91,12 +91,26 @@ export async function requireAdmin(request: Request): Promise<AdminCheck> {
   return requireRole(request, 'admin');
 }
 
+/** Why a verified caller holds no role. Recorded verbatim in the audit trail. */
+type NoRoleReason = 'email_unverified' | 'no_role';
+
+type RoleLookup =
+  | { ok: false; response: NextResponse }
+  | {
+      ok: true;
+      uid: string;
+      email: string | null;
+      role: Role | null;
+      /** Set exactly when `role` is null. */
+      reason?: NoRoleReason;
+    };
+
 /**
- * Verifies the `Authorization: Bearer <firebaseIdToken>` header and checks that
- * the caller holds at least `required`. Route handlers should return
- * `result.response` unchanged when `ok` is false.
+ * Verifies the bearer token and works out the caller's role, without judging
+ * whether that role is enough for anything and without writing to the audit
+ * trail. `requireRole` builds the gate on top; `/api/admin/whoami` uses it bare.
  */
-export async function requireRole(request: Request, required: Role): Promise<AdminCheck> {
+async function lookupRole(request: Request): Promise<RoleLookup> {
   const header = request.headers.get('authorization') ?? '';
   const token = header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : '';
 
@@ -115,14 +129,15 @@ export async function requireRole(request: Request, required: Role): Promise<Adm
     return deny(401, 'Invalid or expired token.');
   }
 
+  const identity = { ok: true as const, uid: decoded.uid, email: decoded.email ?? null };
+
   // The allowlist is keyed on an email address, so an unverified one is a
   // forgeable claim. Google and Apple both hand back verified addresses, but if
   // any password or link provider is ever enabled in the Firebase console, an
   // attacker could self-register an admin's address and walk straight in. Check
   // it here so enabling a provider can never quietly open the console.
   if (!decoded.email_verified) {
-    await recordDenial(request, decoded.uid, decoded.email ?? null, 'email_unverified');
-    return deny(403, 'Not authorised.');
+    return { ...identity, role: null, reason: 'email_unverified' };
   }
 
   // The allowlist is the bootstrap and outranks the claim, so a broken or
@@ -134,8 +149,40 @@ export async function requireRole(request: Request, required: Role): Promise<Adm
       ? claimed
       : null;
 
+  return role === null ? { ...identity, role: null, reason: 'no_role' } : { ...identity, role };
+}
+
+/**
+ * What the signed-in caller may do, for presentation only — or `null` when the
+ * request carries no valid token.
+ *
+ * Deliberately writes no audit record. `/api/admin/whoami` asks this on every
+ * page load for every signed-in user, and routing it through `requireRole` made
+ * each of those an `admin.access_denied` entry: one Firestore write per
+ * ordinary visitor per page view, each retaining their email and IP for two
+ * years, and an easy way for anyone with an account to bury the denials that
+ * matter under noise. A person asking "am I an admin?" has not tried anything.
+ */
+export async function currentRole(
+  request: Request
+): Promise<{ uid: string; role: Role | null } | null> {
+  const lookup = await lookupRole(request);
+  return lookup.ok ? { uid: lookup.uid, role: lookup.role } : null;
+}
+
+/**
+ * Verifies the `Authorization: Bearer <firebaseIdToken>` header and checks that
+ * the caller holds at least `required`. Route handlers should return
+ * `result.response` unchanged when `ok` is false.
+ */
+export async function requireRole(request: Request, required: Role): Promise<AdminCheck> {
+  const lookup = await lookupRole(request);
+  if (!lookup.ok) return lookup;
+
+  const { uid, email, role } = lookup;
+
   if (role === null) {
-    await recordDenial(request, decoded.uid, decoded.email ?? null, 'no_role');
+    await recordDenial(request, uid, email, lookup.reason ?? 'no_role');
     return deny(403, 'Not authorised.');
   }
 
@@ -143,11 +190,11 @@ export async function requireRole(request: Request, required: Role): Promise<Adm
     // Distinguished from `no_role` in the audit trail on purpose: a viewer
     // reaching for a destructive endpoint is a different event from a stranger
     // knocking, and only one of them is a person who should be asked about it.
-    await recordDenial(request, decoded.uid, decoded.email ?? null, `role_insufficient:${role}`);
+    await recordDenial(request, uid, email, `role_insufficient:${role}`);
     return deny(403, 'Not authorised.');
   }
 
-  return { ok: true, admin: { uid: decoded.uid, email: decoded.email as string, role } };
+  return { ok: true, admin: { uid, email: email as string, role } };
 }
 
 /**
@@ -157,9 +204,9 @@ export async function requireRole(request: Request, required: Role): Promise<Adm
  * account probing for the console. Both deserve a durable record; neither used
  * to leave one.
  *
- * `/api/admin/whoami` calls `requireAdmin` on every page load to decide whether
- * to show admin affordances, so this fires routinely for ordinary users. That
- * is the intended volume: the signal is in the target, not the rate.
+ * Only real admin endpoints reach this. `/api/admin/whoami` goes through
+ * `currentRole`, which records nothing, so every row here is somebody who
+ * actually reached for a gated action.
  */
 async function recordDenial(
   request: Request,

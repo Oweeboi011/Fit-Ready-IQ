@@ -123,7 +123,7 @@ export async function GET(request: Request) {
   if (!auth.ok) return auth.response;
   const { uid } = auth.user;
 
-  const limit = await rateLimit(request, ACCOUNT_EXPORT_RATE_LIMIT);
+  const limit = await rateLimit(request, ACCOUNT_EXPORT_RATE_LIMIT, auth.user);
   if (!limit.ok) return tooManyRequests(limit);
 
   if (!isFirebaseAdminConfigured()) {

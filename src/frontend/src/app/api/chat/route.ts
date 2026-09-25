@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { createLogger, serializeError, upstreamSnippet, type Logger } from '@/lib/logger';
-import { getFirestoreAdmin } from '@/lib/firebaseAdmin';
+import { getFirestoreAdmin, isFirebaseAdminConfigured } from '@/lib/firebaseAdmin';
 import { rateLimit, tooManyRequests } from '@/lib/rateLimit';
 import { CHAT_RATE_LIMIT } from '@/lib/rateLimitRules';
 import { optionalUser } from '@/lib/serverAuth';
@@ -41,6 +41,62 @@ const MAX_MESSAGE_CHARS = 8_000;
 /** The client sends the whole transcript; anything beyond this is not a client. */
 const MAX_MESSAGES = 200;
 
+/** Upper bound on the Gemini call. The route's own budget is 30 s (vercel.json). */
+const GEMINI_TIMEOUT_MS = 20_000;
+
+interface ResolvedSession {
+  id: string;
+  /** True when this request must create the session document. */
+  isNew: boolean;
+}
+
+/**
+ * Decides which transcript this turn belongs to.
+ *
+ * A session's owner is fixed when the server creates it and never changes. The
+ * route used to `set({ user_id }, { merge: true })` on every turn, so whoever
+ * last posted to a session id became its owner: anyone holding someone else's
+ * id could re-file that transcript under their own uid and then read it back
+ * through `/api/account/export`, or post signed-out and knock it back to
+ * anonymous, out of reach of erasure.
+ *
+ * So a requested id is honoured only when it exists and belongs to this caller
+ * (the same uid, or anonymous for anonymous). Anything else — unknown, someone
+ * else's, malformed — gets a fresh id minted here, never one the client chose,
+ * and the client adopts it from the response. A refused id is not a reason to
+ * refuse the user an answer, so this never errors.
+ */
+async function resolveSession(
+  requested: unknown,
+  uid: string | null,
+  log: Logger
+): Promise<ResolvedSession> {
+  const fresh = { id: crypto.randomUUID(), isNew: true };
+
+  // `sessionId` is interpolated into a Firestore document path, and `.doc()`
+  // splits on "/" — an id of "a/messages/b" would resolve to a different
+  // collection entirely. Only ids we could have minted ourselves are looked up.
+  if (typeof requested !== 'string' || !SESSION_ID_PATTERN.test(requested)) return fresh;
+  if (!isFirebaseAdminConfigured()) return fresh;
+
+  try {
+    const snapshot = await getFirestoreAdmin().collection('chat_sessions').doc(requested).get();
+    if (!snapshot.exists) return fresh;
+
+    const owner = (snapshot.data()?.user_id as string | null | undefined) ?? null;
+    if (owner !== uid) {
+      // Expected when someone signs in or out mid-conversation, so info, not
+      // warn. Neither id is logged: a session id is a bearer capability.
+      log.info('chat_session_not_owned', { signedIn: uid !== null });
+      return fresh;
+    }
+    return { id: requested, isNew: false };
+  } catch (error) {
+    log.warn('chat_session_lookup_failed', { error: serializeError(error) });
+    return fresh;
+  }
+}
+
 /**
  * Appends one turn to the session transcript.
  *
@@ -52,34 +108,38 @@ const MAX_MESSAGES = 200;
  * order without each row repeating the ones before it.
  */
 async function persistConversation(
-  sessionId: string,
+  session: ResolvedSession,
   messages: ChatMessage[],
   assistantReply: string,
   uid: string | null,
   log: Logger
 ): Promise<void> {
+  if (!isFirebaseAdminConfigured()) return;
+
   try {
     const db = getFirestoreAdmin();
     const now = new Date().toISOString();
-    const session = db.collection('chat_sessions').doc(sessionId);
+    const ref = db.collection('chat_sessions').doc(session.id);
 
-    await session.set(
-      {
+    if (session.isNew) {
+      // `create`, not `set`: it fails if the document already exists, so an
+      // owner can only ever be written once.
+      await ref.create({
+        createdAt: now,
         updatedAt: now,
         source: 'fit-ready-iq',
-        // Stamped so erasure can find these. Transcripts used to carry no
-        // identity at all: the session id was minted by the browser and kept in
-        // localStorage, so what a user typed into the assistant — which in a
-        // fitness product is routinely health information — was retained
-        // indefinitely with no server-side way to answer "delete my data".
+        // Stamped so erasure can find these. What a user types into the
+        // assistant is, in a fitness product, routinely health information.
         // Null for signed-out callers, who genuinely have no identity to bind.
         user_id: uid,
         expiresAt: chatExpiry(),
-      },
-      { merge: true }
-    );
+      });
+    } else {
+      // No `user_id` here — see resolveSession for why ownership is immutable.
+      await ref.update({ updatedAt: now, expiresAt: chatExpiry() });
+    }
 
-    await session.collection('messages').add({
+    await ref.collection('messages').add({
       prompt: messages[messages.length - 1]?.content ?? '',
       assistantReply,
       createdAt: now,
@@ -118,9 +178,16 @@ function chatExpiry(): Date {
 
 export async function POST(request: NextRequest) {
   const log = createLogger('/api/chat', request);
+
+  // Identity first, because the limiter keys on it. A bearer string that fails
+  // verification is simply anonymous, and anonymous is budgeted per IP — a
+  // made-up token no longer buys a fresh allowance of paid inference.
+  const caller = await optionalUser(request);
+  const uid = caller?.uid ?? null;
+
   // Before the API key check and before reading the body: a rejected caller
   // should cost us as little as possible.
-  const limit = await rateLimit(request, CHAT_RATE_LIMIT);
+  const limit = await rateLimit(request, CHAT_RATE_LIMIT, caller);
   if (!limit.ok) return tooManyRequests(limit);
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -140,17 +207,6 @@ export async function POST(request: NextRequest) {
   }
 
   const messages = requestBody.messages;
-
-  // `sessionId` is interpolated into a Firestore document path, and `.doc()`
-  // splits on "/" — an id of "a/messages/b" would resolve to a different
-  // collection entirely. Only ids we could have minted ourselves are accepted;
-  // anything else gets a fresh one rather than an error, since a bad id is not
-  // a reason to refuse the user an answer.
-  const requested = requestBody.sessionId;
-  const sessionId =
-    typeof requested === 'string' && SESSION_ID_PATTERN.test(requested)
-      ? requested
-      : crypto.randomUUID();
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return NextResponse.json({ error: 'Messages array required' }, { status: 400 });
@@ -193,12 +249,20 @@ export async function POST(request: NextRequest) {
     parts: [{ text: msg.content }],
   }));
 
+  const session = await resolveSession(requestBody.sessionId, uid, log);
+
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        // The key rides in a header, not `?key=`: URLs are what proxies, APM
+        // agents and fetch error messages record, and headers are what the
+        // logger redacts.
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        // Without a deadline a stalled upstream holds the function until the
+        // platform kills it, and the user gets a bare 504 instead of a retry.
+        signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
         body: JSON.stringify({
           system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
           contents,
@@ -223,16 +287,14 @@ export async function POST(request: NextRequest) {
       data.candidates?.[0]?.content?.parts?.[0]?.text ??
       "I couldn't generate a response. Please try again.";
 
-    await persistConversation(
-      sessionId,
-      messages,
-      text,
-      (await optionalUser(request))?.uid ?? null,
-      log
-    );
+    await persistConversation(session, messages, text, uid, log);
 
-    return NextResponse.json({ message: text, sessionId });
+    return NextResponse.json({ message: text, sessionId: session.id });
   } catch (error) {
+    if (error instanceof DOMException && error.name === 'TimeoutError') {
+      log.error('gemini_timeout', error, { timeoutMs: GEMINI_TIMEOUT_MS });
+      return NextResponse.json({ error: 'AI service timed out' }, { status: 504 });
+    }
     log.error('chat_failed', error);
     return NextResponse.json({ error: 'Failed to reach AI service' }, { status: 500 });
   }
