@@ -21,45 +21,43 @@ async function seedTraining(page: import('@playwright/test').Page) {
   });
 }
 
-test.describe('readiness score', () => {
-  test('asks for training data rather than showing a made-up score', async ({ page }) => {
-    await page.goto('/app');
-    const first = page
-      .locator('aside button')
-      .filter({ hasText: /Distance/ })
-      .first();
-    await expect(first).toBeVisible({ timeout: 30_000 });
-    await first.click();
+/** Opens the first discovered route in the sidebar. */
+async function openFirstRoute(page: import('@playwright/test').Page) {
+  const first = page
+    .locator('aside button')
+    .filter({ hasText: /Length/ })
+    .first();
+  await expect(first).toBeVisible({ timeout: 30_000 });
+  await first.click();
+  return page.getByRole('dialog');
+}
 
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Your readiness' })).toBeVisible();
-    await expect(page.getByText(/Connect a device or import a GPX/i)).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Connect your training' })).toBeVisible();
+/**
+ * A discovered route is a Google Places pin with no trail geometry, so its
+ * length is unknown — and readiness, which compares a route's length to your
+ * training, has nothing to compare. These pin down that the product says so,
+ * rather than scoring against a length it invented (which is what it used to
+ * do: the "length" was the distance from the viewer to the pin).
+ */
+test.describe('readiness score', () => {
+  test('says a discovered route is unmeasured rather than scoring it', async ({ page }) => {
+    await page.goto('/app');
+    const dialog = await openFirstRoute(page);
+
+    await expect(dialog.getByRole('heading', { name: 'Your readiness' })).toBeVisible();
+    await expect(dialog.getByText(/length hasn't been measured/i)).toBeVisible();
   });
 
-  test('scores a route once training exists, and names the limiting factor', async ({ page }) => {
+  test('does not invent a score, or ask for training, when training exists', async ({ page }) => {
     await seedTraining(page);
     await page.goto('/app');
+    const dialog = await openFirstRoute(page);
 
-    const first = page
-      .locator('aside button')
-      .filter({ hasText: /Distance/ })
-      .first();
-    await expect(first).toBeVisible({ timeout: 30_000 });
-    await first.click();
-
-    const dialog = page.getByRole('dialog');
     await expect(dialog.getByRole('heading', { name: 'Your readiness' })).toBeVisible();
-
-    // Every factor reports capacity against demand, so the number is checkable.
-    // `exact` matters: the summary sentence also contains the factor name.
-    await expect(dialog.getByText('Longest recent outing', { exact: true })).toBeVisible();
-    await expect(dialog.getByText('Weekly volume', { exact: true })).toBeVisible();
-    // The training plan below adds its own "covers this route" sentence, so
-    // match the readiness summary specifically.
-    await expect(dialog.getByText(/Limited by|covers this route's/i).first()).toBeVisible();
-    // And the plan itself now appears beneath it.
-    await expect(dialog.getByText(/No training needed|weeks? of build-up/i)).toBeVisible();
-    await expect(dialog.getByText(/of 18\.0 km|18\.0 km of/)).toBeVisible();
+    await expect(dialog.getByText(/length hasn't been measured/i)).toBeVisible();
+    // Connecting more training cannot fix an unmeasured route, so the product
+    // must not suggest it.
+    await expect(dialog.getByRole('button', { name: 'Connect your training' })).toHaveCount(0);
+    await expect(dialog.getByRole('img', { name: /^Readiness \d+ out of 100/ })).toHaveCount(0);
   });
 });

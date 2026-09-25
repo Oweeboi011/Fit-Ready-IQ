@@ -54,6 +54,8 @@ import { recordWeatherAlerts } from '@/lib/weatherAlertCache';
 import type { WeatherAlert } from '@/lib/weatherAlerts';
 import type { WeatherWindow } from '@/lib/weatherWindow';
 import { estimateAscentHours } from '@/lib/routeDuration';
+import { DIFFICULTY_LABELS } from '@/lib/routeDifficulty';
+import { mountainGain, summitOf } from '@/lib/mountainMetrics';
 import { WeatherAlertChips } from '@/components/WeatherAlertBadge';
 import { WeatherWindowPanel } from '@/components/WeatherWindowPanel';
 
@@ -152,8 +154,10 @@ export default function DetailsModal({
 
     // Scope the window to this route's length, not just its location — the same
     // Naismith estimate the modal already shows the user as an hour range.
-    const gain =
-      data.type === 'route' ? data.elevation_gain_m : (data.elevation_m ?? data.summit_elevation);
+    // For a peak that is jump-off to summit, never the summit's height above
+    // sea level — which asked a 2,500 m peak with a trailhead 300 m below the
+    // top for an eleven-hour weather window.
+    const gain = data.type === 'route' ? data.elevation_gain_m : mountainGain(data);
     const required = estimateAscentHours(gain)?.high ?? null;
 
     const url =
@@ -261,8 +265,11 @@ export default function DetailsModal({
   const calculateElevationMetrics = (route: RouteDetails) => {
     const elevationGain = route.elevation_gain_m;
     const distance = route.distance_km;
+    // A grade needs a length to spread the climb over. Without one there is
+    // no grade — dividing relief by the old user-to-trailhead distance gave a
+    // gradient that changed with where the visitor happened to be.
     const averageGrade =
-      elevationGain == null
+      elevationGain == null || distance == null || distance <= 0
         ? null
         : parseFloat(((elevationGain / (distance * 1000)) * 100).toFixed(1));
 
@@ -372,10 +379,10 @@ export default function DetailsModal({
                   <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
                     <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                       <Route aria-hidden="true" className="h-3 w-3" />
-                      Distance
+                      Length
                     </p>
                     <p className="font-tabular mt-1.5 text-xl font-bold text-white">
-                      {data.distance_km.toFixed(1)} km
+                      {data.distance_km == null ? '—' : `${data.distance_km.toFixed(1)} km`}
                     </p>
                   </div>
                   <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
@@ -392,8 +399,8 @@ export default function DetailsModal({
                       <Gauge aria-hidden="true" className="h-3 w-3" />
                       Difficulty
                     </p>
-                    <p className="mt-1.5 text-xl font-bold capitalize text-white">
-                      {data.difficulty}
+                    <p className="mt-1.5 text-xl font-bold text-white">
+                      {DIFFICULTY_LABELS[data.difficulty]}
                     </p>
                   </div>
                   <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
@@ -437,7 +444,9 @@ export default function DetailsModal({
                           {data.strava_segment.name}
                         </p>
                         <span className="rounded bg-ink/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                          {data.strava_segment.total_efforts || 0} efforts
+                          {data.strava_segment.total_efforts == null
+                            ? 'Efforts unknown'
+                            : `${data.strava_segment.total_efforts} efforts`}
                         </span>
                       </div>
                       <div className="mb-3 grid grid-cols-2 gap-2">
@@ -628,7 +637,9 @@ export default function DetailsModal({
                       <p className="text-xs text-slate-400">Based on distance and elevation gain</p>
                       <p className="mt-1 text-lg font-semibold text-white">
                         {(() => {
-                          if (data.elevation_gain_m == null) return 'Not available';
+                          if (data.elevation_gain_m == null || data.distance_km == null) {
+                            return 'Not available';
+                          }
                           const totalMinutes = Math.round(
                             data.distance_km * 3.5 + data.elevation_gain_m * 0.3
                           );
@@ -973,9 +984,14 @@ export default function DetailsModal({
                     id={data.id}
                     name={data.name}
                     summary={
-                      data.elevation_gain_m == null
-                        ? `${data.distance_km.toFixed(1)} km`
-                        : `${data.distance_km.toFixed(1)} km · ${data.elevation_gain_m} m gain`
+                      // Only what is known, and relief called relief: it is
+                      // sampled near the trailhead, not climbed along the trail.
+                      [
+                        data.distance_km == null ? null : `${data.distance_km.toFixed(1)} km`,
+                        data.elevation_gain_m == null ? null : `${data.elevation_gain_m} m relief`,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ') || DIFFICULTY_LABELS[data.difficulty]
                     }
                   />
                 </div>
@@ -1014,7 +1030,7 @@ export default function DetailsModal({
                   Prominence
                 </p>
                 <p className="font-tabular mt-1.5 text-xl font-bold text-white">
-                  {data.prominence_m} m
+                  {data.prominence_m == null ? '—' : `${data.prominence_m} m`}
                 </p>
               </div>
               <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
@@ -1046,7 +1062,9 @@ export default function DetailsModal({
                   <div className="mb-3 flex items-center justify-between">
                     <p className="text-sm font-semibold text-white">{data.strava_segment.name}</p>
                     <span className="rounded bg-ink/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                      {data.strava_segment.total_efforts || 0} efforts
+                      {data.strava_segment.total_efforts == null
+                        ? 'Efforts unknown'
+                        : `${data.strava_segment.total_efforts} efforts`}
                     </span>
                   </div>
                   <div className="mb-3 grid grid-cols-2 gap-2">
@@ -1115,7 +1133,9 @@ export default function DetailsModal({
                     <div className="flex-1">
                       <h4 className="mb-1 font-semibold text-white">Starting Point (Jumpoff)</h4>
                       <p className="text-sm text-slate-300">
-                        Begin your climb at {data.jumpoff_elevation || 'the base elevation'}m.
+                        {data.jumpoff_elevation == null
+                          ? 'Begin your climb at the trailhead.'
+                          : `Begin your climb at ${data.jumpoff_elevation} m.`}{' '}
                         Prepare proper gear and check weather conditions before starting.
                       </p>
                     </div>
@@ -1127,9 +1147,13 @@ export default function DetailsModal({
                     <div className="flex-1">
                       <h4 className="mb-1 font-semibold text-white">The Ascent</h4>
                       <p className="text-sm text-slate-300">
-                        {(data.summit_elevation ?? data.elevation_m)
-                          ? `Gain ${(data.summit_elevation ?? data.elevation_m!) - (data.jumpoff_elevation ?? 0)} m of elevation through varied terrain.`
-                          : 'Elevation for this peak is unavailable.'}{' '}
+                        {/* Gain needs both ends. Subtracting from an assumed start
+                            of 0 m reported the peak's height above sea level as
+                            the climb — thousands of metres for a hill with a car
+                            park near the top. */}
+                        {mountainGain(data) != null
+                          ? `Gain ${mountainGain(data)} m of elevation through varied terrain.`
+                          : 'How much you climb depends on where you start, which we do not know for this peak.'}{' '}
                         Pace yourself and stay hydrated.
                       </p>
                     </div>
@@ -1140,7 +1164,7 @@ export default function DetailsModal({
                     </div>
                     <div className="flex-1">
                       <h4 className="mb-1 font-semibold text-white">
-                        Summit ({data.summit_elevation || data.elevation_m}m)
+                        {summitOf(data) == null ? 'Summit' : `Summit (${summitOf(data)} m)`}
                       </h4>
                       <p className="text-sm text-slate-300">
                         Reach the peak and enjoy panoramic views. Take time to rest and capture the
@@ -1183,32 +1207,30 @@ export default function DetailsModal({
                       </div>
                     </div>
                     <p className="font-tabular text-base font-bold text-white">
-                      {data.summit_elevation || data.elevation_m}m
+                      {summitOf(data) == null ? '—' : `${summitOf(data)} m`}
                     </p>
                   </div>
-                  {data.jumpoff_elevation != null &&
-                    (data.summit_elevation ?? data.elevation_m) != null && (
-                      <div className="pt-1">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm text-slate-300">Total Elevation Gain</p>
-                          <p className="font-tabular text-base font-bold text-blue-400">
-                            +{(data.summit_elevation ?? data.elevation_m!) - data.jumpoff_elevation}
-                            m
-                          </p>
-                        </div>
+                  {mountainGain(data) != null && (
+                    <div className="pt-1">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-slate-300">Total Elevation Gain</p>
+                        <p className="font-tabular text-base font-bold text-blue-400">
+                          +{mountainGain(data)} m
+                        </p>
                       </div>
-                    )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
             {/* ── Pre-Climb Briefing ── */}
             {(() => {
-              const summit = data.summit_elevation ?? data.elevation_m;
-              const elevGain = summit == null ? null : summit - (data.jumpoff_elevation ?? 0);
-              const ascentHours = elevGain == null ? null : elevGain / 300;
-              const lo = ascentHours == null ? null : Math.max(1, Math.floor(ascentHours));
-              const hi = ascentHours == null ? null : Math.ceil(ascentHours * 1.3);
+              // The same Naismith estimate the route view and the weather
+              // window use (lib/routeDuration.ts), so the three cannot disagree.
+              // This used to run its own `gain / 300` on a gain measured from
+              // sea level, and printed "–h" when there was nothing to divide.
+              const ascent = estimateAscentHours(mountainGain(data));
               const isHighAlt = (data.elevation_m ?? 0) > 2500;
               const isTechnical = (data.elevation_m ?? 0) > 2000;
 
@@ -1245,9 +1267,11 @@ export default function DetailsModal({
                         Climb Time
                       </p>
                       <p className="font-tabular mt-1.5 text-xl font-bold text-white">
-                        {lo}–{hi}h
+                        {ascent ? `${ascent.low}–${ascent.high}h` : '—'}
                       </p>
-                      <p className="text-[11px] text-slate-400">ascent (Naismith)</p>
+                      <p className="text-[11px] text-slate-400">
+                        {ascent ? 'ascent (Naismith)' : 'start point unknown'}
+                      </p>
                     </div>
                     <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3 text-center">
                       <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">

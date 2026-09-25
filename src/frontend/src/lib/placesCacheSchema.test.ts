@@ -58,6 +58,12 @@ describe('what an honest client writes', () => {
     expect(parseMountain({ ...mountain, elevation_m: null })).not.toBeNull();
   });
 
+  it('accepts a route whose length is unknown, which every Places pin is', () => {
+    expect(parseRoute({ ...route, distance_km: null, difficulty: 'unknown' })).toMatchObject({
+      distance_km: null,
+    });
+  });
+
   it('accepts optional fields being absent', () => {
     const {
       place_id: _p,

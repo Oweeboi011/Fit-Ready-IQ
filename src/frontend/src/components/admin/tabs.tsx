@@ -323,7 +323,7 @@ export function EfficiencyTab({ data }: { data: AdminData }) {
         <ul className="mt-2 space-y-1.5 text-[11px] leading-relaxed text-slate-400">
           <li>
             A cold region costs roughly 40 Places text searches, 4 nearby searches, plus Elevation
-            and Distance Matrix batches.
+            batches.
           </li>
           <li>
             Three cache tiers absorb repeats: sessionStorage per tab (30 min), Firestore shared

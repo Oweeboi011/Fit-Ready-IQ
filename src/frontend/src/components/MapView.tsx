@@ -27,7 +27,7 @@ interface Route {
   id: string;
   name: string;
   coordinates: [number, number];
-  distance_km: number;
+  distance_km: number | null;
   elevation_gain_m: number | null;
   difficulty: Difficulty;
   activity_type: string;

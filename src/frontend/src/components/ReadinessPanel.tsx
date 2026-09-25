@@ -124,7 +124,7 @@ export function ReadinessPanel({
 
         {readiness.score != null && <TrainingPlanPanel readiness={readiness} />}
 
-        {readiness.score == null && onConnectDevices && (
+        {readiness.unknownReason === 'no_training' && onConnectDevices && (
           <button
             type="button"
             onClick={onConnectDevices}

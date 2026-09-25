@@ -15,7 +15,7 @@ export interface SavedPlace {
   prominence_m?: number;
   difficulty?: string;
   activity_type?: string;
-  distance_km?: number;
+  distance_km?: number | null;
   elevation_gain_m?: number | null;
   mountain_type?: string;
   rating?: number;

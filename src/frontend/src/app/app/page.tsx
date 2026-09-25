@@ -378,19 +378,25 @@ export default function Home() {
    * the user switched tabs and unmounted the panel.
    */
   const filteredRoutes = useMemo(() => {
-    const matches = routes.filter(
+    // Distance is measured before filtering because the distance filter is a
+    // radius — "within N km of me" — and has to test the per-viewer distance.
+    // It used to test `distance_km`, which only worked because that field was
+    // secretly the distance from whoever loaded the region, not a trail length.
+    return sortRoutesByDistance(routes, userLocation).filter(
       (route) =>
         (filters.activityTypes.length === 0 ||
           filters.activityTypes.includes(route.activity_type)) &&
         (filters.difficulty.length === 0 || filters.difficulty.includes(route.difficulty)) &&
-        route.distance_km <= filters.maxDistance &&
+        // Without a location there is no distance to test; that is not a
+        // reason to hide everything.
+        (route.distance_from_user_km === undefined ||
+          route.distance_from_user_km <= filters.maxDistance) &&
         // An unknown elevation is not a reason to hide a route; it only opts
         // out of the elevation filter.
         (route.elevation_gain_m == null ||
           (route.elevation_gain_m >= filters.minElevation &&
             route.elevation_gain_m <= filters.maxElevation))
     );
-    return sortRoutesByDistance(matches, userLocation);
   }, [routes, filters, userLocation]);
 
   /**

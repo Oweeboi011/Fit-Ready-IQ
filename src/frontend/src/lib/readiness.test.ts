@@ -109,6 +109,20 @@ describe('computeReadiness', () => {
     expect(computeReadiness({ distanceKm: 0, ascentM: 500 }, STRONG, NOW).level).toBe('unknown');
   });
 
+  it('says the route is unmeasured, not that training is missing, when length is unknown', () => {
+    // Every Google Places route has no length. Telling someone with a full
+    // training log to "connect a device" would send them in circles.
+    const r = computeReadiness({ distanceKm: null, ascentM: 400 }, STRONG, NOW);
+    expect(r.score).toBeNull();
+    expect(r.unknownReason).toBe('route_unmeasured');
+    expect(r.summary).not.toMatch(/connect a device/i);
+  });
+
+  it('asks for training only when training is what is missing', () => {
+    const r = computeReadiness({ distanceKm: 10, ascentM: 400 }, [], NOW);
+    expect(r.unknownReason).toBe('no_training');
+  });
+
   it('reports capacity and demand in each factor, so the number is checkable', () => {
     const result = computeReadiness({ distanceKm: 15, ascentM: 1200 }, STRONG, NOW);
     const distance = result.factors.find((f) => f.id === 'distance')!;

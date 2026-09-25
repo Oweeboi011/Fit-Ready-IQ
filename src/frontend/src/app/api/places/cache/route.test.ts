@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { PLACES_CACHE_VERSION } from '@/lib/placesCacheSchema';
+
 /**
  * The shared places cache is served to every visitor in a 0.5° cell, so what
  * matters is who may write a cell and what may be written into it. Firestore,
@@ -64,7 +66,7 @@ const route = {
 
 function payload(overrides: Record<string, unknown> = {}) {
   return {
-    v: 2,
+    v: PLACES_CACHE_VERSION,
     lat: 37.6,
     lng: -122.4,
     routes: [route],
@@ -108,7 +110,11 @@ describe('POST /api/places/cache', () => {
   it('fills an empty cell and stamps who filled it', async () => {
     const res = await post(payload());
     expect(res.status).toBe(200);
-    expect(state.docs.get(CELL)).toMatchObject({ v: 2, routes: [route], written_by: 'alice' });
+    expect(state.docs.get(CELL)).toMatchObject({
+      v: PLACES_CACHE_VERSION,
+      routes: [route],
+      written_by: 'alice',
+    });
   });
 
   it('sets expiresAt so the TTL policy can delete the cell', async () => {
@@ -160,7 +166,7 @@ describe('POST /api/places/cache', () => {
   });
 
   it('refuses a payload from another cache version', async () => {
-    expect((await post(payload({ v: 1 }))).status).toBe(400);
+    expect((await post(payload({ v: PLACES_CACHE_VERSION - 1 }))).status).toBe(400);
     expect((await post(payload({ v: undefined }))).status).toBe(400);
   });
 
@@ -173,7 +179,7 @@ describe('POST /api/places/cache', () => {
 describe('GET /api/places/cache', () => {
   it('serves a fresh cell without any location field', async () => {
     state.docs.set(CELL, {
-      v: 2,
+      v: PLACES_CACHE_VERSION,
       routes: [route],
       mountains: [],
       campsites: [],

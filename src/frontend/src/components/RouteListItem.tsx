@@ -105,10 +105,12 @@ export default function RouteListItem({
               the old row wrapped mid-metric, so a value could land on its
               own line with no clue what it measured. */}
           <dl className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[11px]">
+            {/* The trail's own length, which a Places pin does not have. Never
+                the distance to it — that is "Away", below. */}
             <div className="flex items-baseline gap-1">
-              <dt className="text-slate-500">Distance</dt>
+              <dt className="text-slate-500">Length</dt>
               <dd className="font-tabular font-semibold text-slate-200">
-                {route.distance_km.toFixed(1)} km
+                {route.distance_km == null ? 'unknown' : `${route.distance_km.toFixed(1)} km`}
               </dd>
             </div>
             {/* Terrain relief sampled near the trailhead, not ascent along the

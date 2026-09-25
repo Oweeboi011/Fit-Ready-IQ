@@ -37,8 +37,11 @@ import type { Campsite, Mountain, Route } from './placesTypes';
  * first-writer-wins it would hold a cell against a correct entry for a day.
  *
  * v2 — elevation may be null, difficulty derived from terrain not star rating.
+ * v3 — route `distance_km` is null (it was the distance from whoever filled
+ *      the cache, not the trail's length); mountains no longer carry the
+ *      prominence, jump-off and trail class that were derived from altitude.
  */
-export const PLACES_CACHE_VERSION = 2;
+export const PLACES_CACHE_VERSION = 3;
 
 export const MAX_ITEMS_PER_KIND = 200;
 
@@ -154,9 +157,11 @@ export function parseRoute(value: unknown): Parsed<Route> {
   const base = parseBase(value);
   if (!base) return null;
 
-  if (!numberIn(value.distance_km, 0, MAX_ROUTE_KM)) return null;
+  // Nullable: a trail's length is unknown whenever there is no trail geometry,
+  // which for a Google Places result is always. See placesFetchers.ts.
+  const distance = nullableNumber(value.distance_km, 0, MAX_ROUTE_KM);
   const gain = nullableNumber(value.elevation_gain_m, 0, MAX_ELEVATION_M);
-  if (gain === false) return null;
+  if (distance === false || gain === false) return null;
   if (!DIFFICULTIES.includes(value.difficulty as Difficulty)) return null;
   if (!isLabel(value.activity_type)) return null;
 
@@ -174,7 +179,7 @@ export function parseRoute(value: unknown): Parsed<Route> {
   // the page derives it per viewer. `strava_segment` has no writer at all.
   return {
     ...base,
-    distance_km: value.distance_km,
+    distance_km: distance,
     elevation_gain_m: gain,
     difficulty: value.difficulty as Difficulty,
     activity_type: value.activity_type,
