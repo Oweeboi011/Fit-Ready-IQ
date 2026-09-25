@@ -36,7 +36,7 @@
     "firebase": "^12.15.0",
     "firebase-admin": "^14.0.0",
     "lucide-react": "^0.577.0",
-    "next": "^16.3.0",
+    "next": "^16.3.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
@@ -51,12 +51,12 @@
     "@types/node": "^22.20.1",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.11",
     "autocannon": "^8.0.0",
     "autoprefixer": "^10.4.16",
     "dependency-cruiser": "^18.1.1",
     "eslint": "^9.39.5",
-    "eslint-config-next": "^16.3.0",
+    "eslint-config-next": "^16.3.6",
     "husky": "^9.1.7",
     "jscpd": "^5.0.14",
     "jsdom": "^25.0.1",
@@ -68,7 +68,7 @@
     "tsx": "^4.23.12",
     "typescript": "^5.3.3",
     "typescript-eslint": "^8.66.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "gaxios": "^7.3.1",
