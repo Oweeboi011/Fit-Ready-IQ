@@ -112,7 +112,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  log.info('strava_connected', { athlete_id: connection.athleteId });
+  // The Strava athlete id is a public profile identifier; an info line on
+  // every connect is not the place to collect them.
+  log.info('strava_connected');
 
   // Deliberately not the token payload. The browser gets what it needs to render
   // "connected as X" and nothing it could leak.

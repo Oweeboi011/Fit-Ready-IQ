@@ -181,7 +181,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, uid, deleted });
   } catch (err) {
-    log.error('account_delete_failed', err, { uid });
+    // No uid: logs are retained and searched far more widely than the audit
+    // record below, which holds it. The request_id joins the two.
+    log.error('account_delete_failed', err);
     // The partial counts go into the record: a half-finished erasure is the one
     // case where "what was removed before it failed" is the only useful fact.
     await recordAudit(request, {

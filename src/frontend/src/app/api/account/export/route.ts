@@ -170,7 +170,9 @@ export async function GET(request: Request) {
       }
     );
   } catch (err) {
-    log.error('account_export_failed', err, { uid });
+    // No uid — the request_id identifies the call; logs outlive and outnumber
+    // the people allowed to link an id to a person.
+    log.error('account_export_failed', err);
     await recordAudit(request, {
       action: 'account.export',
       actor: auth.user,

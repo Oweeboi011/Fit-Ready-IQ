@@ -19,6 +19,7 @@ import { type Activity, formatDuration, SOURCE_LABELS, SOURCE_BG } from '@/lib/a
 import { computeFitnessScore } from '@/lib/fitnessScore';
 import { buildLedger } from '@/lib/ledger';
 import { LedgerPanel } from '@/components/LedgerPanel';
+import { AccountDataPanel } from '@/components/AccountDataPanel';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -30,6 +31,8 @@ interface ProfileModalProps {
   } | null;
   activities: Activity[];
   onSignOut: () => void;
+  /** After a successful erasure: sign out, clear this browser, reload. */
+  onAccountDeleted: () => void;
 }
 
 export default function ProfileModal({
@@ -38,6 +41,7 @@ export default function ProfileModal({
   user,
   activities,
   onSignOut,
+  onAccountDeleted,
 }: ProfileModalProps) {
   const fitness = useMemo(() => computeFitnessScore(activities), [activities]);
   const monthLabel = useMemo(() => new Date().toLocaleString(undefined, { month: 'long' }), []);
@@ -376,6 +380,8 @@ export default function ProfileModal({
             </div>
           )}
         </div>
+
+        <AccountDataPanel onDeleted={onAccountDeleted} />
       </div>
     </Modal>
   );

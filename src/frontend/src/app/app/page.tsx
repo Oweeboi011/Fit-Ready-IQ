@@ -730,6 +730,11 @@ export default function Home() {
             setIsProfileModalOpen(false);
             signOut();
           }}
+          // The same path as signing out: clears this browser and reloads.
+          onAccountDeleted={() => {
+            setIsProfileModalOpen(false);
+            signOut();
+          }}
         />
       )}
 
