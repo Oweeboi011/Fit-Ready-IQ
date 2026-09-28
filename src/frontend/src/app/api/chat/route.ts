@@ -41,6 +41,16 @@ const MAX_MESSAGE_CHARS = 8_000;
 /** The client sends the whole transcript; anything beyond this is not a client. */
 const MAX_MESSAGES = 200;
 
+/**
+ * The raw body, checked before it is parsed. The per-message and per-count caps
+ * above still let a body reach 1.6 MB, all of it parsed before being trimmed to
+ * the 20 turns actually used. The client sends only those 20.
+ */
+const MAX_BODY_BYTES = 256 * 1024;
+
+/** How much context goes to the model, in messages (ten exchanges). */
+const MAX_HISTORY = 20;
+
 /** Upper bound on the Gemini call. The route's own budget is 30 s (vercel.json). */
 const GEMINI_TIMEOUT_MS = 20_000;
 
@@ -72,6 +82,9 @@ async function resolveSession(
   log: Logger
 ): Promise<ResolvedSession> {
   const fresh = { id: crypto.randomUUID(), isNew: true };
+  // Signed-out conversations are not stored (see POST), so there is no
+  // session of theirs to find.
+  if (uid === null) return fresh;
 
   // `sessionId` is interpolated into a Firestore document path, and `.doc()`
   // splits on "/" — an id of "a/messages/b" would resolve to a different
@@ -109,9 +122,9 @@ async function resolveSession(
  */
 async function persistConversation(
   session: ResolvedSession,
-  messages: ChatMessage[],
+  prompt: string,
   assistantReply: string,
-  uid: string | null,
+  uid: string,
   log: Logger
 ): Promise<void> {
   if (!isFirebaseAdminConfigured()) return;
@@ -130,7 +143,6 @@ async function persistConversation(
         source: 'fit-ready-iq',
         // Stamped so erasure can find these. What a user types into the
         // assistant is, in a fitness product, routinely health information.
-        // Null for signed-out callers, who genuinely have no identity to bind.
         user_id: uid,
         expiresAt: chatExpiry(),
       });
@@ -140,7 +152,7 @@ async function persistConversation(
     }
 
     await ref.collection('messages').add({
-      prompt: messages[messages.length - 1]?.content ?? '',
+      prompt,
       assistantReply,
       createdAt: now,
       user_id: uid,
@@ -176,6 +188,113 @@ function chatExpiry(): Date {
   return new Date(Date.now() + CHAT_RETENTION_DAYS * 86_400_000);
 }
 
+/**
+ * The stored transcript of a session, oldest first, as model context.
+ *
+ * For a session we already hold, the context comes from here rather than the
+ * request. The client posts its history on every turn, and it used to go to
+ * Gemini as sent — so a caller could write the assistant's side of the
+ * conversation for it, and a transcript "resumed" from the browser need not be
+ * the one we actually had.
+ */
+async function storedHistory(sessionId: string): Promise<ChatMessage[]> {
+  const snapshot = await getFirestoreAdmin()
+    .collection('chat_sessions')
+    .doc(sessionId)
+    .collection('messages')
+    .orderBy('createdAt', 'desc')
+    .limit(MAX_HISTORY / 2)
+    .get();
+
+  return snapshot.docs.reverse().flatMap((doc) => {
+    const { prompt, assistantReply } = doc.data() as { prompt?: unknown; assistantReply?: unknown };
+    return typeof prompt === 'string' && typeof assistantReply === 'string'
+      ? [
+          { role: 'user' as const, content: prompt },
+          { role: 'assistant' as const, content: assistantReply },
+        ]
+      : [];
+  });
+}
+
+/**
+ * The client's own history, for a conversation we hold no record of — a new
+ * session, or a signed-out caller. It is unverifiable, but it only ever shapes
+ * that caller's own reply, and nothing of it is stored beyond their last turn.
+ * Trimmed to start on a user turn, which Gemini requires.
+ */
+function clientHistory(messages: ChatMessage[]): ChatMessage[] {
+  const recent = messages.slice(-MAX_HISTORY);
+  const firstUser = recent.findIndex((m) => m.role === 'user');
+  return firstUser === -1 ? [] : recent.slice(firstUser);
+}
+
+function isValidMessage(m: ChatMessage): boolean {
+  return (
+    (m?.role === 'assistant' || m?.role === 'user') &&
+    typeof m.content === 'string' &&
+    m.content.trim().length > 0
+  );
+}
+
+/** Parses and validates the body; returns the error response when it is unusable. */
+async function parseMessages(
+  request: NextRequest
+): Promise<{ messages: ChatMessage[]; sessionId: unknown } | NextResponse> {
+  const raw = await request.text();
+  if (raw.length > MAX_BODY_BYTES) {
+    return NextResponse.json({ error: 'Request too large' }, { status: 413 });
+  }
+
+  let requestBody: ChatRequestBody;
+  try {
+    requestBody = JSON.parse(raw) as ChatRequestBody;
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
+
+  const messages = requestBody?.messages;
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return NextResponse.json({ error: 'Messages array required' }, { status: 400 });
+  }
+  if (messages.length > MAX_MESSAGES) {
+    return NextResponse.json({ error: 'Too many messages' }, { status: 413 });
+  }
+
+  // The turn being asked must be the user's. It is the one part of the body
+  // that is stored, so it has to be something the user actually said.
+  if (!messages.every(isValidMessage) || messages[messages.length - 1].role !== 'user') {
+    return NextResponse.json({ error: 'Invalid message format' }, { status: 400 });
+  }
+
+  // The history cap bounds the *number* of turns but not their size, so a
+  // single long message could still carry a book's worth of tokens into a paid
+  // model — and into a Firestore document, which hard-fails above 1 MiB anyway.
+  if (messages.some((m) => m.content.length > MAX_MESSAGE_CHARS)) {
+    return NextResponse.json({ error: 'Message too long' }, { status: 413 });
+  }
+
+  return { messages, sessionId: requestBody.sessionId };
+}
+
+/** What goes to the model: our record for a session we hold, else the client's. */
+async function modelContext(
+  session: ResolvedSession,
+  messages: ChatMessage[],
+  log: Logger
+): Promise<ChatMessage[]> {
+  const turn = messages[messages.length - 1];
+  if (session.isNew) return clientHistory(messages);
+  try {
+    return [...(await storedHistory(session.id)), turn];
+  } catch (error) {
+    // Without the record, answer the question alone rather than fall back to
+    // trusting the client's version of it.
+    log.warn('chat_history_unavailable', { error: serializeError(error) });
+    return [turn];
+  }
+}
+
 export async function POST(request: NextRequest) {
   const log = createLogger('/api/chat', request);
 
@@ -199,57 +318,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let requestBody: ChatRequestBody;
-  try {
-    requestBody = (await request.json()) as ChatRequestBody;
-  } catch {
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
-  }
+  const parsed = await parseMessages(request);
+  if (parsed instanceof NextResponse) return parsed;
+  const { messages } = parsed;
 
-  const messages = requestBody.messages;
-
-  if (!Array.isArray(messages) || messages.length === 0) {
-    return NextResponse.json({ error: 'Messages array required' }, { status: 400 });
-  }
-
-  if (messages.length > MAX_MESSAGES) {
-    return NextResponse.json({ error: 'Too many messages' }, { status: 413 });
-  }
-
-  const hasInvalidMessage = messages.some(
-    (m) =>
-      (m.role !== 'assistant' && m.role !== 'user') ||
-      typeof m.content !== 'string' ||
-      m.content.trim().length === 0
-  );
-
-  if (hasInvalidMessage) {
-    return NextResponse.json({ error: 'Invalid message format' }, { status: 400 });
-  }
-
-  // The history cap below bounds the *number* of turns but not their size, so a
-  // single long message could still carry a book's worth of tokens into a paid
-  // model — and into a Firestore document, which hard-fails above 1 MiB anyway.
-  if (messages.some((m) => m.content.length > MAX_MESSAGE_CHARS)) {
-    return NextResponse.json({ error: 'Message too long' }, { status: 413 });
-  }
-
-  // Cap context to bound per-request token cost.
-  // Slice the most recent MAX_HISTORY messages, then drop one more if needed so the
-  // array always starts with a user turn — Gemini requires strict user/model alternation.
-  const MAX_HISTORY = 20;
-  let trimmed = messages;
-  if (messages.length > MAX_HISTORY) {
-    const recent = messages.slice(-MAX_HISTORY);
-    trimmed = recent[0].role === 'user' ? recent : recent.slice(1);
-  }
-
-  const contents = trimmed.map((msg) => ({
+  const session = await resolveSession(parsed.sessionId, uid, log);
+  const contents = (await modelContext(session, messages, log)).map((msg) => ({
     role: msg.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: msg.content }],
   }));
-
-  const session = await resolveSession(requestBody.sessionId, uid, log);
 
   try {
     const response = await fetch(
@@ -287,8 +364,13 @@ export async function POST(request: NextRequest) {
       data.candidates?.[0]?.content?.parts?.[0]?.text ??
       "I couldn't generate a response. Please try again.";
 
-    await persistConversation(session, messages, text, uid, log);
+    // Only signed-in conversations are kept. A signed-out transcript has no
+    // owner to hand it back to or erase it for — it would sit for ninety days
+    // as health information nobody could ask us to delete. The browser keeps
+    // its own copy for the next turn.
+    if (uid === null) return NextResponse.json({ message: text });
 
+    await persistConversation(session, messages[messages.length - 1].content, text, uid, log);
     return NextResponse.json({ message: text, sessionId: session.id });
   } catch (error) {
     if (error instanceof DOMException && error.name === 'TimeoutError') {

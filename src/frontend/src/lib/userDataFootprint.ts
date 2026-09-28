@@ -107,8 +107,12 @@ export const RETAINED_ON_DELETE: Record<string, string> = {
  *
  * The stamp itself was ineffective until the 2026-09-26 audit: the chat widget
  * never sent a token, so every session — signed in or not — was written with
- * `user_id: null`. Only sessions created after that fix are erasable by uid.
+ * `user_id: null`. Signed-out conversations went on being stored that way
+ * until 2026-09-28, when the route stopped storing them at all: a transcript
+ * with no owner is one nobody can ask us to erase. Everything stored since is
+ * stamped with a uid.
  */
 export const UNATTRIBUTED_LEGACY_DATA =
-  'chat_sessions documents created before the chat widget sent a token (2026-09-26) cannot be matched ' +
-  'to an account. They expire via the 90-day TTL on expiresAt.';
+  'chat_sessions documents with user_id null — every conversation before 2026-09-26, and signed-out ones ' +
+  'until 2026-09-28 — cannot be matched to an account. None are written now; the rest expire via the ' +
+  '90-day TTL on expiresAt.';
