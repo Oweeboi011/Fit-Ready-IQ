@@ -140,11 +140,24 @@ describe('POST /api/places/cache', () => {
     expect((state.docs.get(CELL)!.routes as { name: string }[])[0].name).toBe('Dipsea Trail');
   });
 
-  it('lets the same account refresh its own cell', async () => {
+  it('refuses the first writer too while the cell is fresh, so nobody can hold it', async () => {
     await post(payload());
     const res = await post(payload({ routes: [] }));
-    expect(res.status).toBe(200);
-    expect(state.docs.get(CELL)!.routes).toEqual([]);
+    expect(res.status).toBe(409);
+    expect(state.docs.get(CELL)!.routes).toEqual([route]);
+  });
+
+  it('lets a current-version write replace a fresh cell from an older version', async () => {
+    state.docs.set(CELL, {
+      v: PLACES_CACHE_VERSION - 1,
+      routes: [],
+      written_by: 'alice',
+      ts: new Date().toISOString(),
+    });
+    state.user = { uid: 'bob', email: null };
+
+    expect((await post(payload())).status).toBe(200);
+    expect(state.docs.get(CELL)!.v).toBe(PLACES_CACHE_VERSION);
   });
 
   it('lets anyone replace a cell once it has gone stale', async () => {

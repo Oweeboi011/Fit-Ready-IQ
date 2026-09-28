@@ -211,12 +211,19 @@ export async function POST(request: NextRequest) {
     const outcome = await db.runTransaction(async (tx) => {
       const existing = await tx.get(ref);
       const current = existing.data();
+      // An entry from an older cache version is a miss for every reader, so
+      // it is not "fresh" either — otherwise it would block the correct data
+      // for up to a day after every version bump.
       const fresh =
-        existing.exists && Date.now() - new Date(current?.ts as string).getTime() < CACHE_TTL_MS;
+        existing.exists &&
+        current?.v === PLACES_CACHE_VERSION &&
+        Date.now() - new Date(current?.ts as string).getTime() < CACHE_TTL_MS;
 
-      // First writer wins while the entry is fresh. Honest clients only write
-      // after a miss, so a refusal here costs a legitimate user nothing.
-      if (fresh && current?.written_by !== uid) return 'held' as const;
+      // First writer wins while the entry is fresh — including against the
+      // first writer. Honest clients only write after a miss, so a refusal
+      // costs a legitimate user nothing; exempting the owner let one account
+      // hold a cell indefinitely by re-posting before each expiry.
+      if (fresh) return 'held' as const;
 
       const now = Date.now();
       tx.set(ref, {

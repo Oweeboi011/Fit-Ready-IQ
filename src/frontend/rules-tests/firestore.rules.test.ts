@@ -149,6 +149,39 @@ describe('users/{uid}/saved_places', () => {
     );
   });
 
+  it('refuses coordinates off the globe', async () => {
+    await assertFails(
+      setDoc(doc(alice(), 'users/alice/saved_places/p1'), bookmark({ coordinates: [200, 37.9] }))
+    );
+    await assertFails(
+      setDoc(doc(alice(), 'users/alice/saved_places/p1'), bookmark({ coordinates: [-122.6, 95] }))
+    );
+  });
+
+  it('refuses a photo list holding anything but bounded strings', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(alice(), 'users/alice/saved_places/p1'),
+        bookmark({ photos: ['https://example.com/a.jpg', 'https://example.com/b.jpg'] })
+      )
+    );
+    await assertFails(
+      setDoc(doc(alice(), 'users/alice/saved_places/p2'), bookmark({ photos: [{ blob: 'x' }] }))
+    );
+    await assertFails(
+      setDoc(
+        doc(alice(), 'users/alice/saved_places/p3'),
+        bookmark({ photos: ['ok', 'x'.repeat(5000)] })
+      )
+    );
+  });
+
+  it('refuses a rating outside 0–5', async () => {
+    await assertFails(
+      setDoc(doc(alice(), 'users/alice/saved_places/p1'), bookmark({ rating: 50 }))
+    );
+  });
+
   it('refuses a missing required field', async () => {
     const { coordinates: _dropped, ...withoutCoordinates } = bookmark();
     await assertFails(setDoc(doc(alice(), 'users/alice/saved_places/p1'), withoutCoordinates));
@@ -190,13 +223,16 @@ describe('server-only collections', () => {
 
 describe('user_id-scoped collections', () => {
   it.each(['activities', 'training_programs', 'training_sessions', 'itineraries'])(
-    '%s: owner reads and writes, owner cannot be reassigned, strangers are refused',
+    '%s: the owner reads, nobody writes from a browser — the backend writes via the Admin SDK',
     async (name) => {
-      await assertSucceeds(setDoc(doc(alice(), `${name}/d1`), { user_id: 'alice', v: 1 }));
+      await seed([name, 'd1'], { user_id: 'alice', v: 1 });
       await assertSucceeds(getDoc(doc(alice(), `${name}/d1`)));
       await assertFails(getDoc(doc(bob(), `${name}/d1`)));
-      await assertFails(updateDoc(doc(alice(), `${name}/d1`), { user_id: 'bob' }));
-      await assertFails(setDoc(doc(bob(), `${name}/d2`), { user_id: 'alice' }));
+      // Owner-writable, with no shape or size limit, these were storage any
+      // signed-in account could fill at our expense.
+      await assertFails(setDoc(doc(alice(), `${name}/d2`), { user_id: 'alice', v: 1 }));
+      await assertFails(updateDoc(doc(alice(), `${name}/d1`), { v: 2 }));
+      await assertFails(deleteDoc(doc(alice(), `${name}/d1`)));
     }
   );
 });
