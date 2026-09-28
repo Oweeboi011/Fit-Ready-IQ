@@ -27,25 +27,32 @@ export default function SavedPlaceListItem({
   onClick,
   onUnsave,
 }: SavedPlaceListItemProps) {
+  // Not a <button> around the whole card: the save control inside it made that
+  // a button nested in a button, which is invalid and which screen readers and
+  // keyboards handle unpredictably. The title is the button; its ::after
+  // stretches over the card so a click anywhere still opens the place, and the
+  // save control sits above it.
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`card-enter group w-full rounded-xl border border-ink/[0.07] bg-ink/5 px-3.5 py-3 text-left transition-all active:scale-[0.99] ${TYPE_COLOR[place.type] ?? ''}`}
+    <div
+      data-place-card
+      className={`card-enter group relative w-full rounded-xl border border-ink/[0.07] bg-ink/5 px-3.5 py-3 text-left transition-all active:scale-[0.99] ${TYPE_COLOR[place.type] ?? ''}`}
       style={{ animationDelay: `${index * 30}ms` }}
     >
       <div className="flex items-start justify-between gap-2">
         <p className="line-clamp-1 text-[13px] font-semibold text-slate-100 group-hover:text-white">
-          {place.name}
+          <button
+            type="button"
+            onClick={onClick}
+            className="text-left after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-blue-400"
+          >
+            {place.name}
+          </button>
         </p>
         <div className="flex flex-shrink-0 items-center gap-1.5">
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onUnsave();
-            }}
-            className="rounded p-0.5 text-amber-400 transition-colors hover:text-slate-400"
+            onClick={onUnsave}
+            className="relative z-10 rounded p-0.5 text-amber-400 transition-colors hover:text-slate-400"
             aria-label="Unsave"
           >
             <Bookmark aria-hidden="true" className="h-3.5 w-3.5 fill-amber-400" />
@@ -76,6 +83,6 @@ export default function SavedPlaceListItem({
           </>
         ) : null}
       </div>
-    </button>
+    </div>
   );
 }

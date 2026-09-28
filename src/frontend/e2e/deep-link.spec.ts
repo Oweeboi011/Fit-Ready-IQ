@@ -10,10 +10,12 @@ test.describe('deep links and URL state', () => {
     await page.goto('/app');
     await expect(page.getByRole('tablist')).toBeVisible();
 
-    const firstRoute = page.locator('aside button').filter({ hasText: /km/ }).first();
+    // A card is a container whose title is the button (see RouteListItem).
+    const firstRoute = page.locator('aside [data-place-card]').filter({ hasText: /km/ }).first();
     await expect(firstRoute).toBeVisible({ timeout: 45_000 });
-    const name = (await firstRoute.locator('p').first().innerText()).trim();
-    await firstRoute.click();
+    const open = firstRoute.getByRole('button').first();
+    const name = (await open.innerText()).trim();
+    await open.click();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
@@ -27,9 +29,9 @@ test.describe('deep links and URL state', () => {
 
   test('closing a place clears it from the URL', async ({ page }) => {
     await page.goto('/app');
-    const firstRoute = page.locator('aside button').filter({ hasText: /km/ }).first();
+    const firstRoute = page.locator('aside [data-place-card]').filter({ hasText: /km/ }).first();
     await expect(firstRoute).toBeVisible({ timeout: 45_000 });
-    await firstRoute.click();
+    await firstRoute.getByRole('button').first().click();
     await expect(page).toHaveURL(/place=/);
 
     await page.keyboard.press('Escape');

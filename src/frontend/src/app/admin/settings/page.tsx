@@ -1,5 +1,6 @@
 'use client';
 
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useState, useEffect } from 'react';
 import {
   Settings,
@@ -254,6 +255,9 @@ export default function AdminSettingsPage() {
     }
   }
 
+  // What the open confirmation will purge: one region, everything, or nothing.
+  const [pendingPurge, setPendingPurge] = useState<{ gridKey?: string } | null>(null);
+
   async function purgeEntry(gridKey?: string) {
     const key = gridKey ?? '__all__';
     setPurgingKey(key);
@@ -344,6 +348,22 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
+      <ConfirmDialog
+        isOpen={pendingPurge !== null}
+        title={pendingPurge?.gridKey ? 'Purge this region?' : 'Purge every region?'}
+        body={
+          pendingPurge?.gridKey
+            ? `The cache for ${pendingPurge.gridKey} is deleted. The next visitor there triggers a full live fetch.`
+            : 'Every cached region is deleted. The next visitor in each region triggers a full live fetch — the most expensive path the product has.'
+        }
+        confirmLabel={pendingPurge?.gridKey ? 'Purge region' : 'Purge all'}
+        onCancel={() => setPendingPurge(null)}
+        onConfirm={() => {
+          const target = pendingPurge;
+          setPendingPurge(null);
+          void purgeEntry(target?.gridKey);
+        }}
+      />
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-ink/[0.06] bg-slate-900/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center gap-4 px-5 py-3.5">
@@ -824,14 +844,7 @@ export default function AdminSettingsPage() {
                   Refresh
                 </button>
                 <button
-                  onClick={() => {
-                    if (
-                      confirm(
-                        'Purge ALL cache entries? The next user in each region will trigger a full live fetch.'
-                      )
-                    )
-                      purgeEntry();
-                  }}
+                  onClick={() => setPendingPurge({})}
                   disabled={purgingKey !== null || !cacheStats?.total}
                   className="flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-900/20 px-3 py-1.5 text-xs text-red-400 transition-colors hover:bg-red-900/30 hover:text-red-300 disabled:opacity-40"
                 >
@@ -933,18 +946,9 @@ export default function AdminSettingsPage() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <button
-                            onClick={() => {
-                              // Purging is irreversible and forces a full live
-                              // refetch for that region; the bulk purge already
-                              // confirmed, this one silently deleted.
-                              if (
-                                confirm(
-                                  `Purge the cache for ${entry.gridKey}? The next user in that region will trigger a full live fetch.`
-                                )
-                              ) {
-                                purgeEntry(entry.gridKey);
-                              }
-                            }}
+                            // Purging is irreversible and forces a full live
+                            // refetch for that region, so it is confirmed.
+                            onClick={() => setPendingPurge({ gridKey: entry.gridKey })}
                             disabled={purgingKey === entry.gridKey}
                             className="rounded p-1 text-slate-600 transition-colors hover:text-red-400 disabled:opacity-40"
                             aria-label="Purge this entry"

@@ -23,12 +23,13 @@ async function seedTraining(page: import('@playwright/test').Page) {
 
 /** Opens the first discovered route in the sidebar. */
 async function openFirstRoute(page: import('@playwright/test').Page) {
+  // A card is a container whose title is the button (see RouteListItem).
   const first = page
-    .locator('aside button')
+    .locator('aside [data-place-card]')
     .filter({ hasText: /Length/ })
     .first();
   await expect(first).toBeVisible({ timeout: 30_000 });
-  await first.click();
+  await first.getByRole('button').first().click();
   return page.getByRole('dialog');
 }
 

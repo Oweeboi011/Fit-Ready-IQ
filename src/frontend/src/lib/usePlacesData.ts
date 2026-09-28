@@ -204,6 +204,10 @@ export function usePlacesData({
     ? `${(Math.round(userLocation.lat * 10) / 10).toFixed(1)},${(Math.round(userLocation.lng * 10) / 10).toFixed(1)}`
     : null;
   const fetchedLocationKeyRef = useRef<string | null>(null);
+  // Identifies the newest run. A run for a location the user has since left
+  // used to finish anyway and overwrite the newer area's results; each await
+  // now checks it is still the latest before it touches state.
+  const runIdRef = useRef(0);
 
   const applyResult = (data: {
     routes: RouteData[];
@@ -233,6 +237,8 @@ export function usePlacesData({
     if (locationStatus !== 'ready' || !userLocation || !locationKey) return;
     if (fetchedLocationKeyRef.current === locationKey) return;
     fetchedLocationKeyRef.current = locationKey;
+    const runId = ++runIdRef.current;
+    const superseded = () => runIdRef.current !== runId;
 
     // --- 3-tier cache strategy ---
     // L1: sessionStorage (30-min TTL, instant, per-tab)
@@ -255,6 +261,7 @@ export function usePlacesData({
         // longer prompts for it a second time.
         const userCoords: [number, number] = [userLocation.lng, userLocation.lat];
         const address = await resolveAddress(userCoords, userLocation.address ?? 'this area');
+        if (superseded()) return;
         const resolvedLocation = { lat: userCoords[1], lng: userCoords[0], address };
 
         // Keep the provenance we already established — attaching an address
@@ -262,6 +269,7 @@ export function usePlacesData({
         saveAndSetUserLocation(resolvedLocation, locationSource ?? 'restored');
 
         const firestoreCached = await fetchFirestoreCache(userCoords);
+        if (superseded()) return;
         if (firestoreCached) {
           writeSessionCache({ ...firestoreCached, location: resolvedLocation });
           applyResult({ ...firestoreCached, location: resolvedLocation });
@@ -309,6 +317,8 @@ export function usePlacesData({
           failed.push('campsites');
         }
 
+        if (superseded()) return;
+
         // An empty tab after a failed fetch is indistinguishable from "nothing
         // here" unless we say which collections did not come back.
         setFailedCollections(failed);
@@ -334,6 +344,7 @@ export function usePlacesData({
           campsites,
         });
       } catch (err) {
+        if (superseded()) return;
         console.error('Places pipeline failed:', err);
         setError("We couldn't load places near you.");
         setIsLoading(false);
