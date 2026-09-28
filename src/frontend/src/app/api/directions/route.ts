@@ -58,7 +58,9 @@ function isLatLng(value: unknown): value is LatLng {
     typeof v.lat === 'number' &&
     typeof v.lng === 'number' &&
     Number.isFinite(v.lat) &&
-    Number.isFinite(v.lng)
+    Number.isFinite(v.lng) &&
+    Math.abs(v.lat) <= 90 &&
+    Math.abs(v.lng) <= 180
   );
 }
 
@@ -100,7 +102,11 @@ async function parseRequest(request: Request): Promise<RouteRequest | null> {
   return {
     origin,
     destination,
-    stops: Array.isArray(intermediates) ? intermediates.filter(isLatLng) : [],
+    // Capped before validation, so a body of a million points costs one slice
+    // rather than a million checks. The Routes API takes 25 at most anyway.
+    stops: Array.isArray(intermediates)
+      ? intermediates.slice(0, MAX_INTERMEDIATES).filter(isLatLng)
+      : [],
     // Unknown or missing modes fall back to walking — the most conservative
     // routing of the three, and the planner's original behaviour.
     travelMode: TRAVEL_MODES.includes(mode as TravelMode) ? (mode as TravelMode) : 'WALK',
@@ -177,7 +183,7 @@ async function callRoutesApi(key: string, req: RouteRequest, log: Logger) {
       body: JSON.stringify({
         origin: waypoint(origin),
         destination: waypoint(destination),
-        intermediates: stops.slice(0, MAX_INTERMEDIATES).map(waypoint),
+        intermediates: stops.map(waypoint),
         travelMode,
         polylineQuality: 'HIGH_QUALITY',
         ...(travelMode === 'DRIVE' ? { routingPreference: 'TRAFFIC_UNAWARE' } : {}),

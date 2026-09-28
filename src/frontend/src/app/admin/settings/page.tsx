@@ -259,10 +259,15 @@ export default function AdminSettingsPage() {
     setPurgingKey(key);
     setLoadError(null);
     try {
-      const url = gridKey
-        ? `/api/admin/cache?gridKey=${encodeURIComponent(gridKey)}`
-        : '/api/admin/cache';
-      const res = await authedFetch(url, { method: 'DELETE' });
+      const res = gridKey
+        ? await authedFetch(`/api/admin/cache?gridKey=${encodeURIComponent(gridKey)}`, {
+            method: 'DELETE',
+          })
+        : await authedFetch('/api/admin/cache?all=true', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ confirm: 'PURGE' }),
+          });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await loadCache();
     } catch (err) {

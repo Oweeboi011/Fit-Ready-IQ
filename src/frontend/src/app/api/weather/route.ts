@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createLogger, serializeError, type Logger } from '@/lib/logger';
+import { createLogger, serializeError, upstreamSnippet, type Logger } from '@/lib/logger';
 import { summarizeAlerts, type ForecastHour, type WeatherAlert } from '@/lib/weatherAlerts';
 import { rateLimit, tooManyRequests } from '@/lib/rateLimit';
 import { WEATHER_RATE_LIMIT } from '@/lib/rateLimitRules';
 import { findWeatherWindow, type WeatherWindow } from '@/lib/weatherWindow';
 
 export const runtime = 'nodejs';
+
+const MAX_REQUIRED_HOURS = 240;
 
 function toNumber(value: string | null): number | null {
   if (!value) return null;
@@ -82,7 +84,7 @@ async function fetchGoogleWeather(
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Google Weather ${res.status}: ${body.slice(0, 200)}`);
+    throw new Error(`Google Weather ${res.status}: ${upstreamSnippet(body)}`);
   }
 
   // Response may be top-level or wrapped in currentConditions
@@ -150,7 +152,7 @@ async function fetchOpenWeather(
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`OpenWeather ${res.status}: ${body.slice(0, 200)}`);
+    throw new Error(`OpenWeather ${res.status}: ${upstreamSnippet(body)}`);
   }
 
   const d = (await res.json()) as OpenWeatherCurrent;
@@ -321,8 +323,13 @@ export async function GET(request: NextRequest) {
   // to the location — see `weatherWindow.ts`. Absent, it falls back to a short outing.
   const requiredHours = toNumber(request.nextUrl.searchParams.get('hours'));
 
-  if (lat === null || lng === null) {
+  if (lat === null || lng === null || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
     return NextResponse.json({ error: 'Missing or invalid lat/lng' }, { status: 400 });
+  }
+  // A route longer than ten days is not a weather window question, and a
+  // negative or absurd value is a malformed request, not something to clamp.
+  if (requiredHours !== null && (requiredHours <= 0 || requiredHours > MAX_REQUIRED_HOURS)) {
+    return NextResponse.json({ error: 'Invalid hours' }, { status: 400 });
   }
 
   const googleKey = process.env.GOOGLE_WEATHER_API_KEY;
@@ -352,12 +359,13 @@ export async function GET(request: NextRequest) {
       { headers: { 'Cache-Control': 'public, max-age=1800, stale-while-revalidate=300' } }
     );
   } catch (error) {
+    // The error text carries a snippet of the upstream body. That belongs in
+    // the log, where it is redacted and kept with the request id, not in a
+    // response any caller can read.
+    log.error('weather_failed', error);
     return NextResponse.json(
-      {
-        error: 'Weather route failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
+      { error: 'Weather route failed', details: 'upstream_unavailable' },
+      { status: 502 }
     );
   }
 }

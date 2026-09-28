@@ -40,17 +40,39 @@ export const ADVISORY_MAX_AGE_DAYS = 30;
 export function isAdvisory(value: unknown): value is Advisory {
   if (typeof value !== 'object' || value === null) return false;
   const a = value as Record<string, unknown>;
-  if (typeof a.id !== 'string' || a.id === '') return false;
-  if (typeof a.title !== 'string' || a.title === '') return false;
-  if (typeof a.source !== 'string') return false;
-  if (typeof a.publishedAt !== 'string' || Number.isNaN(Date.parse(a.publishedAt))) return false;
-  if (!ADVISORY_KINDS.includes(a.kind as AdvisoryKind)) return false;
+  if (!hasRequiredFields(a)) return false;
+
+  // The link is opened with `window.open`, so a `javascript:` or `data:` URL
+  // from a scraped page or a feed would run in our origin. https only.
+  if (a.url !== undefined && !isHttpsUrl(a.url)) return false;
 
   if (a.coordinates !== undefined) {
     if (!Array.isArray(a.coordinates) || a.coordinates.length !== 2) return false;
     if (!a.coordinates.every((n) => typeof n === 'number' && Number.isFinite(n))) return false;
   }
   return true;
+}
+
+function hasRequiredFields(a: Record<string, unknown>): boolean {
+  return (
+    typeof a.id === 'string' &&
+    a.id !== '' &&
+    typeof a.title === 'string' &&
+    a.title !== '' &&
+    typeof a.source === 'string' &&
+    typeof a.publishedAt === 'string' &&
+    !Number.isNaN(Date.parse(a.publishedAt)) &&
+    ADVISORY_KINDS.includes(a.kind as AdvisoryKind)
+  );
+}
+
+function isHttpsUrl(value: unknown): boolean {
+  if (typeof value !== 'string') return false;
+  try {
+    return new URL(value).protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 /** Drops malformed entries and anything past the window. */

@@ -232,7 +232,12 @@ export function CachingTab({ data, onRefresh }: { data: AdminData; onRefresh: ()
       return;
     }
     try {
-      await authedFetch('/api/admin/cache', { method: 'DELETE' });
+      const res = await authedFetch('/api/admin/cache?all=true', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'PURGE' }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       onRefresh();
     } catch (err) {
       console.error('Purge failed:', err);
