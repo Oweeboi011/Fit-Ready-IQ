@@ -25,7 +25,11 @@ export interface TerrainPulse {
 }
 
 export interface DockWeather {
-  status: 'idle' | 'loading' | 'ready' | 'unavailable';
+  /**
+   * `unavailable`: no location to ask about. `failed`: we asked and the
+   * request failed — worth a retry, which `unavailable` is not.
+   */
+  status: 'idle' | 'loading' | 'ready' | 'unavailable' | 'failed';
   temp?: string;
   best?: string;
   avoid?: string;
@@ -69,7 +73,7 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function WeatherPanel({ weather }: { weather: DockWeather }) {
+export function WeatherPanel({ weather, onRetry }: { weather: DockWeather; onRetry?: () => void }) {
   if (weather.status === 'loading') {
     return (
       <p role="status" className="py-2 text-xs text-slate-400">
@@ -77,10 +81,28 @@ export function WeatherPanel({ weather }: { weather: DockWeather }) {
       </p>
     );
   }
+  if (weather.status === 'failed') {
+    return (
+      <div className="py-2">
+        <p className="text-xs text-amber-200">
+          The forecast didn&apos;t load. Check a mountain forecast before you set out.
+        </p>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className={`${buttonSecondary} ${buttonSize.sm} mt-2`}
+          >
+            Retry
+          </button>
+        )}
+      </div>
+    );
+  }
   if (weather.status !== 'ready') {
     return (
       <p className="py-2 text-xs text-amber-200">
-        Forecast unavailable right now. Check a mountain forecast before you set out.
+        No location to forecast for yet. Allow location or move the map, then try again.
       </p>
     );
   }

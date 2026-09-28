@@ -8,6 +8,7 @@ import {
   signOutFirebaseUser,
 } from '@/lib/firebaseClient';
 import { signInErrorMessage } from '@/lib/firebaseAuthErrors';
+import { clearPersonalStorage } from '@/lib/personalStorage';
 
 export function useFirebaseAuth() {
   const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
@@ -63,6 +64,11 @@ export function useFirebaseAuth() {
     setAuthBusy(true);
     try {
       await signOutFirebaseUser();
+      // What this browser holds about them goes too, and the reload drops the
+      // copies already in memory — otherwise the next person on a shared
+      // device opens the app to the last one's history and chat.
+      clearPersonalStorage();
+      window.location.reload();
     } catch (err) {
       console.error('Sign-out failed:', err);
       setAuthError("We couldn't sign you out. Try again.");

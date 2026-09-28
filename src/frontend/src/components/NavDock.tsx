@@ -62,7 +62,12 @@ interface NavDockProps {
   tabCounts: Record<ContentTab, number>;
   hiddenLayers: MapLayer[];
   advisories: Advisory[];
-  advisorySource: { configured: boolean; status: 'idle' | 'loading' | 'error' };
+  advisorySource: {
+    configured: boolean;
+    status: 'idle' | 'loading' | 'error';
+    /** Asks the source again after a failure. */
+    retry?: () => void;
+  };
   onSelectAdvisory: (advisory: Advisory) => void;
   layerCounts: Record<MapLayer, number>;
   weatherRadarVisible: boolean;
@@ -104,7 +109,7 @@ function DockPanelBody({
 }) {
   switch (panel) {
     case 'weather':
-      return <WeatherPanel weather={props.weather} />;
+      return <WeatherPanel weather={props.weather} onRetry={props.onRequestWeather} />;
     case 'pulse':
       return <PulsePanel pulse={props.pulse} />;
     case 'alerts':
@@ -115,6 +120,7 @@ function DockPanelBody({
           advisories={props.advisories}
           configured={props.advisorySource.configured}
           status={props.advisorySource.status}
+          onRetry={props.advisorySource.retry}
           onSelect={(a) => {
             close();
             props.onSelectAdvisory(a);

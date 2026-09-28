@@ -507,6 +507,12 @@ export default function Home() {
     configured: boolean;
     status: 'idle' | 'loading' | 'error';
   }>({ configured: false, status: 'loading' });
+  // Bumped by the panel's retry to run the fetch again.
+  const [advisoryAttempt, setAdvisoryAttempt] = useState(0);
+  const advisorySourceWithRetry = useMemo(
+    () => ({ ...advisorySource, retry: () => setAdvisoryAttempt((n) => n + 1) }),
+    [advisorySource]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -528,7 +534,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [advisoryAttempt]);
 
   /** Derived once so the map and the layer toggle report the same number. */
   const activityPolylines = useMemo(
@@ -579,7 +585,7 @@ export default function Home() {
       recordWeatherAlerts(userLocation.lat, userLocation.lng, alerts);
     } catch (err) {
       console.error('Dock weather failed:', err);
-      setDockWeather({ status: 'unavailable' });
+      setDockWeather({ status: 'failed' });
     }
   }, [userLocation]);
 
@@ -836,7 +842,7 @@ export default function Home() {
           onSelectTabAuthRequired={() => setAuthError('Sign in to keep a shortlist of places.')}
           hiddenLayers={hiddenLayers}
           advisories={advisories}
-          advisorySource={advisorySource}
+          advisorySource={advisorySourceWithRetry}
           layerCounts={layerCounts}
           onToggleLayer={toggleLayer}
           showWeatherRadar={showWeatherRadar}

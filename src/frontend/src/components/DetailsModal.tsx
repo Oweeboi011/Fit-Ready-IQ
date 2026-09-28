@@ -94,6 +94,48 @@ const WEATHER_UNAVAILABLE: WeatherResult = {
   window: null,
 };
 
+/**
+ * Shown while the request is in flight. "Forecast unavailable" used to fill
+ * this gap too, so every place announced it had no forecast for a second
+ * before showing one — and a real failure looked identical to loading.
+ */
+const WEATHER_LOADING: WeatherResult = {
+  ...WEATHER_UNAVAILABLE,
+  best: 'Loading…',
+  avoid: 'Loading…',
+  risk: 'Fetching the forecast for this location.',
+};
+
+type WeatherStatus = 'idle' | 'loading' | 'ready' | 'failed';
+
+/**
+ * The kit list. Driven by altitude only where altitude is the actual reason
+ * (cold and exposure). It used to infer "technical sections" from altitude
+ * too, recommending a harness for any summit above 2,000 m and crampons above
+ * 2,500 m — a walk-up with a road to the top got climbing gear. Nothing we
+ * hold says whether a route is technical, so that line is gone.
+ */
+function gearFor(summitElevation: number | null | undefined): string[] {
+  const high = summitElevation != null && summitElevation > 2500;
+  return [
+    ...(high
+      ? [
+          'Trekking poles',
+          'Insulating + waterproof layers',
+          'Check current snow and ice conditions before you go',
+        ]
+      : ['Ankle-support trail shoes or boots', 'Lightweight rain jacket']),
+    '3–4L water capacity (hydration bladder + bottle)',
+    'Headlamp + spare batteries',
+    'First aid kit with blister care',
+    'Emergency bivy / space blanket',
+    'High-energy snacks (nuts, energy bars, dried fruit)',
+    'Sunscreen SPF 50+, buff/neck gaiter',
+    'Whistle, map or offline GPS',
+    'LNT waste bag — pack out all trash',
+  ];
+}
+
 interface DetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -116,7 +158,23 @@ export default function DetailsModal({
   const [runtimePhotos, setRuntimePhotos] = useState<string[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [photosFailed, setPhotosFailed] = useState(false);
+  const [photosAttempt, setPhotosAttempt] = useState(0);
   const [liveWeather, setLiveWeather] = useState<WeatherResult | null>(null);
+  const [weatherStatus, setWeatherStatus] = useState<WeatherStatus>('idle');
+  // Bumped by the retry button to re-run the weather effect.
+  const [weatherAttempt, setWeatherAttempt] = useState(0);
+  const weatherNotes =
+    liveWeather ?? (weatherStatus === 'loading' ? WEATHER_LOADING : WEATHER_UNAVAILABLE);
+  const weatherRetry =
+    weatherStatus === 'failed' ? (
+      <button
+        type="button"
+        onClick={() => setWeatherAttempt((n) => n + 1)}
+        className={`${buttonSecondary} ${buttonSize.sm} mt-2`}
+      >
+        Couldn&apos;t load the forecast — retry
+      </button>
+    ) : null;
 
   /**
    * The recorded track, when the selection is an activity that has one.
@@ -135,6 +193,7 @@ export default function DetailsModal({
   useEffect(() => {
     if (!isOpen || !data || data.type === 'activity' || data.type === 'campsite') {
       setLiveWeather(null);
+      setWeatherStatus('idle');
       return;
     }
     const [lng, lat] = data.coordinates;
@@ -149,8 +208,15 @@ export default function DetailsModal({
     const cachedTs = weatherCacheTs.get(cacheKey) ?? 0;
     if (cached && Date.now() - cachedTs < WEATHER_TTL_MS) {
       setLiveWeather(cached);
+      setWeatherStatus('ready');
       return;
     }
+
+    // Selecting another place mid-request must not land this one's forecast
+    // on it — the modal is reused, so the old response would label the new peak.
+    let cancelled = false;
+    setLiveWeather(null);
+    setWeatherStatus('loading');
 
     // Scope the window to this route's length, not just its location — the same
     // Naismith estimate the modal already shows the user as an hour range.
@@ -167,26 +233,35 @@ export default function DetailsModal({
     fetch(url)
       .then((r) => (r.ok ? r.json() : null))
       .then((json) => {
-        if (json && json.summary && !json.error) {
-          const result: WeatherResult = {
-            best: json.summary.best,
-            avoid: json.summary.avoid,
-            temp: json.summary.temp,
-            risk: json.summary.risk,
-            live: true,
-            alerts: Array.isArray(json.alerts) ? json.alerts : [],
-            window: json.window ?? null,
-          };
-          weatherCache.set(cacheKey, result);
-          weatherCacheTs.set(cacheKey, Date.now());
-          setLiveWeather(result);
-          recordWeatherAlerts(lat, lng, result.alerts);
+        if (cancelled) return;
+        if (!json || !json.summary || json.error) {
+          setWeatherStatus('failed');
+          return;
         }
+        const result: WeatherResult = {
+          best: json.summary.best,
+          avoid: json.summary.avoid,
+          temp: json.summary.temp,
+          risk: json.summary.risk,
+          live: true,
+          alerts: Array.isArray(json.alerts) ? json.alerts : [],
+          window: json.window ?? null,
+        };
+        weatherCache.set(cacheKey, result);
+        weatherCacheTs.set(cacheKey, Date.now());
+        setLiveWeather(result);
+        setWeatherStatus('ready');
+        recordWeatherAlerts(lat, lng, result.alerts);
       })
       .catch(() => {
-        /* silently fall back to static notes */
+        // Said, not swallowed: the panel offers a retry.
+        if (!cancelled) setWeatherStatus('failed');
       });
-  }, [isOpen, data]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, data, weatherAttempt]);
 
   // Lazily fetch photos from Google Places when the modal opens
   useEffect(() => {
@@ -210,10 +285,15 @@ export default function DetailsModal({
       return;
     }
 
+    // Cleared first and guarded after: the modal is reused, so a slow response
+    // for the previous place would otherwise show its photos on this one.
+    let cancelled = false;
+    setRuntimePhotos([]);
     setLoadingPhotos(true);
     setPhotosFailed(false);
     const service = new google.maps.places.PlacesService(document.createElement('div'));
     service.getDetails({ placeId, fields: ['photos'] }, (place, status) => {
+      if (cancelled) return;
       setLoadingPhotos(false);
       const { OK, ZERO_RESULTS } = google.maps.places.PlacesServiceStatus;
 
@@ -229,11 +309,17 @@ export default function DetailsModal({
       // A place genuinely without photos and a failed request used to look
       // identical — both fell through to "No photos available".
       if (status !== OK && status !== ZERO_RESULTS) {
-        console.error('Place photos request failed:', status);
         setPhotosFailed(true);
       }
     });
-  }, [isOpen, data]);
+
+    return () => {
+      cancelled = true;
+      // The cancelled callback will not clear it, and a cached next place
+      // never sets it — so a spinner would otherwise outlive its request.
+      setLoadingPhotos(false);
+    };
+  }, [isOpen, data, photosAttempt]);
 
   if (!isOpen || !data) return null;
 
@@ -428,6 +514,7 @@ export default function DetailsModal({
                   photos={resolvedPhotos}
                   loading={loadingPhotos}
                   failed={photosFailed}
+                  onRetry={() => setPhotosAttempt((n) => n + 1)}
                   placeName={data.name}
                 />
 
@@ -740,31 +827,7 @@ export default function DetailsModal({
                     const ascent = estimateAscentHours(elevGain);
                     const lo = ascent?.low ?? null;
                     const hi = ascent?.high ?? null;
-                    const isHighAlt = (summitElev ?? 0) > 2500;
-                    const isTechnical = (summitElev ?? 0) > 2000;
-
-                    const weatherNotes = liveWeather ?? WEATHER_UNAVAILABLE;
-
-                    const gearList = [
-                      ...(isHighAlt
-                        ? [
-                            'Trekking poles (mandatory)',
-                            'Crampon-compatible boots',
-                            'Fleece + waterproof outer layer',
-                          ]
-                        : ['Ankle-support trail shoes or boots', 'Lightweight rain jacket']),
-                      '3–4L water capacity (hydration bladder + bottle)',
-                      'Headlamp + spare batteries',
-                      'First aid kit with blister care',
-                      'Emergency bivy / space blanket',
-                      isTechnical
-                        ? 'Fixed rope gloves + harness (technical sections)'
-                        : 'Gaiters for muddy sections',
-                      'High-energy snacks (nuts, energy bars, dried fruit)',
-                      'Sunscreen SPF 50+, buff/neck gaiter',
-                      'Whistle, map or offline GPS',
-                      'LNT waste bag — pack out all trash',
-                    ];
+                    const gearList = gearFor(summitElev);
 
                     return (
                       <>
@@ -776,9 +839,11 @@ export default function DetailsModal({
                               Climb Time
                             </p>
                             <p className="font-tabular mt-1.5 text-xl font-bold text-white">
-                              {lo}–{hi}h
+                              {lo != null && hi != null ? `${lo}–${hi}h` : '—'}
                             </p>
-                            <p className="text-[11px] text-slate-400">Naismith&apos;s rule</p>
+                            <p className="text-[11px] text-slate-400">
+                              {lo != null ? "Naismith's rule" : 'ascent unknown'}
+                            </p>
                           </div>
                           <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3 text-center">
                             <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
@@ -790,7 +855,9 @@ export default function DetailsModal({
                                 ? 'Advanced'
                                 : data.difficulty === 'moderate'
                                   ? 'Intermediate'
-                                  : 'Beginner'}
+                                  : data.difficulty === 'easy'
+                                    ? 'Beginner'
+                                    : 'Not rated'}
                             </p>
                             <p className="text-[11px] text-slate-400">required level</p>
                           </div>
@@ -908,6 +975,7 @@ export default function DetailsModal({
                                 <p className="mt-2 rounded-md bg-ink/5 px-3 py-2 text-xs text-slate-300">
                                   RISK: {weatherNotes.risk}
                                 </p>
+                                {weatherRetry}
                                 <WeatherAlertChips alerts={weatherNotes.alerts} />
                                 <div className="mt-3">
                                   <WeatherWindowPanel window={weatherNotes.window} />
@@ -1048,6 +1116,7 @@ export default function DetailsModal({
               photos={resolvedPhotos}
               loading={loadingPhotos}
               failed={photosFailed}
+              onRetry={() => setPhotosAttempt((n) => n + 1)}
               placeName={data.name}
             />
 
@@ -1231,31 +1300,7 @@ export default function DetailsModal({
               // This used to run its own `gain / 300` on a gain measured from
               // sea level, and printed "–h" when there was nothing to divide.
               const ascent = estimateAscentHours(mountainGain(data));
-              const isHighAlt = (data.elevation_m ?? 0) > 2500;
-              const isTechnical = (data.elevation_m ?? 0) > 2000;
-
-              const weatherNotes = liveWeather ?? WEATHER_UNAVAILABLE;
-
-              const gearList = [
-                ...(isHighAlt
-                  ? [
-                      'Trekking poles (mandatory)',
-                      'Crampon-compatible boots',
-                      'Fleece + waterproof outer layer',
-                    ]
-                  : ['Ankle-support trail shoes or boots', 'Lightweight rain jacket']),
-                '3–4L water capacity (hydration bladder + bottle)',
-                'Headlamp + spare batteries',
-                'First aid kit with blister care',
-                'Emergency bivy / space blanket',
-                isTechnical
-                  ? 'Fixed rope gloves + harness (technical sections)'
-                  : 'Gaiters for muddy sections',
-                'High-energy snacks (nuts, energy bars, dried fruit)',
-                'Sunscreen SPF 50+, buff/neck gaiter',
-                'Whistle, map or offline GPS',
-                'LNT waste bag — pack out all trash',
-              ];
+              const gearList = gearFor(data.elevation_m);
 
               return (
                 <>
@@ -1397,6 +1442,7 @@ export default function DetailsModal({
                           <p className="mt-2 rounded-lg bg-slate-800/60 px-3 py-2 text-xs text-slate-400">
                             RISK: {weatherNotes.risk}
                           </p>
+                          {weatherRetry}
                           <WeatherAlertChips alerts={weatherNotes.alerts} />
                           <div className="mt-3">
                             <WeatherWindowPanel window={weatherNotes.window} />
@@ -1526,6 +1572,7 @@ export default function DetailsModal({
               photos={resolvedPhotos}
               loading={loadingPhotos}
               failed={photosFailed}
+              onRetry={() => setPhotosAttempt((n) => n + 1)}
               placeName={data.name}
             />
 

@@ -132,24 +132,33 @@ export function MapDirections({ map, origin, target, onClear }: MapDirectionsPro
         if (!res.ok) throw new Error(`Routing responded ${res.status}`);
         return res.json();
       })
-      .then((data: { polyline: string; distanceKm: number; durationSeconds: number }) => {
-        if (cancelled) return;
-        const path = decodePolyline(data.polyline);
-        line.setPath(path.map(([lng, lat]) => ({ lat, lng })));
+      .then(
+        (data: { polyline: string; distanceKm: number | null; durationSeconds: number | null }) => {
+          if (cancelled) return;
+          const path = decodePolyline(data.polyline);
+          line.setPath(path.map(([lng, lat]) => ({ lat, lng })));
 
-        const minutes = Math.round(data.durationSeconds / 60);
-        setLeg({
-          distance: `${data.distanceKm.toFixed(1)} km`,
-          duration:
-            minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`,
-        });
-        setStatus('idle');
+          // A missing figure reads as a dash; "0 min" to a summit is an answer
+          // someone could plan around.
+          const minutes =
+            data.durationSeconds == null ? null : Math.round(data.durationSeconds / 60);
+          setLeg({
+            distance: data.distanceKm == null ? '—' : `${data.distanceKm.toFixed(1)} km`,
+            duration:
+              minutes == null
+                ? '—'
+                : minutes >= 60
+                  ? `${Math.floor(minutes / 60)} h ${minutes % 60} min`
+                  : `${minutes} min`,
+          });
+          setStatus('idle');
 
-        // Frame the route so it is not off-screen.
-        const bounds = new google.maps.LatLngBounds();
-        path.forEach(([lng, lat]) => bounds.extend({ lat, lng }));
-        map?.fitBounds(bounds, 80);
-      })
+          // Frame the route so it is not off-screen.
+          const bounds = new google.maps.LatLngBounds();
+          path.forEach(([lng, lat]) => bounds.extend({ lat, lng }));
+          map?.fitBounds(bounds, 80);
+        }
+      )
       .catch((err) => {
         if (cancelled) return;
         // ZERO_RESULTS is meaningful: there is often no drivable route to a

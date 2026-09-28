@@ -27,8 +27,9 @@ interface LatLng {
 export interface DirectionsResult {
   /** Encoded polyline, precision 5 — feed to `decodePolyline`. */
   polyline: string;
-  distanceKm: number;
-  durationSeconds: number;
+  /** Null when Routes did not report one — never a zero standing in for it. */
+  distanceKm: number | null;
+  durationSeconds: number | null;
 }
 
 /**
@@ -149,12 +150,15 @@ function toResult(data: unknown): DirectionsResult | null {
   if (!polyline) return null;
 
   // Routes returns duration as a string like "1234s".
-  const seconds = Number.parseInt(String(route?.duration ?? '0').replace('s', ''), 10);
+  const seconds = route?.duration
+    ? Number.parseInt(String(route.duration).replace('s', ''), 10)
+    : Number.NaN;
+  const metres = route?.distanceMeters;
 
   return {
     polyline,
-    distanceKm: (route?.distanceMeters ?? 0) / 1000,
-    durationSeconds: Number.isFinite(seconds) ? seconds : 0,
+    distanceKm: typeof metres === 'number' && Number.isFinite(metres) ? metres / 1000 : null,
+    durationSeconds: Number.isFinite(seconds) ? seconds : null,
   };
 }
 
