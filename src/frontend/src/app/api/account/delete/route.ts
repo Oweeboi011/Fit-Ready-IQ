@@ -11,6 +11,7 @@ import {
 import { rateLimit, tooManyRequests } from '@/lib/rateLimit';
 import { ACCOUNT_DELETE_RATE_LIMIT } from '@/lib/rateLimitRules';
 import { requireUser } from '@/lib/serverAuth';
+import { revokeStravaGrant } from '@/lib/stravaTokens';
 import {
   USER_ATTRIBUTED_DOCUMENTS,
   USER_KEYED_DOCUMENTS,
@@ -74,8 +75,24 @@ async function deleteMatching(db: Firestore, query: FirebaseFirestore.Query): Pr
 async function eraseFirestoreData(
   db: Firestore,
   uid: string,
-  deleted: Record<string, number>
+  deleted: Record<string, number>,
+  request: Request
 ): Promise<void> {
+  // First, the Strava grant: withdrawn at Strava, then the tokens forgotten.
+  // Erasure must mean we can no longer reach their training history, not only
+  // that we stopped holding a copy. It goes first for a second reason — a sync
+  // already running writes only while the tokens exist (`whileStravaConnected`),
+  // so removing them before the tree is what stops it writing the tree back.
+  await revokeStravaGrant(uid, request);
+
+  // Documents keyed by uid outside the user tree — the Strava tokens again,
+  // idempotently, and anything added to the list later. Before the tree, for
+  // the same reason: a live credential is what lets data flow back in.
+  for (const name of USER_KEYED_DOCUMENTS) {
+    await db.collection(name).doc(uid).delete();
+    deleted[name] = 1;
+  }
+
   // The user document and everything beneath it — profile, saved_places,
   // strava_activities — in one walk. recursiveDelete is the only path that
   // reaches subcollections; a plain document delete would leave every saved
@@ -96,14 +113,6 @@ async function eraseFirestoreData(
       await db.recursiveDelete(doc.ref);
     }
     deleted[name] = snap.size;
-  }
-
-  // Documents keyed by uid outside the user tree — currently the Strava OAuth
-  // tokens. A deleted account must not leave a live, non-expiring refresh
-  // token behind; that is the worst possible remnant of an erasure.
-  for (const name of USER_KEYED_DOCUMENTS) {
-    await db.collection(name).doc(uid).delete();
-    deleted[name] = 1;
   }
 
   // Shared documents stamped with this uid. Deleted rather than scrubbed of
@@ -153,7 +162,7 @@ export async function POST(request: Request) {
   const deleted: Record<string, number> = {};
 
   try {
-    await eraseFirestoreData(getFirestoreAdmin(), uid, deleted);
+    await eraseFirestoreData(getFirestoreAdmin(), uid, deleted, request);
 
     // Last: the credential itself. Everything above is now unreachable.
     await getAuth(getFirebaseAdminApp()).deleteUser(uid);
@@ -184,7 +193,10 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(
       {
-        error: 'Deletion did not complete. Nothing further was removed; please try again.',
+        // Accurate about the partial state: steps before the failure are done
+        // and stay done, and the account is kept so the request can be retried.
+        error:
+          'Deletion did not complete. Some of your data was removed; your account was kept so you can try again.',
         partial: deleted,
       },
       { status: 500 }

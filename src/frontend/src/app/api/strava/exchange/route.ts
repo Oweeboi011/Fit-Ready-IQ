@@ -8,6 +8,8 @@ import { STRAVA_EXCHANGE_RATE_LIMIT } from '@/lib/rateLimitRules';
 
 export const runtime = 'nodejs';
 
+const MAX_CODE_LENGTH = 256;
+
 /** Strava's token endpoint is normally sub-second; past this it is not coming. */
 const STRAVA_TIMEOUT_MS = 10_000;
 
@@ -54,7 +56,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     code = body.code;
-    if (!code || typeof code !== 'string') throw new Error();
+    // Strava's codes are 40 hex characters; the bound only has to stop an
+    // arbitrarily large string being forwarded to Strava in our name.
+    if (!code || typeof code !== 'string' || code.length > MAX_CODE_LENGTH) throw new Error();
   } catch {
     return NextResponse.json({ error: 'Missing or invalid authorization code' }, { status: 400 });
   }
