@@ -126,10 +126,14 @@ export function useSavedPlaces(uid: string | null) {
               coordinates: raw.coordinates as [number, number],
               savedAt: raw.savedAt?.toMillis?.() ?? Date.now(),
               elevation_m: raw.elevation_m,
-              prominence_m: raw.prominence_m,
+              // Not read back. Bookmarks saved before 2026-09-26 carry an
+              // invented prominence and a "length" that was really the
+              // distance from wherever the user stood; nothing measures
+              // either any more, so a stored value can only be the old guess.
+              prominence_m: undefined,
               difficulty: raw.difficulty,
               activity_type: raw.activity_type,
-              distance_km: raw.distance_km,
+              distance_km: undefined,
               elevation_gain_m: raw.elevation_gain_m,
               mountain_type: raw.mountain_type,
               rating: raw.rating,
@@ -157,10 +161,17 @@ export function useSavedPlaces(uid: string | null) {
 
   const isSaved = useCallback((id: string) => savedPlaces.some((p) => p.id === id), [savedPlaces]);
 
-  const toggleSave = useCallback(
-    async (place: Omit<SavedPlace, 'savedAt'>) => {
+  /**
+   * Saves or removes a place — explicitly, not relative to the current state.
+   *
+   * Undo needs this. It used to call `toggleSave` again, but the toast held the
+   * `toggleSave` from the render that created it, whose `isSaved` still saw the
+   * old list — so "undo" of a save saved it again rather than removing it.
+   */
+  const setSaved = useCallback(
+    async (place: Omit<SavedPlace, 'savedAt'>, saved: boolean) => {
       if (!uid) return;
-      const wasSaved = isSaved(place.id);
+      const wasSaved = !saved;
       setSaveError(null);
 
       try {
@@ -172,10 +183,10 @@ export function useSavedPlaces(uid: string | null) {
         const { doc, setDoc, deleteDoc, serverTimestamp } = await import('firebase/firestore');
         const ref = doc(db, 'users', uid, 'saved_places', place.id);
 
-        if (wasSaved) {
-          await deleteDoc(ref);
-        } else {
+        if (saved) {
           await setDoc(ref, { ...toFirestoreFields(place), savedAt: serverTimestamp() });
+        } else {
+          await deleteDoc(ref);
         }
       } catch (err) {
         // Previously an unhandled rejection: the write failed and the bookmark
@@ -186,10 +197,15 @@ export function useSavedPlaces(uid: string | null) {
         );
       }
     },
-    [uid, isSaved]
+    [uid]
+  );
+
+  const toggleSave = useCallback(
+    (place: Omit<SavedPlace, 'savedAt'>) => setSaved(place, !isSaved(place.id)),
+    [setSaved, isSaved]
   );
 
   const dismissSaveError = useCallback(() => setSaveError(null), []);
 
-  return { savedPlaces, loading, isSaved, toggleSave, saveError, dismissSaveError };
+  return { savedPlaces, loading, isSaved, setSaved, toggleSave, saveError, dismissSaveError };
 }

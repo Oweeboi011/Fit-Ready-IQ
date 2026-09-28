@@ -86,9 +86,8 @@ export default function Home() {
     useFirebaseAuth();
   const { activities, setActivities, stravaSyncState } = useStravaSync(authUser?.uid);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const { savedPlaces, isSaved, toggleSave, saveError, dismissSaveError } = useSavedPlaces(
-    authUser?.uid ?? null
-  );
+  const { savedPlaces, isSaved, setSaved, toggleSave, saveError, dismissSaveError } =
+    useSavedPlaces(authUser?.uid ?? null);
 
   // One geolocation call for the whole app. `source` tells us whether these
   // coordinates are a real fix or a guess, which decides whether the map is
@@ -414,13 +413,15 @@ export default function Home() {
       // below, so rapid saves each get their full window.
       setSaveToast({
         message: wasSaved ? 'Removed from saved' : 'Saved',
+        // Restores the state before the tap, explicitly. Toggling again used
+        // a stale closure and repeated the action instead of reversing it.
         undo: () => {
           setSaveToast(null);
-          void toggleSave(place);
+          void setSaved(place, wasSaved);
         },
       });
     },
-    [isSaved, toggleSave]
+    [isSaved, setSaved, toggleSave]
   );
 
   useEffect(() => {
@@ -707,11 +708,8 @@ export default function Home() {
         <ConnectDevicesModal
           isOpen={isDeviceModalOpen}
           onClose={() => setIsDeviceModalOpen(false)}
-          onActivitiesLoaded={(acts) => {
-            const merged = mergeActivities(activities, acts);
-            saveActivities(merged);
-            setActivities(merged);
-          }}
+          // The modal has already stored this list; it is the new state.
+          onActivitiesChanged={setActivities}
         />
       )}
 

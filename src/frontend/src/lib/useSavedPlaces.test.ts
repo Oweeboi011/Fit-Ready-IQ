@@ -188,6 +188,59 @@ describe('useSavedPlaces', () => {
     expect(written.distance_km).toBe(12);
   });
 
+  it('setSaved(place, false) removes, whatever the list currently says — what Undo relies on', async () => {
+    // The Undo toast holds a function from an earlier render. Asking for the
+    // target state, rather than a toggle, cannot be fooled by a stale list.
+    mockOnSnapshot.mockImplementation((_ref, callback) => {
+      callback({ docs: [] });
+      return mockUnsubscribe;
+    });
+    const { result } = renderHook(() => useSavedPlaces('user-123'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const place = {
+      id: 'trail-1',
+      type: 'route' as const,
+      name: 'Pulag Trail',
+      coordinates: [120.89, 16.59] as [number, number],
+    };
+    await act(async () => {
+      await result.current.setSaved(place, true);
+    });
+    await act(async () => {
+      await result.current.setSaved(place, false);
+    });
+
+    expect(mockSetDoc).toHaveBeenCalledTimes(1);
+    expect(mockDeleteDoc).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not read back the invented prominence or length older bookmarks carry', async () => {
+    mockOnSnapshot.mockImplementation((_ref, callback) => {
+      callback({
+        docs: [
+          {
+            id: 'old',
+            data: () => ({
+              type: 'route',
+              name: 'Old Trail',
+              coordinates: [120.89, 16.59],
+              distance_km: 42,
+              prominence_m: 900,
+              savedAt: { toMillis: () => 1000 },
+            }),
+          },
+        ],
+      });
+      return mockUnsubscribe;
+    });
+    const { result } = renderHook(() => useSavedPlaces('user-123'));
+    await waitFor(() => expect(result.current.savedPlaces).toHaveLength(1));
+
+    expect(result.current.savedPlaces[0].distance_km).toBeUndefined();
+    expect(result.current.savedPlaces[0].prominence_m).toBeUndefined();
+  });
+
   it('toggleSave does nothing when uid is null', async () => {
     const { result } = renderHook(() => useSavedPlaces(null));
 
