@@ -31,6 +31,7 @@ interface HealthReport {
     weather: ServiceStatus;
     routing: ServiceStatus;
     strava: ServiceStatus;
+    rate_limiting: ServiceStatus;
   };
 }
 
@@ -189,6 +190,17 @@ function checkGemini(): ServiceStatus {
   return { ok: true, message: 'API key present' };
 }
 
+/**
+ * The limiter fails open without Firebase, and without `RATE_LIMIT_SALT` it
+ * stores plain hashes of client IPs — both invisible from the outside.
+ */
+function checkRateLimiting(): ServiceStatus {
+  if (!process.env.RATE_LIMIT_SALT) {
+    return { ok: false, message: 'RATE_LIMIT_SALT not set — bucket keys are unsalted hashes' };
+  }
+  return { ok: true, message: 'Salt present' };
+}
+
 export function GET() {
   const firebaseAdmin = checkFirebaseAdmin();
   const weather = checkWeather();
@@ -221,6 +233,7 @@ export function GET() {
     weather,
     routing,
     strava,
+    rate_limiting: checkRateLimiting(),
   };
 
   const values = Object.values(services);

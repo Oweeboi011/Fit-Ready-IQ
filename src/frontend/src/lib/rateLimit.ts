@@ -120,13 +120,21 @@ export async function rateLimit(
     retryAfterSeconds: 0,
   };
 
-  if (!isFirebaseAdminConfigured()) return allowed;
+  if (!isFirebaseAdminConfigured()) {
+    warnOnce('rate_limiter_unconfigured', request);
+    return allowed;
+  }
+  if (!process.env.RATE_LIMIT_SALT) warnOnce('rate_limit_salt_missing', request);
 
   const windowMs = rule.windowSeconds * 1000;
   const windowStart = Math.floor(Date.now() / windowMs) * windowMs;
+  const windowEnd = windowStart + windowMs;
   // The window index is part of the id, so a new window is a new document and
   // there is no reset step that could race with an increment.
   const docId = `${rule.name}_${callerKey(request, caller)}_${windowStart}`;
+
+  // Already refused in this window by this instance: answer without Firestore.
+  if ((exhausted.get(docId) ?? 0) > Date.now()) return refusal(windowEnd);
 
   try {
     const db = getFirestoreAdmin();
@@ -136,6 +144,10 @@ export async function rateLimit(
       const snapshot = await tx.get(ref);
       const current = (snapshot.exists ? (snapshot.data()?.count as number) : 0) ?? 0;
       const next = current + 1;
+      // A spent budget is not written again. Counting refusals cost a write
+      // per rejected request, so a flood being refused still ran up the bill
+      // it was being refused to protect.
+      if (current >= rule.limit) return next;
       tx.set(ref, {
         count: next,
         // Firestore TTL policies delete on a timestamp field. Configure one on
@@ -147,11 +159,8 @@ export async function rateLimit(
     });
 
     if (count > rule.limit) {
-      const retryAfterSeconds = Math.max(
-        1,
-        Math.ceil((windowStart + windowMs - Date.now()) / 1000)
-      );
-      return { ok: false, remaining: 0, retryAfterSeconds };
+      rememberExhausted(docId, windowEnd);
+      return refusal(windowEnd);
     }
 
     return { ok: true, remaining: Math.max(0, rule.limit - count), retryAfterSeconds: 0 };
@@ -164,6 +173,49 @@ export async function rateLimit(
     });
     return allowed;
   }
+}
+
+function refusal(windowEnd: number): RateLimitResult {
+  const retryAfterSeconds = Math.max(1, Math.ceil((windowEnd - Date.now()) / 1000));
+  return { ok: false, remaining: 0, retryAfterSeconds };
+}
+
+/**
+ * Buckets this instance has already refused, until their window ends.
+ *
+ * Per instance and best-effort — another instance still asks Firestore once —
+ * but it turns a sustained flood from one read per request into none. Bounded
+ * so a spray of distinct callers cannot grow it without limit.
+ */
+const exhausted = new Map<string, number>();
+const MAX_EXHAUSTED = 5_000;
+
+function rememberExhausted(docId: string, until: number): void {
+  if (exhausted.size >= MAX_EXHAUSTED) {
+    const now = Date.now();
+    for (const [key, expiry] of exhausted) if (expiry <= now) exhausted.delete(key);
+    if (exhausted.size >= MAX_EXHAUSTED) exhausted.clear();
+  }
+  exhausted.set(docId, until);
+}
+
+/**
+ * Logs a configuration fault once per instance. Both are silent otherwise:
+ * with Firebase unconfigured every request is allowed, and without a salt the
+ * keys are a plain hash of an IP — reversible by enumerating the address space.
+ */
+const warned = new Set<string>();
+
+function warnOnce(event: string, request: Request): void {
+  if (warned.has(event)) return;
+  warned.add(event);
+  createLogger('lib/rateLimit', request).error(event);
+}
+
+/** Test hook: forget per-instance state between cases. */
+export function resetRateLimitMemory(): void {
+  exhausted.clear();
+  warned.clear();
 }
 
 /** The 429 to return when {@link rateLimit} refuses. */

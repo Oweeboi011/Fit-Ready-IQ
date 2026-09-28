@@ -8,6 +8,8 @@ const state = {
   configured: true,
   counts: new Map<string, number>(),
   throwOnTransaction: false,
+  writes: 0,
+  transactions: 0,
 };
 
 vi.mock('./firebaseAdmin', () => ({
@@ -17,6 +19,7 @@ vi.mock('./firebaseAdmin', () => ({
       doc: (id: string) => ({ id }),
     }),
     runTransaction: async (fn: (tx: unknown) => Promise<number>) => {
+      state.transactions++;
       if (state.throwOnTransaction) throw new Error('firestore down');
       const tx = {
         get: async (ref: { id: string }) => ({
@@ -24,6 +27,7 @@ vi.mock('./firebaseAdmin', () => ({
           data: () => ({ count: state.counts.get(ref.id) }),
         }),
         set: (ref: { id: string }, data: { count: number }) => {
+          state.writes++;
           state.counts.set(ref.id, data.count);
         },
       };
@@ -32,7 +36,7 @@ vi.mock('./firebaseAdmin', () => ({
   }),
 }));
 
-const { callerKey, rateLimit, tooManyRequests } = await import('./rateLimit');
+const { callerKey, rateLimit, resetRateLimitMemory, tooManyRequests } = await import('./rateLimit');
 
 const RULE = { name: 'test', limit: 3, windowSeconds: 60 };
 
@@ -44,6 +48,9 @@ beforeEach(() => {
   state.configured = true;
   state.counts.clear();
   state.throwOnTransaction = false;
+  state.writes = 0;
+  state.transactions = 0;
+  resetRateLimitMemory();
 });
 
 afterEach(() => {
@@ -195,6 +202,34 @@ describe('rateLimit', () => {
 
     expect((await rateLimit(req(), RULE)).ok).toBe(true);
     // Silently not rate-limiting is how you find out on the invoice.
+    expect(logged).toHaveBeenCalled();
+    logged.mockRestore();
+  });
+});
+
+describe('rateLimit — the cost of refusing', () => {
+  it('stops writing once the budget is spent', async () => {
+    const r = req({ 'x-forwarded-for': '203.0.113.9' });
+    for (let i = 0; i < RULE.limit; i++) await rateLimit(r, RULE);
+    const writesAtLimit = state.writes;
+
+    expect((await rateLimit(r, RULE)).ok).toBe(false);
+    expect(state.writes).toBe(writesAtLimit);
+  });
+
+  it('answers a refused bucket from memory for the rest of the window', async () => {
+    const r = req({ 'x-forwarded-for': '203.0.113.10' });
+    for (let i = 0; i <= RULE.limit; i++) await rateLimit(r, RULE);
+    const transactions = state.transactions;
+
+    for (let i = 0; i < 5; i++) expect((await rateLimit(r, RULE)).ok).toBe(false);
+    expect(state.transactions).toBe(transactions);
+  });
+
+  it('says so, rather than silently allowing everything, when Firebase is unconfigured', async () => {
+    state.configured = false;
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect((await rateLimit(req(), RULE)).ok).toBe(true);
     expect(logged).toHaveBeenCalled();
     logged.mockRestore();
   });

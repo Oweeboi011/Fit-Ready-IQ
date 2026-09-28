@@ -157,6 +157,7 @@ describe('overall status', () => {
     process.env.GOOGLE_WEATHER_API_KEY = 'AIzaSERVERKEY';
     process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID = '260217';
     process.env.STRAVA_CLIENT_SECRET = 'secret';
+    process.env.RATE_LIMIT_SALT = 'salt';
 
     vi.resetModules();
     const { GET } = await import('./route');
