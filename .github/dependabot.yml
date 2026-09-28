@@ -6,7 +6,9 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
-    target-branch: main
+    # develop, not main: main only takes release merges from develop, and
+    # updates landing on main directly bypassed the develop gate entirely.
+    target-branch: develop
     groups:
       dev-tooling:
         patterns:
@@ -33,7 +35,16 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
-    target-branch: main
+    target-branch: develop
+
+  # The backend image's base; nothing watched it.
+  - package-ecosystem: docker
+    directory: /src/backend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 2
+    target-branch: develop
 
   - package-ecosystem: github-actions
     directory: /
@@ -41,4 +52,4 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
-    target-branch: main
+    target-branch: develop

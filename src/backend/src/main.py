@@ -97,8 +97,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 # The interactive docs publish the full API surface — every route, every schema,
 # every field name — to anyone who asks. That is exactly what you want while
 # building and exactly what you do not want facing the internet, so they are on
-# everywhere except production.
-_docs_enabled = settings.environment != "production"
+# in development only. This used to be "anything but production", so a staging
+# or misspelled environment published the schema; failing closed means a new
+# environment has to opt in.
+_docs_enabled = settings.environment == "development"
 
 # Create FastAPI application
 app = FastAPI(

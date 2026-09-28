@@ -1,14 +1,18 @@
+# Owners must be real GitHub handles: an unknown one is silently ignored, and
+# every rule below named one that did not exist until 2026-09-28.
 # Default reviewer for all changes
-* @oweeboipenaranda
+* @Oweeboi011
 
 # API routes — server-side secrets and auth logic
-frontend/src/app/api/ @oweeboipenaranda
+src/frontend/src/app/api/ @Oweeboi011
+src/frontend/src/lib/serverAuth.ts @Oweeboi011
+src/frontend/src/lib/adminAuth.ts @Oweeboi011
 
 # Firestore security rules — always needs careful review
-firestore.rules @oweeboipenaranda
-firestore.indexes.json @oweeboipenaranda
+firestore.rules @Oweeboi011
+firestore.indexes.json @Oweeboi011
 
 # CI/CD and deployment configuration
-.github/ @oweeboipenaranda
-vercel.json @oweeboipenaranda
-docker-compose.yml @oweeboipenaranda
+.github/ @Oweeboi011
+vercel.json @Oweeboi011
+docker-compose.yml @Oweeboi011

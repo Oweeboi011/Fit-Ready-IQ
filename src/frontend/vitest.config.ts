@@ -42,6 +42,22 @@ export default defineConfig({
         'src/lib/weatherAlertCache.ts',
         'src/lib/radarLayer.ts',
         'src/lib/stravaAuth.ts',
+        'src/lib/useStravaSync.ts',
+        'src/lib/personalStorage.ts',
+        'src/lib/placesCacheSchema.ts',
+        'src/lib/advisories.ts',
+        'src/lib/plans.ts',
+
+        // Route handlers with tests. Every route that writes user data or
+        // spends money belongs here; the rest follow as they gain tests. A
+        // blanket glob would sit at ~61% today and fail the gate outright.
+        'src/app/api/account/delete/route.ts',
+        'src/app/api/admin/cache/route.ts',
+        'src/app/api/advisories/route.ts',
+        'src/app/api/chat/route.ts',
+        'src/app/api/health/route.ts',
+        'src/app/api/places/cache/route.ts',
+        'src/app/api/strava/sync/route.ts',
       ],
       thresholds: {
         statements: 85,

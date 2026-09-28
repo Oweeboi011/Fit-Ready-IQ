@@ -7,6 +7,12 @@ on:
       - "src/frontend/src/lib/**"
   workflow_dispatch:
 
+# Read-only by default. Without this the token gets the repository's default
+# grant, which on older repositories is read-write to everything — for jobs
+# that run PR code.
+permissions:
+  contents: read
+
 jobs:
   stryker:
     name: Stryker Mutation
@@ -34,8 +40,6 @@ jobs:
           NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: dummy.firebaseapp.com
           NEXT_PUBLIC_FIREBASE_PROJECT_ID: dummy-project
           NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:0000000000000000"
-          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
-          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: dummy-project.appspot.com
 
       - name: Upload mutation report
         uses: actions/upload-artifact@v4
