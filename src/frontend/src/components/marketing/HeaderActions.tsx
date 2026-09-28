@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-import { isFirebaseAuthConfigured, onFirebaseAuthStateChanged } from '@/lib/firebaseClient';
 import { buttonGhost, buttonSecondary, buttonSize } from '@/lib/ui';
 
 import ThemeToggle from '../ThemeToggle';
@@ -30,12 +29,24 @@ export function HeaderActions() {
   // it is what the static HTML already contains, so there is no hydration jump.
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
+  // Firebase is imported here, after hydration, so it stays out of the landing
+  // page's initial bundle; the signed-out state is what the static HTML shows
+  // until it arrives.
   useEffect(() => {
-    if (!isFirebaseAuthConfigured()) {
-      setSignedIn(false);
-      return;
-    }
-    return onFirebaseAuthStateChanged((user) => setSignedIn(Boolean(user)));
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+    void import('@/lib/firebaseClient').then((client) => {
+      if (cancelled) return;
+      if (!client.isFirebaseAuthConfigured()) {
+        setSignedIn(false);
+        return;
+      }
+      unsubscribe = client.onFirebaseAuthStateChanged((user) => setSignedIn(Boolean(user)));
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, []);
 
   return (
