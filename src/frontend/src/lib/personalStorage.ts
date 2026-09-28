@@ -13,6 +13,8 @@ export const PERSONAL_STORAGE_KEYS = [
   'fri_chat_history',
   'fri_chat_session',
   'fri_last_location',
+  // Public place results, but stored with the resolved location they were for.
+  'fri_places_cache',
   'fri_map_viewport',
   'fri_saved_plans',
   'fri_strava_last_fetch',

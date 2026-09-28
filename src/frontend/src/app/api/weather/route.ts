@@ -356,7 +356,13 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       { ...result, alerts, window },
-      { headers: { 'Cache-Control': 'public, max-age=1800, stale-while-revalidate=300' } }
+      // s-maxage is what Vercel's CDN honours; max-age alone only ever cached
+      // in the one browser, so every visitor paid for two upstream calls.
+      {
+        headers: {
+          'Cache-Control': 'public, max-age=1800, s-maxage=1800, stale-while-revalidate=300',
+        },
+      }
     );
   } catch (error) {
     // The error text carries a snippet of the upstream body. That belongs in

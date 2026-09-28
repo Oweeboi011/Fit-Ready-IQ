@@ -570,7 +570,11 @@ export default function Home() {
     }
     setDockWeather({ status: 'loading' });
     try {
-      const res = await fetch(`/api/weather?lat=${userLocation.lat}&lng=${userLocation.lng}`);
+      // Rounded to ~1 km, finer than any forecast grid, so nearby requests
+      // share one CDN entry instead of each paying for two upstream calls.
+      const res = await fetch(
+        `/api/weather?lat=${userLocation.lat.toFixed(2)}&lng=${userLocation.lng.toFixed(2)}`
+      );
       const data = await res.json();
       if (!res.ok || !data?.summary) throw new Error(data?.error ?? `HTTP ${res.status}`);
       const alerts = Array.isArray(data.alerts) ? data.alerts : [];

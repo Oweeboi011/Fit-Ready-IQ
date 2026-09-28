@@ -38,7 +38,6 @@ const NOT_PERSONAL = new Set([
   'fri_active_tab',
   'fri_filters',
   'fri_map_hidden_layers',
-  'fri_places_cache', // public place data, shared by everyone in a region
   'fri_seen_intro',
   'fri_selected_plan',
   'fri_theme',

@@ -227,7 +227,9 @@ export default function DetailsModal({
     const required = estimateAscentHours(gain)?.high ?? null;
 
     const url =
-      `/api/weather?lat=${lat}&lng=${lng}` +
+      // ~1 km rounding: finer than a forecast grid, coarse enough to share
+      // the CDN cache with anyone else looking at the same peak.
+      `/api/weather?lat=${lat.toFixed(2)}&lng=${lng.toFixed(2)}` +
       `${elevation != null ? `&elevation=${elevation}` : ''}` +
       `${required != null ? `&hours=${required}` : ''}`;
     fetch(url)
