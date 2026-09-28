@@ -3,7 +3,11 @@ import path from 'node:path';
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { clearPersonalStorage, PERSONAL_STORAGE_KEYS } from './personalStorage';
+import {
+  clearPersonalStorage,
+  PERSONAL_STORAGE_KEYS,
+  PERSONAL_STORAGE_PREFIXES,
+} from './personalStorage';
 
 beforeEach(() => {
   localStorage.clear();
@@ -25,6 +29,12 @@ describe('clearPersonalStorage', () => {
     expect(localStorage.getItem('fri_last_location')).toBeNull();
     expect(localStorage.getItem('fri_theme')).toBe('dark');
     expect(localStorage.getItem('fri_map_hidden_layers')).toBe('[]');
+  });
+
+  it('removes per-location keys by prefix', () => {
+    sessionStorage.setItem('fri_geocode_14.6_121', '{"address":"Quezon City"}');
+    clearPersonalStorage();
+    expect(sessionStorage.getItem('fri_geocode_14.6_121')).toBeNull();
   });
 });
 
@@ -60,7 +70,7 @@ describe('storage key coverage', () => {
         found.add(match[1]);
       }
     }
-    const personal = new Set<string>(PERSONAL_STORAGE_KEYS);
+    const personal = new Set<string>([...PERSONAL_STORAGE_KEYS, ...PERSONAL_STORAGE_PREFIXES]);
     const unclassified = [...found].filter((k) => !personal.has(k) && !NOT_PERSONAL.has(k));
     expect(unclassified).toEqual([]);
   });

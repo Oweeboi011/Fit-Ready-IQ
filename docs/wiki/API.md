@@ -102,68 +102,52 @@ flowchart LR
 
 ### 3.1 POST /api/chat
 
-**Description:** Sends a conversation message to the Gemini 2.5 Flash AI model and returns the assistant's reply. Optionally persists the conversation to Firebase Firestore for session continuity.
+**Description:** Sends the user's turn to Gemini 2.5 Flash and returns the reply.
 
-**Runtime:** Node.js (Firebase Admin SDK requirement)
+**Identity:** optional. A signed-in caller sends `Authorization: Bearer <Firebase ID token>`
+(the widget uses `optionallyAuthedFetch`). Rate-limited to 20/hour per verified uid, or per IP
+when signed out.
 
-**Flow:**
+**History is not taken on trust.** For a session the server already holds, the model context is
+rebuilt from `chat_sessions/{id}/messages` and only the client's final turn is used; the client
+could otherwise write the assistant's side of the conversation. For a new session, the client's
+last 20 messages are used (trimmed to start on a user turn).
 
-```mermaid
-flowchart TD
-    A["POST /api/chat"] --> B{Validate payload}
-    B -->|Missing messages array| C["400 Bad Request"]
-    B -->|Empty messages| C
-    B -->|Invalid role| C
-    B -->|Valid| D{GEMINI_API_KEY configured?}
-    D -->|No| E["503 Service Unavailable"]
-    D -->|Yes| F[Resolve sessionId]
-    F --> G[Build Gemini request]
-    G --> H[Call generateContent]
-    H -->|Timeout/Error| I["502 Bad Gateway"]
-    H -->|Success| J{Firebase configured?}
-    J -->|Yes| K[Persist to Firestore]
-    J -->|No| L[Skip persistence]
-    K --> M["200 OK + response"]
-    L --> M
-```
+**Persistence:** signed-in conversations only. The owner is written once, at create; a
+`sessionId` that is unknown, malformed or someone else's gets a fresh server-minted id instead.
+Signed-out conversations are not stored — there would be no owner to export or erase them for —
+and the response then carries no `sessionId`. Stored turns expire after 90 days (TTL).
 
 **Request:**
 
 ```http
 POST /api/chat
 Content-Type: application/json
+Authorization: Bearer <Firebase ID token>   (optional)
 
 {
-  "sessionId": "optional-existing-session-id",
-  "messages": [
-    {
-      "role": "user",
-      "content": "What gear do I need for Mt. Pulag in December?"
-    }
-  ]
+  "sessionId": "8c1f…-uuid",
+  "messages": [{ "role": "user", "content": "What gear do I need for Mt. Pulag in December?" }]
 }
 ```
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `sessionId` | string | No | Existing session ID for conversation continuity. Auto-generated if omitted. |
-| `messages` | array | Yes | Array of message objects. Must contain at least one message. |
-| `messages[].role` | string | Yes | Either `"user"` or `"assistant"`. |
-| `messages[].content` | string | Yes | Message text content. Must not be empty. |
+| `sessionId` | string (UUID) | No | A session this caller owns. Anything else is replaced by a new id. |
+| `messages` | array | Yes | 1–200 messages; the **last must be `role: "user"`**. Each at most 8,000 characters. |
 
 **Responses:**
 
 | Status | Body | Condition |
 | --- | --- | --- |
-| 200 | `{ "message": "AI reply text", "sessionId": "session-uuid" }` | Successful response from Gemini |
-| 400 | `{ "error": "Invalid request body" }` | Missing or malformed payload |
-| 502 | `{ "error": "AI service unavailable" }` | Gemini API timeout or error |
-| 503 | `{ "error": "Chat service not configured" }` | GEMINI_API_KEY not set |
-
-**Configuration:**
-- `GEMINI_API_KEY` -- Required. Gemini API key.
-- `FIREBASE_PROJECT_ID` -- Optional. Enables Firestore persistence.
-- `FIREBASE_SERVICE_ACCOUNT_KEY_JSON` -- Optional. Authenticates Firestore writes.
+| 200 | `{ "message": "…", "sessionId": "…" }` | Signed in |
+| 200 | `{ "message": "…" }` | Signed out (nothing stored) |
+| 400 | `{ "error": "Invalid request body" \| "Messages array required" \| "Invalid message format" }` | Malformed, or the last turn is not the user's |
+| 413 | `{ "error": "Request too large" \| "Too many messages" \| "Message too long" }` | Body over 256 KB, >200 messages, or a message over 8,000 chars |
+| 429 | `{ "error": "Too many requests…" }` + `Retry-After` | Budget spent |
+| 502 | `{ "error": "AI service unavailable" }` | Gemini refused |
+| 503 | `{ "error": "AI assistant is not configured…" }` | `GEMINI_API_KEY` not set |
+| 504 | `{ "error": "AI service timed out" }` | Gemini exceeded 20 s |
 
 ---
 
@@ -260,49 +244,24 @@ Content-Type: application/json
 
 ### 3.4 GET /api/strava/activities
 
-**Description:** Retrieves the authenticated athlete's activities from Strava. Acts as a proxy to keep the Strava access token on the server side and handle pagination.
+**Description:** One page of the caller's Strava activities.
 
-**Runtime:** Node.js
-
-**Request:**
+**Identity:** required — `Authorization: Bearer <Firebase ID token>`. The Strava credentials are
+held server-side in `strava_tokens/{uid}` (`lib/stravaTokens.ts`) and never reach the browser;
+there is no token parameter.
 
 ```http
-GET /api/strava/activities?token=ACCESS_TOKEN&page=1
+GET /api/strava/activities?page=1
+Authorization: Bearer <Firebase ID token>
 ```
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `token` | string | Yes | Strava access token (from exchange endpoint) |
-| `page` | number | No | Page number for pagination (default: 1, 30 activities per page) |
-
-**Responses:**
 
 | Status | Body | Condition |
 | --- | --- | --- |
-| 200 | Array of Strava activity objects | Successful retrieval |
-| 400 | `{ "error": "Missing access token" }` | No token provided |
-| 401 | `{ "error": "Token expired or invalid" }` | Strava rejects the token |
-| 502 | `{ "error": "Strava API unavailable" }` | Strava API error |
-
-**Activity Object Shape (subset):**
-
-```json
-{
-  "id": 12345678,
-  "name": "Morning Trail Run",
-  "sport_type": "TrailRun",
-  "distance": 15230.5,
-  "total_elevation_gain": 842.0,
-  "moving_time": 5400,
-  "elapsed_time": 5800,
-  "start_date": "2026-06-20T06:30:00Z",
-  "average_heartrate": 152,
-  "max_heartrate": 178,
-  "map": {
-    "summary_polyline": "encoded_polyline_string"
-  }
-}
-```
+| 200 | Array of Strava activity objects | |
+| 401 | — | No valid Firebase ID token |
+| 409 | `{ "error": "Strava is not connected…" }` | Never connected, or Strava refused our token (it is then forgotten) |
+| 502 | `{ "error": "…" }` | Strava failed, or timed out (10 s) |
+| 503 | `{ "error": "…" }` | Strava rate-limited us (its 429) |
 
 ---
 
@@ -492,46 +451,62 @@ GET /api/places/cache?lat=14.5995&lng=120.9842&type=mountain
 
 ---
 
-### 3.8 GET /api/admin/cache
+### 3.8 /api/admin/cache
 
-**Description:** Admin endpoint for inspecting and purging the Firestore places cache. Returns cache metadata (keys, sizes, TTL status) and supports batch purge operations (up to 400 documents per call).
+**Identity:** `requireRole` — `viewer` for GET, `admin` for DELETE. Every denial is audited.
 
-**Runtime:** Node.js (30 s timeout)
+- `GET` — cache entries with freshness.
+- `DELETE ?gridKey=<key>` — deletes one entry.
+- `DELETE ?all=true` with body `{"confirm":"PURGE"}` — deletes every entry (batches of 400).
+- Anything else — including an empty `gridKey`, which used to fall through to a full purge — is a 400.
 
-**Request:**
-
-```http
-GET /api/admin/cache
-GET /api/admin/cache?purge=true
-```
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `purge` | boolean | No | If `true`, deletes all expired cache documents |
-
-**Responses:** Returns JSON with cache statistics. Purge returns a count of deleted documents.
-
-**Note:** This endpoint has no authentication guard in the current phase. In Phase 3, it will require an admin Firebase ID token.
+Every purge, successful or failed, is written to `audit_logs`.
 
 ---
 
 ### 3.9 GET /api/admin/strava-sync
 
-**Description:** Admin endpoint that reports Strava sync status across users. Returns sync manifest data from Firestore showing last sync timestamp, activity count, and sync health per user.
+**Identity:** `requireRole(…, 'viewer')`. Returns each user's `strava_sync` manifest:
+`last_synced_at`, `total_activities` (the count stored, not the last run's) and up to five errors.
 
-**Runtime:** Node.js
+---
 
-**Request:**
+### 3.10 /api/strava/connection
 
-```http
-GET /api/admin/strava-sync
-```
+**Identity:** required. `GET` returns `{ connected, athleteId, athleteName, connectedAt }` — never a
+token. `DELETE` forgets the stored tokens (disconnect).
 
-No parameters required.
+### 3.11 POST /api/strava/sync
 
-**Responses:** Returns JSON array of sync manifests. Each entry includes `uid`, `last_sync`, `activity_count`, and `status`.
+**Identity:** required; the destination uid comes from the token. Copies up to 300 activities into
+`users/{uid}/strava_activities`. Each page is written in a transaction that re-checks the Strava
+connection still exists, so a sync running during a disconnect or account erasure stops rather
+than writing data back. 409 when not connected (including mid-sync); 503 if the token lookup fails.
 
-**Note:** This endpoint has no authentication guard in the current phase. In Phase 3, it will require an admin Firebase ID token.
+### 3.12 GET /api/account/export, POST /api/account/delete
+
+GDPR Art. 15 and 17. Identity required; 5/hour. Both walk `lib/userDataFootprint.ts`.
+Delete requires `{"confirm":"DELETE"}` and runs: revoke the grant at Strava → delete the Strava
+tokens → erase the user tree and owned collections → delete the Auth account last. A failure stops
+before the Auth account, so the user can retry; the audit record says how far it got.
+
+### 3.13 POST /api/directions
+
+Google Routes proxy. `origin`, `destination` (`{lat,lng}`, range-checked), optional
+`intermediates` (first 25 used), `mode` (`DRIVE` | `WALK` | `BICYCLE`). Returns
+`{ polyline, distanceKm, durationSeconds }`; the two numbers are `null` when Routes did not report
+them. 120/hour.
+
+### 3.14 GET /api/advisories
+
+`data/advisories.json`, then `ADVISORY_FEED_URL`. `{ configured: false }` when neither exists —
+never "all clear". A present-but-unreadable file, or a failing feed, is a 502 with
+`configured: true` and an `error`. Only `https:` advisory links are accepted.
+
+### 3.15 GET /api/admin/whoami, GET /api/admin/users
+
+`whoami` returns `{ isAdmin, role }` for the bearer token (300/hour; plain "not an admin" is not
+audited). `users` lists Firebase Auth accounts for admins, capped at 1,000 with `truncated`.
 
 ---
 

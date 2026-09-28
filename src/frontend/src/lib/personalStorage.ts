@@ -24,15 +24,22 @@ export const PERSONAL_STORAGE_KEYS = [
   'fri_strava_token',
 ] as const;
 
+/**
+ * Keys built per location, so they cannot be listed: the reverse-geocoded
+ * "near <place>" label for where the user was (`usePlacesData.ts`).
+ */
+export const PERSONAL_STORAGE_PREFIXES = ['fri_geocode_'] as const;
+
 export function clearPersonalStorage(): void {
   for (const store of [safeStorage('localStorage'), safeStorage('sessionStorage')]) {
     if (!store) continue;
-    for (const key of PERSONAL_STORAGE_KEYS) {
-      try {
-        store.removeItem(key);
-      } catch {
-        // Storage that throws on access has nothing we could have left in it.
-      }
+    try {
+      const prefixed = Object.keys(store).filter((key) =>
+        PERSONAL_STORAGE_PREFIXES.some((prefix) => key.startsWith(prefix))
+      );
+      for (const key of [...PERSONAL_STORAGE_KEYS, ...prefixed]) store.removeItem(key);
+    } catch {
+      // Storage that throws on access has nothing we could have left in it.
     }
   }
 }

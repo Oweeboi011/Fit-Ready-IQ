@@ -49,7 +49,7 @@ Settings run with `extra="ignore"` rather than pydantic's default
 `extra="forbid"`, because the shared file is full of `NEXT_PUBLIC_*` names the
 backend has no fields for and `forbid` would reject every one at startup. The
 cost is that a stale or misspelled name no longer fails fast, so
-`tests/unit/test_settings.py` asserts the field set instead.
+`tests/unit/test_settings.py` asserts the removed names stay removed instead.
 
 `CORS_ORIGINS` is the
 exception: it is a `list[str]`, and pydantic-settings JSON-decodes complex types
@@ -82,14 +82,15 @@ The FastAPI backend is not called by the frontend in production; it is planned f
 
 | Route | Purpose | Timeout |
 |---|---|---|
-| `/api/chat` | Gemini 2.5 Flash conversation, persisted to Firestore. History capped at 20 messages (first message anchored) to bound token cost. Rate-limited to 20/hour per caller. | 30 s |
+| `/api/chat` | Gemini 2.5 Flash conversation. Signed-in turns are persisted and, for a session the server holds, the model context is rebuilt from Firestore — the client's copy of the history is never trusted. Signed-out conversations are not stored. Context capped at 20 messages; body capped at 256 KB. Rate-limited to 20/hour per caller. | 30 s |
 | `/api/strava/exchange` | Server-side OAuth token exchange (keeps secret off client) | — |
-| `/api/strava/activities` | Fetch activities from Strava API. Strava token travels in the `X-Strava-Token` header, never the query string. | — |
+| `/api/strava/activities` | Fetch the caller's activities from Strava. The Strava token is held server-side in `strava_tokens/{uid}` (`lib/stravaTokens.ts`); the browser sends only its Firebase ID token. 409 means not connected. | — |
+| `/api/strava/connection` | GET connection status (athlete, never a token); DELETE disconnects. | — |
 | `/api/strava/sync` | Sync the caller's Strava activities → Firestore. **Requires a Firebase ID token**; the destination `uid` comes from that token, never the body. | 60 s |
 | `/api/places/cache` | Grid-based places cache (0.5° cells, 24 h TTL). GET is public; **POST requires a Firebase ID token** and caps each kind at 200 items. | 15 s |
 | `/api/weather` | Google Weather (primary) → OpenWeather fallback. Rate-limited to 200/hour per caller. | 15 s |
-| `/api/health` | Credential-presence checks only (no live API calls). `s-maxage=30, stale-while-revalidate=10`. | 15 s |
-| `/api/admin/cache` | Inspect / purge places cache (batch 400 docs). Admin-gated. | 30 s |
+| `/api/health` | Credential-presence checks only (no live API calls), including `rate_limiting` (degraded without `RATE_LIMIT_SALT`). Public, so it names no project or client ids. `s-maxage=30, stale-while-revalidate=10`. | 15 s |
+| `/api/admin/cache` | Inspect / purge places cache (batch 400 docs). Admin-gated. DELETE needs `?gridKey=<key>`, or `?all=true` **plus** body `{"confirm":"PURGE"}` for everything; anything else is a 400. | 30 s |
 | `/api/admin/strava-sync` | Strava sync status across users. Admin-gated. | — |
 | `/api/admin/users` | Lists accounts from **Firebase Auth** (not Firestore, which omits anyone who has not yet synced or saved). Admin-gated, audited, capped at 1 000 with a `truncated` flag | — |
 | `/api/admin/whoami` | Returns `{ isAdmin, role }` for the bearer token; lets the UI hide admin affordances without shipping the allowlist | — |
@@ -105,11 +106,12 @@ The FastAPI backend is not called by the frontend in production; it is planned f
 users/{uid}/saved_places/{placeId}
 users/{uid}/strava_activities/{actId}   # Admin SDK write-only
 users/{uid}.strava_sync                 # sync manifest — a FIELD on the user doc, not a subcollection
-places_cache/{gridKey}                  # shared, public read, 24 h TTL
-activities/{actId}
+places_cache/{gridKey}                  # shared, Admin SDK only, 24 h TTL, first writer wins while fresh
+activities/{actId}                      # owner read; Admin SDK write only
 routes/{routeId}
-training_programs/{programId}
-itineraries/{itineraryId}
+training_programs/{programId}           # owner read; Admin SDK write only
+training_sessions/{sessionId}           # owner read; Admin SDK write only
+itineraries/{itineraryId}               # owner read; Admin SDK write only
 chat_sessions/{sessionId}/messages/{id} # Admin SDK only; one doc per turn
 rate_limits/{bucketId}                  # Admin SDK only; needs a TTL policy on `expiresAt`
 audit_logs/{entryId}                    # Admin SDK only; append-only, 730-day TTL
@@ -148,8 +150,10 @@ body or a query parameter.
 To avoid redundant paid API calls:
 
 - **Weather + photos** (`DetailsModal.tsx`): module-level `weatherCache` (30 min TTL) and `photosCache` (session lifetime).
-- **Reverse geocode** (`page.tsx`): `sessionStorage` with 24 h TTL and 0.1° coordinate grid (`fri_geocode_*` key).
-- **Last user location** (`page.tsx`): persisted to `localStorage` (`fri_last_location`) and restored on page load so the map focuses instantly. Restore it in an effect, never in a `useState` initializer — reading storage during render makes the server and client disagree on first paint and React discards the server tree.
+- **Reverse geocode** (`usePlacesData.ts`): `sessionStorage` with 24 h TTL and 0.1° coordinate grid (`fri_geocode_*` key).
+- **Last user location** (`useUserLocation.ts`): persisted to `localStorage` (`fri_last_location`) and restored on page load so the map focuses instantly. Restore it in an effect, never in a `useState` initializer — reading storage during render makes the server and client disagree on first paint and React discards the server tree.
+- **Places** (`usePlacesData.ts`): `localStorage` (`fri_places_cache`), 24 h, **keyed on the 0.1° location** — it used to be read regardless of where the user was.
+- **Sign-out clears personal storage.** Every `fri_*` key is classified in `lib/personalStorage.ts` (cleared on sign-out) or as a plain preference in its test; `personalStorage.test.ts` fails on an unclassified key.
 
 ### Admin access
 
@@ -183,7 +187,12 @@ Firebase Admin SDK tries credentials in this order: `FIREBASE_SERVICE_ACCOUNT_KE
 ### Key frontend files
 
 - `src/app/page.tsx` — marketing landing page: hero, features, pricing, trial CTA (server component)
-- `src/app/app/page.tsx` — entire map UI, state management, filter logic, Strava/GPX integration (~79 KB)
+- `src/app/app/page.tsx` — the map UI's state and wiring (~36 KB); discovery lives in `usePlacesData.ts`, location in `useUserLocation.ts`
+- `src/app/privacy/page.tsx` — static privacy page; retention figures come from `lib/privacyFacts.ts`, which a test checks against the enforcing constants
+- `src/app/error.tsx`, `global-error.tsx`, `not-found.tsx` — error and 404 pages
+- `src/components/AccountDataPanel.tsx` — "Your data" in the profile: export and account deletion
+- `src/components/ConfirmDialog.tsx` — confirmation for irreversible actions, on the shared `Modal`. Never `window.confirm`
+- `src/lib/personalStorage.ts` — the browser storage keys cleared on sign-out
 - `src/components/marketing/` — landing-page client islands (`StartTrialButton`, `PricingTable`)
 - `src/lib/plans.ts` — plan tiers, prices and entitlements; the single source for pricing copy and paywall checks
 - `src/lib/ui.ts` — button vocabulary (`buttonPrimary` / `buttonSecondary` / `buttonGhost`)
@@ -259,7 +268,7 @@ Event names are `snake_case` nouns describing what happened
 
 ### Cache versioning
 
-`PLACES_CACHE_VERSION` in `src/app/app/page.tsx` gates both cache tiers. The
+`PLACES_CACHE_VERSION` in `src/lib/placesCacheSchema.ts` gates both cache tiers. The
 Firestore tier is shared across users, so an entry written before a field
 changed meaning will otherwise feed every visitor to that region for 24 hours.
 **Bump it whenever the shape or the meaning of a cached field changes.**
@@ -308,8 +317,11 @@ Decoded polylines are stored as `[lng, lat]` pairs (GeoJSON order), not `[lat, l
 The FastAPI backend (`src/backend/`) follows Clean Architecture — dependencies point inward only:
 
 ```
-Infrastructure → Presentation → Application → Domain
+Presentation → Application → Domain ← Infrastructure
 ```
+
+Infrastructure implements the domain's ports; nothing in domain or application
+imports it.
 
 | Layer | Path | Contains |
 |---|---|---|
@@ -325,7 +337,9 @@ Do not import from outer layers into inner ones (domain has zero external import
 
 - **Unit tests:** Vitest with jsdom. Coverage thresholds: 85% statements/functions/lines, 50% branches. Reports in `coverage/`.
 - **E2E tests:** Playwright (Chromium), 30 s timeout, 2 retries in CI, auto-starts dev server on port 4790.
-- **Mutation tests:** Stryker (`npm run test:mutation`), config in `stryker.config.json`, targets `src/lib/gpxParser.ts`, `polylineDecoder.ts`, `activityTypes.ts`. Break/low threshold 70%, high 80%.
+- **Mutation tests:** Stryker (`npm run test:mutation`), config in `stryker.config.json`, targets nine `src/lib` modules (parsers, `adminAuth`, `rateLimit`, `logger`, …). Break/low threshold 70%, high 80%.
+- **Coverage** is an explicit allowlist in `vitest.config.ts`. A route handler that gains a test should be added to it; a blanket glob would sit near 61% today and fail the 85% gate.
+- **Firestore rules tests** (`npm run test:rules`) run against the emulator and need Java; CI runs them in the `Firestore Rules` job.
 - **Load tests:** `npm run test:load` (Autocannon).
 
 When writing tests for `useSavedPlaces.ts`, import the module after mocks are registered (use top-level `await import(...)` pattern). Do not add new top-level `await` imports to other test files — Stryker instruments string literals in dynamic imports and an empty-string mutant will break Vite's module resolver.
@@ -349,11 +363,11 @@ feature/* → develop → main
 | File | Triggers | What it does |
 |---|---|---|
 | `ci.yml` | PR to `main`/`develop`, push to `main`/`develop` | Lint + type-check + unit tests + build (frontend); ruff + mypy + pytest (backend) |
-| `e2e.yml` | PR to `main`/`develop` | Playwright E2E (uses real secrets from GitHub Secrets) |
+| `e2e.yml` | PR to `main`/`develop` | Playwright E2E (uses real secrets from GitHub Secrets). Skipped for Dependabot and fork PRs, which get no secrets |
 | `mutation.yml` | PR to `main`/`develop` when `src/lib/` changed | Stryker mutation tests |
 | `security.yml` | PRs + push to `main`/`develop` + weekly Monday | npm audit (`--audit-level=high`) + gitleaks secret scan + CodeQL |
 | `agent-review.yml` | PR open/synchronize | Posts AI review comment via Claude Haiku. Needs `ANTHROPIC_API_KEY` secret. Add `[skip review]` to PR title to suppress. |
-| `uptime.yml` | Every 15 min, manual dispatch | Curls `{PRODUCTION_URL}/api/health`; fails the run (no auto-notification beyond GitHub's own workflow-failure alerts) if it doesn't return 2xx. Needs `PRODUCTION_URL` repo variable. |
+| `uptime.yml` | Every 15 min, manual dispatch | Curls `{PRODUCTION_URL}/api/health` (10 s timeout, 2 retries); fails on non-2xx, warns on `degraded`. Needs the `PRODUCTION_URL` repo variable — **unset until 2026-09-28, so it never passed**. |
 
 The AI review workflow uses `claude-haiku-4-5-20251001`, trims diffs to 10 KB, and caps output at 1 024 tokens (~$0.004/PR).
 
@@ -365,7 +379,7 @@ Add these in **Settings → Secrets and variables → Actions**:
 |---|---|
 | `ANTHROPIC_API_KEY` | `agent-review.yml` |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | `e2e.yml` |
-| `NEXT_PUBLIC_FIREBASE_*` (all 6) | `e2e.yml` |
+| `NEXT_PUBLIC_FIREBASE_*` (4: `API_KEY`, `AUTH_DOMAIN`, `PROJECT_ID`, `APP_ID`) | `e2e.yml` |
 | `GEMINI_API_KEY` | `e2e.yml` |
 | `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | `e2e.yml` |
 | `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` | `e2e.yml` |
