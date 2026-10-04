@@ -1,0 +1,128 @@
+# Azure DevOps mirror of .github/workflows/ci.yml and security.yml.
+#
+# NOT ENABLED. `trigger: none` and `pr: none` keep it inert even once it is
+# registered, and it is not registered yet. GitHub Actions is the gate today and
+# Vercel deploys from Git, so there is deliberately no deploy stage here.
+#
+# To enable:
+#   1. Azure DevOps → Pipelines → New pipeline → GitHub → this repo →
+#      "Existing Azure Pipelines YAML file" → /.azuredevops/pipelines/ci.yml
+#   2. Replace `trigger: none` / `pr: none` with the branch filters at the bottom.
+#   3. Make the stages required checks on main and develop in place of the
+#      GitHub jobs, so the two systems never both gate the same branch.
+#
+# The steps call the same npm / poetry scripts as GitHub, so the gate is defined
+# once in package.json and pyproject.toml and the two pipelines cannot drift on
+# what they check. See docs/guides/harness.md.
+
+trigger: none
+pr: none
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  NODE_VERSION: '22.x'
+  PYTHON_VERSION: '3.11'
+  # Build-time placeholders, exactly as the GitHub job uses. Real values never
+  # belong in a CI quality build.
+  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: dummy
+  NEXT_PUBLIC_FIREBASE_API_KEY: dummy
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: dummy.firebaseapp.com
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: dummy-project
+  NEXT_PUBLIC_FIREBASE_APP_ID: '1:000000000000:web:0000000000000000'
+
+stages:
+  - stage: FrontendQuality
+    displayName: Frontend Quality
+    jobs:
+      - job: frontend
+        workspace:
+          clean: all
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(NODE_VERSION)
+          - script: npm ci
+            workingDirectory: src/frontend
+            displayName: Install
+          # lint, type-check, layering, duplication, dead code, docs.
+          - script: npm run quality
+            workingDirectory: src/frontend
+            displayName: Quality gates
+          - script: npm run test:unit
+            workingDirectory: src/frontend
+            displayName: Unit, component and integration tests
+          - script: npm run build
+            workingDirectory: src/frontend
+            displayName: Build
+            env:
+              GEMINI_API_KEY: dummy
+              FIREBASE_PROJECT_ID: dummy-project
+              FIREBASE_CLIENT_EMAIL: dummy@dummy-project.iam.gserviceaccount.com
+              FIREBASE_PRIVATE_KEY: "-----BEGIN RSA PRIVATE KEY-----\ndummy\n-----END RSA PRIVATE KEY-----"
+              STRAVA_CLIENT_ID: '0'
+              STRAVA_CLIENT_SECRET: dummy
+              GOOGLE_WEATHER_API_KEY: dummy
+
+  - stage: BackendQuality
+    displayName: Backend Quality
+    dependsOn: []
+    jobs:
+      - job: backend
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(PYTHON_VERSION)
+          - script: pip install poetry && poetry install
+            workingDirectory: src/backend
+            displayName: Install
+          - script: |
+              poetry run ruff check .
+              poetry run ruff format --check .
+              poetry run mypy src/
+              poetry run lint-imports
+              poetry run vulture
+            workingDirectory: src/backend
+            displayName: Quality gates
+          - script: poetry run pytest -q
+            workingDirectory: src/backend
+            displayName: Tests (coverage floor 85%)
+            env:
+              FIREBASE_PROJECT_ID: dummy-project
+              TESTING: 'true'
+
+  - stage: Security
+    displayName: Security
+    dependsOn: []
+    jobs:
+      - job: security
+        steps:
+          - checkout: self
+            fetchDepth: 0
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(NODE_VERSION)
+          - script: npm audit --audit-level=high
+            workingDirectory: src/frontend
+            displayName: npm audit
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(PYTHON_VERSION)
+          - script: pip install poetry && poetry install && poetry run pip-audit --vulnerability-service osv -l
+            workingDirectory: src/backend
+            displayName: pip-audit
+          - script: |
+              docker run --rm -v "$(Build.SourcesDirectory):/repo" zricethezav/gitleaks:latest \
+                detect --source /repo --redact --no-banner
+            # .gitleaksignore at the repo root is read automatically.
+            displayName: gitleaks
+
+# When enabling, replace the two `none` lines at the top with:
+#
+# trigger:
+#   branches:
+#     include: [main, develop]
+# pr:
+#   branches:
+#     include: [main, develop]

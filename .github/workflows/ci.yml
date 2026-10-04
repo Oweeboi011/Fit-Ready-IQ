@@ -55,6 +55,14 @@ jobs:
       - name: Duplication
         run: npm run lint:dup
 
+      # Unused files, exports and dependencies (knip.jsonc).
+      - name: Dead code
+        run: npm run lint:dead
+
+      # Broken relative links, empty Markdown, docs/ outside the taxonomy.
+      - name: Docs
+        run: npm run lint:docs
+
       - name: Unit tests
         run: npm run test:unit
 
@@ -132,6 +140,13 @@ jobs:
 
       - name: mypy
         run: poetry run mypy src/
+
+      # Clean Architecture contracts in pyproject.toml [tool.importlinter].
+      - name: Architecture rules
+        run: poetry run lint-imports
+
+      - name: Dead code
+        run: poetry run vulture
 
       - name: Tests
         run: poetry run pytest --cov=src --cov-report=xml -q
