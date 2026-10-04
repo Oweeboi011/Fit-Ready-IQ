@@ -1,6 +1,6 @@
 services:
   # Firebase Local Emulator Suite — Firestore and Auth, the two firebase.json
-  # declares. Storage is not used by the product (see storage.rules), and asking
+  # declares. Storage is not used by the product, and asking
   # for its emulator failed startup because firebase.json configures none.
   firebase-emulator:
     image: andreysenov/firebase-tools:latest
