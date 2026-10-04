@@ -16,7 +16,8 @@ npm run build        # Production build
 npm run lint         # ESLint
 npm run type-check   # TypeScript (tsc --noEmit)
 npm run format       # Prettier
-npm run test:unit    # Vitest (unit tests)
+npm run quality      # every static gate: lint, types, layering, duplication, dead code (knip), docs
+npm run test:unit    # Vitest: unit + component + API integration, with coverage
 npm run test:e2e     # Playwright (E2E tests)
 ```
 
@@ -31,6 +32,7 @@ npx vitest run src/lib/gpxParser.test.ts
 poetry run uvicorn src.main:app --reload --port 8000
 poetry run pytest                        # all tests
 poetry run pytest tests/unit/test_foo.py # single test file
+poetry run ruff check . && poetry run mypy src/ && poetry run lint-imports && poetry run vulture   # static gates
 ```
 
 The dependencies live in Poetry's virtualenv, not in the system Python, so every
@@ -88,7 +90,7 @@ The FastAPI backend is not called by the frontend in production; it is planned f
 | `/api/strava/connection` | GET connection status (athlete, never a token); DELETE disconnects. | — |
 | `/api/strava/sync` | Sync the caller's Strava activities → Firestore. **Requires a Firebase ID token**; the destination `uid` comes from that token, never the body. | 60 s |
 | `/api/places/cache` | Grid-based places cache (0.5° cells, 24 h TTL). GET is public; **POST requires a Firebase ID token** and caps each kind at 200 items. | 15 s |
-| `/api/weather` | Google Weather (primary) → OpenWeather fallback. Rate-limited to 200/hour per caller. | 15 s |
+| `/api/weather` | Google Weather when `GOOGLE_WEATHER_API_KEY` is set, else OpenWeather (a provider choice, not a retry), plus the route's weather window. Rate-limited to 200/hour per caller. | 15 s |
 | `/api/health` | Credential-presence checks only (no live API calls), including `rate_limiting` (degraded without `RATE_LIMIT_SALT`). Public, so it names no project or client ids. `s-maxage=30, stale-while-revalidate=10`. | 15 s |
 | `/api/admin/cache` | Inspect / purge places cache (batch 400 docs). Admin-gated. DELETE needs `?gridKey=<key>`, or `?all=true` **plus** body `{"confirm":"PURGE"}` for everything; anything else is a 400. | 30 s |
 | `/api/admin/strava-sync` | Strava sync status across users. Admin-gated. | — |
@@ -122,7 +124,7 @@ _health/                                # health check documents
 ever**: `rate_limits`, `chat_sessions` (plus its `messages` subcollection, at
 *collection-group* scope — deleting a parent never touches a subcollection), and
 `audit_logs`. The field is inert without the policy. See
-`docs/runbooks/firestore-ttl.md`.
+`docs/guides/runbooks/firestore-ttl.md`.
 
 **Every route needs a rate-limit budget**, declared in `src/lib/rateLimitRules.ts`
 rather than inline, so the set is enumerable. `rateLimitCoverage.test.ts` fails
@@ -332,9 +334,14 @@ imports it.
 | Config | `src/config/` | Pydantic settings via `settings.py` |
 
 Do not import from outer layers into inner ones (domain has zero external imports).
+**import-linter enforces this** — contracts in `pyproject.toml` `[tool.importlinter]`, run in
+CI and by `tests/unit/test_architecture.py`.
 
 ## Testing
 
+- **Layout:** unit and component tests sit beside the code (`*.test.ts(x)`); cross-cutting suites
+  live in `src/frontend/tests/{e2e,integration/api,integration/firestore-rules,performance}` and
+  `src/backend/tests/{unit,integration,performance}`.
 - **Unit tests:** Vitest with jsdom. Coverage thresholds: 85% statements/functions/lines, 50% branches. Reports in `coverage/`.
 - **E2E tests:** Playwright (Chromium), 30 s timeout, 2 retries in CI, auto-starts dev server on port 4790.
 - **Mutation tests:** Stryker (`npm run test:mutation`), config in `stryker.config.json`, targets nine `src/lib` modules (parsers, `adminAuth`, `rateLimit`, `logger`, …). Break/low threshold 70%, high 80%.
@@ -362,12 +369,16 @@ feature/* → develop → main
 
 | File | Triggers | What it does |
 |---|---|---|
-| `ci.yml` | PR to `main`/`develop`, push to `main`/`develop` | Lint + type-check + unit tests + build (frontend); ruff + mypy + pytest (backend) |
+| `ci.yml` | PR to `main`/`develop`, push to `main`/`develop` | `npm run quality` gates + unit tests + build (frontend); ruff + mypy + import-linter + vulture + pytest (backend) |
 | `e2e.yml` | PR to `main`/`develop` | Playwright E2E (uses real secrets from GitHub Secrets). Skipped for Dependabot and fork PRs, which get no secrets |
 | `mutation.yml` | PR to `main`/`develop` when `src/lib/` changed | Stryker mutation tests |
 | `security.yml` | PRs + push to `main`/`develop` + weekly Monday | npm audit (`--audit-level=high`) + gitleaks secret scan + CodeQL |
 | `agent-review.yml` | PR open/synchronize | Posts AI review comment via Claude Haiku. Needs `ANTHROPIC_API_KEY` secret. Add `[skip review]` to PR title to suppress. |
 | `uptime.yml` | Every 15 min, manual dispatch | Curls `{PRODUCTION_URL}/api/health` (10 s timeout, 2 retries); fails on non-2xx, warns on `degraded`. Needs the `PRODUCTION_URL` repo variable — **unset until 2026-09-28, so it never passed**. |
+
+`.azuredevops/pipelines/ci.yml` mirrors `ci.yml` + `security.yml` for Azure DevOps and is
+**deliberately disabled** (`trigger: none`, `pr: none`, unregistered). Vercel deploys from Git,
+so it has no deploy stage. See `docs/guides/deployment.md`.
 
 The AI review workflow uses `claude-haiku-4-5-20251001`, trims diffs to 10 KB, and caps output at 1 024 tokens (~$0.004/PR).
 
@@ -397,15 +408,25 @@ Add these in **Settings → Secrets and variables → Actions**:
 
 After cloning, run once from `src/frontend/`:
 ```bash
-npm install   # installs husky, lint-staged, commitlint
+npm install   # installs husky, lint-staged, commitlint, secretlint
 ```
 
 Husky runs automatically after `npm install` via the `prepare` script.
 
-- **pre-commit:** runs `lint-staged` (ESLint --fix + Prettier on staged `*.ts(x)` files)
+- **pre-commit:** secretlint on every staged file, then `lint-staged` (ESLint --fix + Prettier),
+  then ruff on staged Python via `src/backend/.venv` (skipped with a notice if the venv is absent)
 - **commit-msg:** enforces Conventional Commits via `commitlint`
 
-Commit format: `type(scope): subject` — types: `feat fix docs style refactor perf test chore revert ci build`
+Commit format: `type(scope): subject` — types: `feat fix docs style refactor perf test chore revert ci build`.
+The subject must be **lower-case** (`subject-case`) — "UI" or "API" in a subject fails the hook.
+
+## Quality harness and docs
+
+The full gate set, and what stays in human review, is `docs/guides/harness.md` (ADR-0006).
+Docs live in three folders (ADR-0007): `docs/guides` (what it is), `docs/solution-plan` (how we
+deliver it / what it should do), `docs/adr` (why). `npm run lint:docs` fails on broken links,
+empty files, or anything else under `docs/`. Link to the code that states a fact rather than
+copying it.
 
 ## Naming conventions
 
@@ -447,8 +468,9 @@ Required keys that will break functionality if missing:
   entirely. The **secret** must never gain a `NEXT_PUBLIC_` prefix.
 
 Optional (graceful degradation): `GOOGLE_WEATHER_API_KEY` and
-`OPENWEATHER_API_KEY` — two *different* providers, not aliases; Google is tried
-first and OpenWeather is the fallback. Also `GOOGLE_ROUTES_API_KEY`,
+`OPENWEATHER_API_KEY` — two *different* providers, not aliases; Google is used
+when its key is set, otherwise OpenWeather. A Google failure is a 502, not a retry
+against OpenWeather. Also `GOOGLE_ROUTES_API_KEY`,
 `OPENWEATHER_BASE_URL`, `ADVISORY_FEED_URL`, `LOG_LEVEL`, `CSP_ENFORCE_RESOURCES`,
 `CSP_REPORT_URI`.
 

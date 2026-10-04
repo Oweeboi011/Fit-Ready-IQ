@@ -179,7 +179,7 @@ async function persistConversation(
  *
  * Enforced by a Firestore TTL policy on `expiresAt` for both `chat_sessions`
  * and `chat_sessions/{id}/messages` (collection-group scope). See
- * docs/runbooks/firestore-ttl.md — without the policy configured this field is
+ * docs/guides/runbooks/firestore-ttl.md — without the policy configured this field is
  * inert and nothing is ever deleted.
  */
 const CHAT_RETENTION_DAYS = 90;

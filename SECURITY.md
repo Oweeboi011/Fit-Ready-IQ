@@ -62,7 +62,7 @@ demonstrate something, describe it and we will reproduce it ourselves.
 ## Known gaps
 
 Issues we already know about are recorded, with their reasoning and remediation
-plan, in [`docs/wiki/SECURITY.md`](docs/wiki/SECURITY.md) §12. Reading that first
+plan, in [`docs/guides/security.md`](docs/guides/security.md#known-gaps). Reading that first
 may save you writing up something already tracked — though a report that one of
 those is worse than we assessed is genuinely welcome.
 
