@@ -1,1 +1,29 @@
-cd src/frontend && npx lint-staged
+# Stage 1 of the harness (docs/guides/harness.md): staged files only, seconds
+# not minutes. CI re-runs every check on the whole tree, so anything this hook
+# has to skip is still caught before merge.
+set -e
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged" ] && exit 0
+
+# 1. Secrets, first and on every staged file. gitleaks in CI is the backstop,
+#    but by then the secret is already pushed.
+echo "$staged" | sed 's#^#../../#' | tr '\n' '\0' \
+  | (cd src/frontend && xargs -0 npx --no-install secretlint --maskSecrets)
+
+# 2. TypeScript/JSON/Markdown: eslint --fix + prettier (config in package.json).
+(cd src/frontend && npx --no-install lint-staged)
+
+# 3. Python: ruff from the backend's in-project virtualenv.
+py=$(echo "$staged" | grep '^src/backend/.*\.py$' || true)
+if [ -n "$py" ]; then
+  ruff=src/backend/.venv/Scripts/ruff.exe
+  [ -x "$ruff" ] || ruff=src/backend/.venv/bin/ruff
+  if [ -x "$ruff" ]; then
+    echo "$py" | tr '\n' '\0' | xargs -0 "$ruff" check --fix
+    echo "$py" | tr '\n' '\0' | xargs -0 "$ruff" format
+    echo "$py" | tr '\n' '\0' | xargs -0 git add
+  else
+    echo "pre-commit: no src/backend/.venv — skipping ruff (CI runs it)."
+  fi
+fi

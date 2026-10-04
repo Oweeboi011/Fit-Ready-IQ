@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint';
  * (2026-08-06). Exempting them lets the rules be errors everywhere else;
  * shrinking these two lists is the ratchet.
  *
- * Do not add entries — see docs/wiki/CODE-QUALITY.md and
+ * Do not add entries — see docs/guides/harness.md and
  * docs/adr/0002-mechanical-code-quality-gates.md.
  */
 const LEGACY_OVERSIZED = [
@@ -144,7 +144,7 @@ const config = [
   },
   {
     // Test files describe scenarios; length there is not a design smell.
-    files: ['src/**/*.test.{ts,tsx}', 'e2e/**/*.ts', 'tests/**/*.{ts,js}'],
+    files: ['src/**/*.test.{ts,tsx}', 'tests/**/*.{ts,js}'],
     rules: {
       'max-lines': 'off',
       'max-lines-per-function': 'off',
@@ -153,7 +153,7 @@ const config = [
   },
 
   // ── Naming conventions ─────────────────────────────────────────────────────
-  // The subset of docs/wiki/CONTRIBUTING.md's naming rules that a linter can
+  // The subset of the naming rules in .claude/CLAUDE.md that a linter can
   // actually express. Casing of ordinary variables is left to review.
   {
     files: ['src/**/*.{ts,tsx}'],
@@ -182,6 +182,46 @@ const config = [
           leadingUnderscore: 'require',
         },
       ],
+    },
+  },
+
+  // ── Banned APIs and the shared primitives ──────────────────────────────────
+  // Each of these has a house replacement that already does the job properly;
+  // the ban is what makes reaching for the replacement the path of least
+  // resistance. See docs/guides/harness.md.
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/**/*.test.{ts,tsx}'],
+    rules: {
+      // window.confirm/alert/prompt block the tab and cannot be styled or
+      // focus-managed. Use ConfirmDialog.
+      'no-alert': 'error',
+      // A modal dialog needs the focus trap, Escape, scroll lock and focus
+      // restore that Modal.tsx already implements. Build on Modal instead.
+      'react/forbid-dom-props': [
+        'error',
+        {
+          forbid: [
+            {
+              propName: 'aria-modal',
+              message: 'Modal dialogs go through src/components/Modal.tsx.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/components/Modal.tsx'],
+    rules: { 'react/forbid-dom-props': 'off' },
+  },
+  {
+    // Server logs go through logger.ts: one JSON line per event, redacted, with
+    // a request id. A raw console call can serialise an Authorization header.
+    files: ['src/app/api/**/*.ts', ...SERVER_ONLY],
+    ignores: ['src/lib/logger.ts', 'src/**/*.test.ts'],
+    rules: {
+      'no-console': 'error',
     },
   },
 
