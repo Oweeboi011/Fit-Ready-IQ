@@ -74,10 +74,6 @@ export const ATTRIBUTED_NOT_EXPORTED =
   'Google Places results rather than your data, so they are not exported; they ' +
   'are deleted with your account.';
 
-export type UserSubcollection = (typeof USER_SUBCOLLECTIONS)[number];
-export type UserOwnedCollection = (typeof USER_OWNED_COLLECTIONS)[number];
-export type UserOwnedTreeCollection = (typeof USER_OWNED_TREE_COLLECTIONS)[number];
-
 /**
  * Collections that hold user-attributable data but are deliberately NOT erased,
  * with the reason. Stated explicitly because an auditor's next question after

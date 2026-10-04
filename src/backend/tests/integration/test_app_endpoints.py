@@ -3,6 +3,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from src.main import settings
+
 
 @pytest.mark.integration
 def test_health_endpoint_payload(client: TestClient) -> None:
@@ -24,7 +26,10 @@ def test_root_endpoint_payload(client: TestClient) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["message"] == "Welcome to Fit-Ready-IQ API"
-    assert payload["docs"] == "/docs"
+    # Docs are served only in development. Settings read the repo-root env file,
+    # so compare against what this run actually resolved rather than assuming.
+    expected_docs = "/docs" if settings.environment == "development" else "disabled"
+    assert payload["docs"] == expected_docs
     assert payload["health"] == "/health"
 
 

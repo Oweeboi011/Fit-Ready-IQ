@@ -1,10 +1,11 @@
 """Google Maps API client implementation."""
 
 from types import TracebackType
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 import structlog
+
 from src.domain.interfaces import IMapClient, IRoutingClient
 from src.domain.value_objects import Coordinates
 
@@ -29,7 +30,7 @@ class GoogleMapsClient(IMapClient, IRoutingClient):
         self.client = httpx.AsyncClient(timeout=30.0)
         logger.info("google_maps_client_initialized")
 
-    async def geocode(self, address: str) -> Optional[Coordinates]:
+    async def geocode(self, address: str) -> Coordinates | None:
         """Convert address to coordinates.
 
         Args:
@@ -62,7 +63,7 @@ class GoogleMapsClient(IMapClient, IRoutingClient):
             logger.error("geocode_error", error=str(e))
             return None
 
-    async def reverse_geocode(self, coordinates: Coordinates) -> Optional[str]:
+    async def reverse_geocode(self, coordinates: Coordinates) -> str | None:
         """Convert coordinates to address.
 
         Args:
@@ -100,7 +101,7 @@ class GoogleMapsClient(IMapClient, IRoutingClient):
         self,
         coordinates: Coordinates,
         radius_meters: float,
-        poi_type: Optional[str] = None,
+        poi_type: str | None = None,
     ) -> list[dict[str, Any]]:
         """Get points of interest near coordinates.
 
@@ -243,12 +244,12 @@ class GoogleMapsClient(IMapClient, IRoutingClient):
         Returns:
             List of elevation values in meters, same length as input
         """
-        _CHUNK_SIZE = 512
+        chunk_size = 512
         all_elevations: list[float] = []
 
         chunks = [
-            coordinates[i : i + _CHUNK_SIZE]
-            for i in range(0, len(coordinates), _CHUNK_SIZE)
+            coordinates[i : i + chunk_size]
+            for i in range(0, len(coordinates), chunk_size)
         ]
 
         for chunk in chunks:

@@ -1,5 +1,7 @@
 import { createLogger } from './logger';
 import { getFirestoreAdmin, isFirebaseAdminConfigured } from './firebaseAdmin';
+// One definition of what the browser may know, shared with the client.
+import { DISCONNECTED, type StravaConnection } from './stravaAuth';
 
 /**
  * Server-side custody of Strava OAuth tokens.
@@ -44,21 +46,6 @@ interface StoredTokens {
 const REFRESH_LEASE_MS = STRAVA_TIMEOUT_MS + 5_000;
 
 const LEASE_POLL_MS = 500;
-
-/** What the browser is allowed to know: that it worked, and whose account it is. */
-export interface StravaConnection {
-  connected: boolean;
-  athleteId: number | null;
-  athleteName: string | null;
-  connectedAt: string | null;
-}
-
-const DISCONNECTED: StravaConnection = {
-  connected: false,
-  athleteId: null,
-  athleteName: null,
-  connectedAt: null,
-};
 
 /** Strava's token response, of which we keep only the fields above. */
 export interface StravaTokenResponse {

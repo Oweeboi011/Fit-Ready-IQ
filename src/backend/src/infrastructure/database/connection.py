@@ -1,16 +1,16 @@
-"""Firebase Admin SDK initialization and Firestore/Auth/Storage client access."""
+"""Firebase Admin SDK initialization and Firestore client access."""
 
 import asyncio
 import json
 import os
-from typing import Any, Optional
+from typing import Any
 
 import firebase_admin
-from firebase_admin import auth, credentials, firestore_async, storage
+from firebase_admin import auth, credentials, firestore_async
 
 from ...config.settings import get_settings
 
-_app: Optional[firebase_admin.App] = None
+_app: firebase_admin.App | None = None
 
 
 def initialize_firebase() -> firebase_admin.App:
@@ -38,10 +38,6 @@ def initialize_firebase() -> firebase_admin.App:
             "FIREBASE_AUTH_EMULATOR_HOST",
             f"{settings.firebase_emulator_host}:{settings.firebase_auth_emulator_port}",
         )
-        os.environ.setdefault(
-            "FIREBASE_STORAGE_EMULATOR_HOST",
-            f"{settings.firebase_emulator_host}:{settings.firebase_storage_emulator_port}",
-        )
 
     # Resolve credentials
     cred: credentials.Base
@@ -54,8 +50,6 @@ def initialize_firebase() -> firebase_admin.App:
         cred = credentials.ApplicationDefault()
 
     options: dict = {"projectId": settings.firebase_project_id}
-    if settings.firebase_storage_bucket:
-        options["storageBucket"] = settings.firebase_storage_bucket
 
     _app = firebase_admin.initialize_app(cred, options)
     return _app
@@ -64,16 +58,6 @@ def initialize_firebase() -> firebase_admin.App:
 def get_firestore() -> firestore_async.AsyncClient:
     """Return the async Firestore client. Requires initialize_firebase() first."""
     return firestore_async.client()
-
-
-def get_auth() -> auth.Client:
-    """Return the Firebase Auth client. Requires initialize_firebase() first."""
-    return auth.Client(_app)
-
-
-def get_storage_bucket() -> Any:
-    """Return the Firebase Storage bucket. Requires initialize_firebase() first."""
-    return storage.bucket()
 
 
 async def verify_firebase_token(id_token: str) -> dict:

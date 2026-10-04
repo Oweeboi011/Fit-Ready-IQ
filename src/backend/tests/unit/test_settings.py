@@ -68,6 +68,8 @@ def test_removed_settings_are_gone() -> None:
         "cache_activities_ttl",
         "cache_routes_ttl",
         "cache_weather_ttl",
+        "firebase_storage_bucket",
+        "firebase_storage_emulator_port",
     ):
         assert field not in Settings.model_fields, (
             f"{field} is back in Settings. If something now reads it, that is "

@@ -29,11 +29,9 @@ def test_initialize_firebase_uses_json_credentials(
             "firebase_emulator_host": "localhost",
             "firebase_firestore_emulator_port": 8080,
             "firebase_auth_emulator_port": 9099,
-            "firebase_storage_emulator_port": 9199,
             "firebase_service_account_key_json": json.dumps(creds),
             "firebase_service_account_key_path": None,
             "firebase_project_id": "fit-ready-iq-test",
-            "firebase_storage_bucket": None,
         },
     )()
 
@@ -71,11 +69,9 @@ def test_initialize_firebase_uses_application_default_when_no_explicit_credentia
             "firebase_emulator_host": "localhost",
             "firebase_firestore_emulator_port": 8080,
             "firebase_auth_emulator_port": 9099,
-            "firebase_storage_emulator_port": 9199,
             "firebase_service_account_key_json": None,
             "firebase_service_account_key_path": None,
             "firebase_project_id": "fit-ready-iq-test",
-            "firebase_storage_bucket": "fit-ready-iq-test.appspot.com",
         },
     )()
 
@@ -92,7 +88,4 @@ def test_initialize_firebase_uses_application_default_when_no_explicit_credentia
     app = connection.initialize_firebase()
 
     assert app["cred"] == "app-default"
-    assert app["options"] == {
-        "projectId": "fit-ready-iq-test",
-        "storageBucket": "fit-ready-iq-test.appspot.com",
-    }
+    assert app["options"] == {"projectId": "fit-ready-iq-test"}

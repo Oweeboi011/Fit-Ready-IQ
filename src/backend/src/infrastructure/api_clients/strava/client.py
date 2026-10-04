@@ -23,7 +23,7 @@ class StravaAPIClient(IFitnessPlatformClient):
 
     BASE_URL = "https://www.strava.com/api/v3"
     AUTH_URL = "https://www.strava.com/oauth/authorize"
-    TOKEN_URL = "https://www.strava.com/oauth/token"
+    TOKEN_URL = "https://www.strava.com/oauth/token"  # noqa: S105 — a URL, not a secret
 
     def __init__(self, client_id: str, client_secret: str, redirect_uri: str):
         """

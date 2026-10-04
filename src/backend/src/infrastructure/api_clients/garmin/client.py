@@ -5,10 +5,11 @@ This client provides FIT file parsing functionality as a workaround.
 Users can upload FIT files exported from Garmin Connect.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from fitparse import FitFile
+
 from src.domain.interfaces import IFileParser
 
 logger = structlog.get_logger(__name__)
@@ -75,7 +76,7 @@ class GarminFitParser(IFileParser):
 
         except Exception as e:
             logger.error("fit_parse_error", error=str(e))
-            raise ValueError(f"Failed to parse FIT file: {str(e)}")
+            raise ValueError(f"Failed to parse FIT file: {str(e)}") from e
 
     def supports_format(self, file_extension: str) -> bool:
         """Check if parser supports the file format.
@@ -89,7 +90,7 @@ class GarminFitParser(IFileParser):
         return file_extension.lower() in self.SUPPORTED_FORMATS
 
     @staticmethod
-    def _map_sport_type(sport: Optional[str]) -> str:
+    def _map_sport_type(sport: str | None) -> str:
         """Map Garmin sport type to our activity type."""
         sport_mapping = {
             "running": "run",

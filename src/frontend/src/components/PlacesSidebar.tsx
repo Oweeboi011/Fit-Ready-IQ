@@ -13,8 +13,6 @@ import type { SavedPlace } from '@/lib/useSavedPlaces';
 import type { CollectionName } from '@/lib/usePlacesData';
 import type { LocationProblem, LocationSource, UserLocation } from '@/lib/useUserLocation';
 
-export type { TabId } from '@/components/sidebar/SidebarTabs';
-
 interface PlacesSidebarProps {
   sidebarOpen: boolean;
   locationProblem: LocationProblem | null;
