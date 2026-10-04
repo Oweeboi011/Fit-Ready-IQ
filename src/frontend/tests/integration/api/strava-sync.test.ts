@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { POST } from './route';
+import { POST } from '@/app/api/strava/sync/route';
 
 /**
  * The sync route writes into a user's tree with the Admin SDK, which bypasses

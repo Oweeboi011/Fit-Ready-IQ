@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { POST } from './route';
+import { POST } from '@/app/api/account/delete/route';
 
 /**
  * Erasure is irreversible, so what matters is order and what it leaves behind.

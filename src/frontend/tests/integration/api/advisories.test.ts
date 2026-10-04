@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { GET } from './route';
+import { GET } from '@/app/api/advisories/route';
 
 /**
  * Advisories are safety information. The failure that matters is the silent

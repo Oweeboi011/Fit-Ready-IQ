@@ -81,7 +81,7 @@ const fetchMock = vi.fn();
 
 async function post(body: Record<string, unknown>): Promise<Response> {
   vi.resetModules();
-  const { POST } = await import('./route');
+  const { POST } = await import('@/app/api/chat/route');
   const request = new Request('https://example.com/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

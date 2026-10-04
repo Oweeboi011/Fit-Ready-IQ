@@ -78,7 +78,7 @@ function payload(overrides: Record<string, unknown> = {}) {
 
 async function loadRoute() {
   vi.resetModules();
-  return import('./route');
+  return import('@/app/api/places/cache/route');
 }
 
 async function post(body: unknown): Promise<Response> {

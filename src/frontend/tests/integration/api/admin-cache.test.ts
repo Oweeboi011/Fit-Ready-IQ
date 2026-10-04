@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DELETE } from './route';
+import { DELETE } from '@/app/api/admin/cache/route';
 
 /**
  * The purge endpoint can empty a cache every visitor depends on. What matters

@@ -7,7 +7,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['rules-tests/**/*.test.ts'],
+    include: ['tests/integration/firestore-rules/**/*.test.ts'],
     // The emulator serialises rule evaluation; parallel files only contend.
     fileParallelism: false,
     testTimeout: 15_000,

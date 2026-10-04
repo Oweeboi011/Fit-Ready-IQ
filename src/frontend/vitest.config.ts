@@ -6,7 +6,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    // Unit and component tests sit beside the code; route-handler integration
+    // tests live in tests/integration/api. Rules tests need an emulator and run
+    // under vitest.rules.config.ts instead.
+    include: ['src/**/*.test.{ts,tsx}', 'tests/integration/api/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
@@ -47,6 +50,12 @@ export default defineConfig({
         'src/lib/placesCacheSchema.ts',
         'src/lib/advisories.ts',
         'src/lib/plans.ts',
+
+        // Shared UI primitives: every dialog and gallery in the app is built on these.
+        'src/components/Modal.tsx',
+        'src/components/ConfirmDialog.tsx',
+        'src/components/PhotoGallery.tsx',
+        'src/components/RouteFilter.tsx',
 
         // Route handlers with tests. Every route that writes user data or
         // spends money belongs here; the rest follow as they gain tests. A

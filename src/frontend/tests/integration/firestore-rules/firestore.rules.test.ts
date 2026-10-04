@@ -36,7 +36,10 @@ beforeAll(async () => {
   env = await initializeTestEnvironment({
     projectId: 'demo-fit-ready-iq',
     firestore: {
-      rules: readFileSync(path.join(__dirname, '..', '..', '..', 'firestore.rules'), 'utf8'),
+      rules: readFileSync(
+        path.join(__dirname, '..', '..', '..', '..', '..', 'firestore.rules'),
+        'utf8'
+      ),
     },
   });
 });

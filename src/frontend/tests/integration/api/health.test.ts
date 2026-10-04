@@ -37,7 +37,7 @@ function writeWellKnownAdc(): void {
 
 async function health(): Promise<Record<string, { ok: boolean; message: string }>> {
   vi.resetModules();
-  const { GET } = await import('./route');
+  const { GET } = await import('@/app/api/health/route');
   return (await (GET() as Response).json()).services;
 }
 
@@ -141,7 +141,7 @@ describe('firebase_admin credential detection', () => {
 describe('overall status', () => {
   it('answers 503 when almost nothing is configured', async () => {
     vi.resetModules();
-    const { GET } = await import('./route');
+    const { GET } = await import('@/app/api/health/route');
     expect((GET() as Response).status).toBe(503);
   });
 
@@ -160,7 +160,7 @@ describe('overall status', () => {
     process.env.RATE_LIMIT_SALT = 'salt';
 
     vi.resetModules();
-    const { GET } = await import('./route');
+    const { GET } = await import('@/app/api/health/route');
     const res = GET() as Response;
     expect(res.status).toBe(200);
     expect((await res.json()).status).toBe('healthy');
