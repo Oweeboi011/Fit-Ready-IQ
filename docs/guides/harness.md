@@ -60,6 +60,9 @@ poetry run mypy src/ && poetry run lint-imports && poetry run vulture
 poetry run pytest
 ```
 
+Measured 2026-10-06 on a laptop: `quality` ~16 s (ESLint 8, tsc 3, the rest ≤ 2 each),
+`test:unit` ~9 s, backend gates + pytest ~21 s. A step that doubles these needs a reason.
+
 | Config | Holds |
 |---|---|
 | `src/frontend/eslint.config.mjs` | Ceilings, banned APIs, naming, credential split, legacy baseline |
