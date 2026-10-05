@@ -124,7 +124,9 @@ Authorization: Bearer <Firebase ID token>
 
 `?lat=&lng=` (required), `&elevation=` and `&hours=` (route duration, at most ten days;
 optional). Uses Google Weather when `GOOGLE_WEATHER_API_KEY` is set, falling over to OpenWeather (if
-configured) when Google fails.
+configured) when Google fails. `provider` names the source of current conditions and
+`forecastProvider` the source of `alerts` and `window` (they differ when only Google's forecast
+fails; `null` when no forecast was available).
 Returns current conditions plus `alerts` and `window`, the soonest span worth going for a route
 of that duration (`lib/weatherWindow.ts`). CDN-cached for 30 minutes. Returns 503 when neither
 key is set and 502 when the provider fails. No Firestore cache exists.

@@ -71,6 +71,27 @@ describe('GET /api/weather', () => {
     upstream();
     const body = await (await get()).json();
     expect(body.provider).toBe('google-weather');
+    expect(body.forecastProvider).toBe('google-weather');
+  });
+
+  it('names the forecast provider when only the Google forecast fails', async () => {
+    process.env.GOOGLE_WEATHER_API_KEY = 'g';
+    process.env.OPENWEATHER_API_KEY = 'o';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('weather.googleapis.com')) {
+          return url.includes('forecast')
+            ? new Response('down', { status: 503 })
+            : json(GOOGLE_CURRENT);
+        }
+        return json({ list: [] });
+      })
+    );
+    const body = await (await get()).json();
+    expect(body.provider).toBe('google-weather');
+    expect(body.forecastProvider).toBe('openweather');
   });
 
   it('fails over to OpenWeather when Google is down and OpenWeather is configured', async () => {
@@ -81,6 +102,7 @@ describe('GET /api/weather', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.provider).toBe('openweather');
+    expect(body.forecastProvider).toBe('openweather');
     expect(body.current.description).toBe('scattered clouds');
     // The forecast fails over too, so the window and alerts are still computed.
     expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/forecast?'))).toBe(true);

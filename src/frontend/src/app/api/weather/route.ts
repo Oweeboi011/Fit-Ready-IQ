@@ -266,6 +266,8 @@ async function fetchOpenWeatherForecastHours(
 }
 
 // ── Provider failover ───────────────────────────────────────────────────────
+type WeatherProvider = 'google-weather' | 'openweather';
+
 interface ProviderKeys {
   googleKey: string | undefined;
   openWeatherKey: string | undefined;
@@ -320,24 +322,39 @@ async function fetchForecast({
   lng,
   requiredHours,
   log,
-}: ForecastRequest): Promise<{ alerts: WeatherAlert[]; window: WeatherWindow }> {
+}: ForecastRequest): Promise<{
+  alerts: WeatherAlert[];
+  window: WeatherWindow;
+  forecastProvider: WeatherProvider | null;
+}> {
+  // Named separately from `provider`: Google can answer the current conditions
+  // and fail on the forecast, which then comes from OpenWeather.
+  let forecastProvider: WeatherProvider | null = null;
   try {
     const hours = await withFailover(
       { googleKey, openWeatherKey },
-      (key) => fetchGoogleForecastHours(key, lat, lng),
-      (key) => fetchOpenWeatherForecastHours(key, lat, lng),
+      (key) => {
+        forecastProvider = 'google-weather';
+        return fetchGoogleForecastHours(key, lat, lng);
+      },
+      (key) => {
+        forecastProvider = 'openweather';
+        return fetchOpenWeatherForecastHours(key, lat, lng);
+      },
       log,
       'forecast'
     );
     return {
       alerts: summarizeAlerts(hours),
       window: findWeatherWindow(hours, requiredHours ? { requiredHours } : {}),
+      forecastProvider,
     };
   } catch (err) {
     log.warn('weather_forecast_failed', { error: serializeError(err) });
     return {
       alerts: [],
       window: findWeatherWindow([]),
+      forecastProvider: null,
     };
   }
 }
@@ -388,7 +405,7 @@ export async function GET(request: NextRequest) {
     // Once Google has failed this request, the forecast goes straight to
     // OpenWeather: a second 8 s Google timeout would overrun the 15 s budget,
     // and the forecast then comes from the provider the response names.
-    const { alerts, window } = await fetchForecast({
+    const { alerts, window, forecastProvider } = await fetchForecast({
       googleKey: googleFailed ? undefined : googleKey,
       openWeatherKey,
       lat,
@@ -398,7 +415,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(
-      { ...result, alerts, window },
+      { ...result, alerts, window, forecastProvider },
       // s-maxage is what Vercel's CDN honours; max-age alone only ever cached
       // in the one browser, so every visitor paid for two upstream calls.
       {
