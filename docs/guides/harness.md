@@ -91,6 +91,8 @@ Accepted findings, as of 2026-10-05:
 - CodeQL `js/clear-text-storage-of-sensitive-data` (`useUserLocation.ts`, `activityTypes.ts`):
   device-local location and activities are a feature, cleared on sign-out
   (`personalStorage.ts`). Dismiss as "won't fix" in GitHub, not in code.
+- CodeQL `js/incomplete-url-substring-sanitization` may flag `mentionsMapsApi` in
+  `MapView.tsx`: it reads error text to pick an error message and trusts nothing. False positive.
 - vulture reports unused methods and classes only at 60% confidence, because it cannot see
   FastAPI routing or pydantic. Those are checked in review, not gated.
 

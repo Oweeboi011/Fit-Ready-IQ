@@ -309,12 +309,16 @@ export default function MapView({
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    // Reads error text, it does not validate a URL: nothing is trusted on the
+    // strength of this match, it only decides whether to show the map error.
+    const mentionsMapsApi = (text: string) => text.toLowerCase().includes('maps.googleapis.com');
+
     const onWindowError = (event: ErrorEvent) => {
       const text = `${event.message ?? ''} ${event.error?.message ?? ''} ${event.error?.stack ?? ''}`;
       if (
         /Google Maps JavaScript API error/i.test(text) ||
         /RefererNotAllowedMapError/i.test(text) ||
-        (/IntersectionObserver/i.test(text) && text.toLowerCase().includes('maps.googleapis.com'))
+        (/IntersectionObserver/i.test(text) && mentionsMapsApi(text))
       ) {
         setRuntimeMapError(text);
       }
@@ -326,8 +330,7 @@ export default function MapView({
         typeof reason === 'string' ? reason : `${reason?.message ?? ''} ${reason?.stack ?? ''}`;
 
       if (
-        // Matching error text, not validating a URL: a substring is the intent.
-        text.toLowerCase().includes('maps.googleapis.com') ||
+        mentionsMapsApi(text) ||
         /Google Maps/i.test(text) ||
         /RefererNotAllowedMapError/i.test(text) ||
         /IntersectionObserver/i.test(text)
