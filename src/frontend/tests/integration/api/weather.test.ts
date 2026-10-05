@@ -47,31 +47,20 @@ function upstream({ googleDown = false } = {}) {
 const get = (query = 'lat=16.6&lng=120.9') =>
   GET(new NextRequest(`https://fitreadyiq.test/api/weather?${query}`));
 
-const savedEnv = {
-  google: process.env.GOOGLE_WEATHER_API_KEY,
-  openWeather: process.env.OPENWEATHER_API_KEY,
-};
-
 beforeEach(() => {
-  delete process.env.GOOGLE_WEATHER_API_KEY;
-  delete process.env.OPENWEATHER_API_KEY;
+  vi.stubEnv('GOOGLE_WEATHER_API_KEY', undefined);
+  vi.stubEnv('OPENWEATHER_API_KEY', undefined);
 });
 
+// unstubAllEnvs restores the keys as found, so no other suite inherits ours.
 afterEach(() => {
   vi.unstubAllGlobals();
-  // Leave the keys as found, so no other suite in this worker inherits ours.
-  for (const [name, value] of [
-    ['GOOGLE_WEATHER_API_KEY', savedEnv.google],
-    ['OPENWEATHER_API_KEY', savedEnv.openWeather],
-  ] as const) {
-    if (value === undefined) delete process.env[name];
-    else process.env[name] = value;
-  }
+  vi.unstubAllEnvs();
 });
 
 describe('GET /api/weather', () => {
   it('rejects a missing or out-of-range location', async () => {
-    process.env.GOOGLE_WEATHER_API_KEY = 'g';
+    vi.stubEnv('GOOGLE_WEATHER_API_KEY', 'g');
     expect((await get('lat=200&lng=0')).status).toBe(400);
     expect((await get('lng=0')).status).toBe(400);
   });
@@ -81,8 +70,8 @@ describe('GET /api/weather', () => {
   });
 
   it('uses Google when it is configured and healthy', async () => {
-    process.env.GOOGLE_WEATHER_API_KEY = 'g';
-    process.env.OPENWEATHER_API_KEY = 'o';
+    vi.stubEnv('GOOGLE_WEATHER_API_KEY', 'g');
+    vi.stubEnv('OPENWEATHER_API_KEY', 'o');
     upstream();
     const body = await (await get()).json();
     expect(body.provider).toBe('google-weather');
@@ -90,8 +79,8 @@ describe('GET /api/weather', () => {
   });
 
   it('names the forecast provider when only the Google forecast fails', async () => {
-    process.env.GOOGLE_WEATHER_API_KEY = 'g';
-    process.env.OPENWEATHER_API_KEY = 'o';
+    vi.stubEnv('GOOGLE_WEATHER_API_KEY', 'g');
+    vi.stubEnv('OPENWEATHER_API_KEY', 'o');
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
@@ -110,8 +99,8 @@ describe('GET /api/weather', () => {
   });
 
   it('fails over to OpenWeather when Google is down and OpenWeather is configured', async () => {
-    process.env.GOOGLE_WEATHER_API_KEY = 'g';
-    process.env.OPENWEATHER_API_KEY = 'o';
+    vi.stubEnv('GOOGLE_WEATHER_API_KEY', 'g');
+    vi.stubEnv('OPENWEATHER_API_KEY', 'o');
     const fetchMock = upstream({ googleDown: true });
     const res = await get();
     expect(res.status).toBe(200);
@@ -126,7 +115,7 @@ describe('GET /api/weather', () => {
   });
 
   it('reports 502 when Google is down and there is nothing to fail over to', async () => {
-    process.env.GOOGLE_WEATHER_API_KEY = 'g';
+    vi.stubEnv('GOOGLE_WEATHER_API_KEY', 'g');
     upstream({ googleDown: true });
     const res = await get();
     expect(res.status).toBe(502);
@@ -135,7 +124,7 @@ describe('GET /api/weather', () => {
   });
 
   it('uses OpenWeather alone when it is the only key', async () => {
-    process.env.OPENWEATHER_API_KEY = 'o';
+    vi.stubEnv('OPENWEATHER_API_KEY', 'o');
     upstream();
     expect((await (await get()).json()).provider).toBe('openweather');
   });
