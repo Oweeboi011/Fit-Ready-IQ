@@ -41,3 +41,5 @@ review checklist, because encoding them as heuristics produces a linter that peo
 to suppress, and a suppressed rule is worse than an unwritten one — it looks enforced. The
 point of moving the mechanical rules into tools is precisely to spend reviewer attention
 on the rules that need a person.
+
+> Note 2026-10-06: `docs/wiki/` no longer exists; its content moved to `docs/guides/` (ADR-0007). The quality mapping is [harness.md](../guides/harness.md).

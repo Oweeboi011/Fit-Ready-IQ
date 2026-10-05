@@ -14,7 +14,7 @@ flowchart LR
 
 | Stage | Where | What runs | Blocks |
 |---|---|---|---|
-| **1. Commit** | `.husky/pre-commit`, `.husky/commit-msg` | secretlint on every staged file → ESLint `--fix` + Prettier (TS/JSON/MD) → ruff `check --fix` + `format` (staged Python) → commitlint | The commit |
+| **1. Commit** | `.husky/pre-commit`, `.husky/commit-msg` | secretlint on every staged file → ESLint `--fix` + Prettier (TS/JSON/MD) → ruff `check` + `format --check` (staged Python) → commitlint | The commit |
 | **2. PR** | `ci.yml`, `security.yml`, `e2e.yml` | Frontend `npm run quality` + tests + build · Backend ruff, mypy, import-linter, vulture, pytest · gitleaks, `npm audit`, `pip-audit`, CodeQL · Playwright · Firestore rules | The merge (`Frontend Quality`, `Backend Quality`, `Playwright E2E` and `Secret Scan` are required) |
 | **3. Scheduled** | `mutation.yml` (when `src/lib/` changes), `security.yml` (weekly), `uptime.yml` (every 15 min) | Stryker · full security re-scan · `/api/health` probe · Semgrep (advisory) · load tests (manual) | Nothing; they report |
 
@@ -51,7 +51,7 @@ the earliest stage it can afford. CI repeats everything from stage 1, so a skipp
 
 ```bash
 # src/frontend
-npm run quality      # lint · type-check · lint:deps · lint:dup · lint:dead · lint:docs
+npm run quality      # lint · format:check · type-check · lint:deps · lint:dup · lint:dead · lint:docs
 npm run test:unit    # unit + component + API integration, with coverage
 
 # src/backend  (python -m poetry ... if poetry is not on PATH)

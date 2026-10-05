@@ -24,3 +24,5 @@ Concretely:
 - `docs/adr/README.md` (added alongside this ADR) needs a new row every time an ADR is written; skipping it is now a reviewable defect, not just an oversight.
 - This does not catch everything. A doc can still go stale if the reviewer misses it — this is Reviewed, not Gated, because no tool exists yet to verify a Mermaid diagram against the code it describes. A future enhancement (see `SOLUTION-PLAN.md` Section 15.3) could add a lighter mechanical check — for example, failing CI if a PR touches `src/backend/` or changes a Firestore `.collection()` call without also touching `docs/wiki/DATA.md` — without requiring full semantic verification.
 - `docs/wiki/AI.md` existing as a silently-empty directory for an unknown period is the sharpest example of what this rule would not have caught by itself — that failure mode needs the lighter mechanical check above (file-exists, non-empty), not just a PR-review reminder, since an empty file passes a human skim as easily as it fails a `grep`.
+
+> Note 2026-10-06: `docs/wiki/` no longer exists; its content moved to `docs/guides/` (ADR-0007). The quality mapping is [harness.md](../guides/harness.md).

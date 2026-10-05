@@ -3,7 +3,7 @@
 ADR-0002 decided that rules are enforced by tools rather than by review. It left four gaps,
 and a 2026-10 scan found each one already holding defects:
 
-- **Nothing found dead code.** `docs/wiki/DEAD-CODE-AUDIT.md` was a hand-made snapshot.
+- **Nothing found dead code.** The only check was a hand-made snapshot (`DEAD-CODE-AUDIT.md`, since deleted).
   knip and vulture found five domain ports with no implementation, three entities with their
   Firestore documents, Storage helpers for a product with no Storage, and `stravaTokens.ts`
   redefining a type it should have imported.

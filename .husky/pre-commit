@@ -20,9 +20,10 @@ if [ -n "$py" ]; then
   ruff=src/backend/.venv/Scripts/ruff.exe
   [ -x "$ruff" ] || ruff=src/backend/.venv/bin/ruff
   if [ -x "$ruff" ]; then
-    echo "$py" | tr '\n' '\0' | xargs -0 "$ruff" check --fix
-    echo "$py" | tr '\n' '\0' | xargs -0 "$ruff" format
-    echo "$py" | tr '\n' '\0' | xargs -0 git add
+    # Check only: fixing and re-adding whole files would sweep unstaged hunks
+    # into the commit. Run `ruff check --fix` / `ruff format` yourself.
+    echo "$py" | tr '\n' '\0' | xargs -0 "$ruff" check
+    echo "$py" | tr '\n' '\0' | xargs -0 "$ruff" format --check
   else
     echo "pre-commit: no src/backend/.venv — skipping ruff (CI runs it)."
   fi
