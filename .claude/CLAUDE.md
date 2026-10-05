@@ -32,7 +32,7 @@ npx vitest run src/lib/gpxParser.test.ts
 poetry run uvicorn src.main:app --reload --port 8000
 poetry run pytest                        # all tests
 poetry run pytest tests/unit/test_foo.py # single test file
-poetry run ruff check . && poetry run mypy src/ && poetry run lint-imports && poetry run vulture   # static gates
+poetry run ruff check . && poetry run ruff format --check . && poetry run mypy src/ && poetry run lint-imports && poetry run vulture   # static gates
 ```
 
 The dependencies live in Poetry's virtualenv, not in the system Python, so every

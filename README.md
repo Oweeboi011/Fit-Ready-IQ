@@ -49,8 +49,9 @@ Optional: `docker-compose up -d` starts the Firestore and Auth emulators. Backen
 Before you push:
 
 ```bash
-npm run quality && npm run test:unit                  # src/frontend
-poetry run ruff check . && poetry run lint-imports && poetry run pytest   # src/backend
+npm run quality && npm run test:unit      # src/frontend
+poetry run ruff check . && poetry run ruff format --check . && poetry run mypy src/   # src/backend
+poetry run lint-imports && poetry run vulture && poetry run pytest
 ```
 
 ## Layout
