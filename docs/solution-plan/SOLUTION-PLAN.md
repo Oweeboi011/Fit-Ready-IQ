@@ -64,6 +64,11 @@ flowchart LR
 - **The backend stays undeployed** until a use case needs a second runtime. Trip runs in route
   handlers plus a scheduled function.
 - **Field-level schemas are written with the first code that produces them**, not ahead of it.
+- **Billing after Trip.** Pro is sold on readiness, which is scored on pin metrics until
+  ADR-0004 lands; wiring `hasEntitlement()` before then charges for the problem ADR-0004 fixes.
+
+Open product questions (owner): is the Guide tier near-term or withdrawn until it exists? Does
+the free tier keep readiness? How close must a track pass a summit before a peak is suggested?
 
 ## How it is delivered
 
@@ -114,5 +119,3 @@ Point-in-time assessments of reality against this plan. Each lists findings with
 
 - [2026-09-28 solution audit](audits/2026-09-28-solution-audit.md): security, privacy,
   delivery.
-- [2026-08-14 UX audit](audits/2026-08-14-ux-audit.md): product against ADR-0003 and
-  ADR-0004.
