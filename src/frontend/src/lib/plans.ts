@@ -116,7 +116,7 @@ export const PLANS: readonly Plan[] = [
 ] as const;
 
 /** Where the plan a visitor clicked is remembered until billing exists. */
-export const SELECTED_PLAN_KEY = 'fri_selected_plan';
+const SELECTED_PLAN_KEY = 'fri_selected_plan';
 
 export function isPlanId(value: unknown): value is PlanId {
   return typeof value === 'string' && PLANS.some((p) => p.id === value);

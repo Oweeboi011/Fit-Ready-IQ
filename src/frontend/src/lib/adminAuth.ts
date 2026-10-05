@@ -41,7 +41,7 @@ import { deny } from './serverAuth';
  * Ordered, and compared by index in `satisfies`, so a route asks for the
  * minimum it needs rather than enumerating who is allowed.
  */
-export const ROLES = ['viewer', 'admin'] as const;
+const ROLES = ['viewer', 'admin'] as const;
 export type Role = (typeof ROLES)[number];
 
 /** The claim key. Namespaced loosely to avoid colliding with Firebase's own. */

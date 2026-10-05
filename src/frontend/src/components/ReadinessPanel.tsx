@@ -144,7 +144,7 @@ export function ReadinessPanel({
  * Collapsed by default: the answer most people want is the one sentence, and
  * the week-by-week table is for the person who has decided to commit.
  */
-export function TrainingPlanPanel({ readiness }: { readiness: Readiness }) {
+function TrainingPlanPanel({ readiness }: { readiness: Readiness }) {
   const [expanded, setExpanded] = useState(false);
   const plan = buildTrainingPlan(readiness);
 

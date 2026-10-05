@@ -25,7 +25,7 @@ export interface Advisory {
   url?: string;
 }
 
-export const ADVISORY_KINDS: readonly AdvisoryKind[] = [
+const ADVISORY_KINDS: readonly AdvisoryKind[] = [
   'closure',
   'hazard',
   'rescue',
@@ -35,9 +35,9 @@ export const ADVISORY_KINDS: readonly AdvisoryKind[] = [
 ];
 
 /** Advisories older than this are history, not guidance. */
-export const ADVISORY_MAX_AGE_DAYS = 30;
+const ADVISORY_MAX_AGE_DAYS = 30;
 
-export function isAdvisory(value: unknown): value is Advisory {
+function isAdvisory(value: unknown): value is Advisory {
   if (typeof value !== 'object' || value === null) return false;
   const a = value as Record<string, unknown>;
   if (!hasRequiredFields(a)) return false;
