@@ -11,4 +11,4 @@ The safety feature is a **server-side dead-man's switch**, not location tracking
 - Check-in does double duty: the "are you back safe?" tap also closes the Trip and prompts to attach the matching Activity, so the safety feature is also the history feature. Trip completion is always human-confirmed — a geometry matcher may _suggest_ an Activity, but never writes history unasked, because a false "you climbed this" destroys trust in every readiness judgement downstream.
 - Offline support is scoped to the current Trip only — route line, elevation profile, gear, contacts, queued Check-in. Explicitly **not** map tiles: Google Maps' terms forbid caching them, so tiles would mean migrating off Google Maps entirely. That is a separate bet, deferred until people are demonstrably filing Trips.
 
-> Note 2026-10-06: the dormant `Itinerary` entity was deleted as dead code (knip/vulture). The `itineraries` collection rule remains until Trip replaces it.
+> Note 2026-10-06: the dormant `Itinerary` entity was deleted as dead code (vulture). The `itineraries` collection rule remains until Trip replaces it.

@@ -46,13 +46,7 @@ npm run dev                         # http://localhost:4790
 Optional: `docker-compose up -d` starts the Firestore and Auth emulators. Backend:
 `cd src/backend && poetry install && poetry run uvicorn src.main:app --reload --port 8000`.
 
-Before you push:
-
-```bash
-npm run quality && npm run test:unit      # src/frontend
-poetry run ruff check . && poetry run ruff format --check . && poetry run mypy src/   # src/backend
-poetry run lint-imports && poetry run vulture && poetry run pytest
-```
+Before you push, run the gates in [harness.md](docs/guides/harness.md#running-it).
 
 ## Layout
 
