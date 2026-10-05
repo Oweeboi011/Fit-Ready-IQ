@@ -285,7 +285,7 @@ async function withFailover<T>(
   google: (key: string) => Promise<T>,
   openWeather: (key: string) => Promise<T>,
   log: Logger,
-  what: string
+  what: 'current' | 'forecast'
 ): Promise<{ value: T; provider: WeatherProvider }> {
   if (keys.googleKey) {
     try {

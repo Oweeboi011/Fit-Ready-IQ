@@ -47,12 +47,27 @@ function upstream({ googleDown = false } = {}) {
 const get = (query = 'lat=16.6&lng=120.9') =>
   GET(new NextRequest(`https://fitreadyiq.test/api/weather?${query}`));
 
+const savedEnv = {
+  google: process.env.GOOGLE_WEATHER_API_KEY,
+  openWeather: process.env.OPENWEATHER_API_KEY,
+};
+
 beforeEach(() => {
   delete process.env.GOOGLE_WEATHER_API_KEY;
   delete process.env.OPENWEATHER_API_KEY;
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  // Leave the keys as found, so no other suite in this worker inherits ours.
+  for (const [name, value] of [
+    ['GOOGLE_WEATHER_API_KEY', savedEnv.google],
+    ['OPENWEATHER_API_KEY', savedEnv.openWeather],
+  ] as const) {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
+});
 
 describe('GET /api/weather', () => {
   it('rejects a missing or out-of-range location', async () => {
