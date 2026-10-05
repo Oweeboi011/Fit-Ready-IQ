@@ -84,6 +84,8 @@ describe('GET /api/weather', () => {
     expect(body.current.description).toBe('scattered clouds');
     // The forecast fails over too, so the window and alerts are still computed.
     expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/forecast?'))).toBe(true);
+    // Google is not retried for the forecast: a second timeout would overrun the budget.
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('googleapis'))).toHaveLength(1);
   });
 
   it('reports 502 when Google is down and there is nothing to fail over to', async () => {

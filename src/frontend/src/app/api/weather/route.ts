@@ -373,16 +373,23 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    let googleFailed = false;
     const result = await withFailover(
       { googleKey, openWeatherKey },
       (key) => fetchGoogleWeather(key, lat, lng, elevation),
-      (key) => fetchOpenWeather(key, lat, lng, elevation),
+      (key) => {
+        googleFailed = Boolean(googleKey);
+        return fetchOpenWeather(key, lat, lng, elevation);
+      },
       log,
       'current'
     );
 
+    // Once Google has failed this request, the forecast goes straight to
+    // OpenWeather: a second 8 s Google timeout would overrun the 15 s budget,
+    // and the forecast then comes from the provider the response names.
     const { alerts, window } = await fetchForecast({
-      googleKey,
+      googleKey: googleFailed ? undefined : googleKey,
       openWeatherKey,
       lat,
       lng,
