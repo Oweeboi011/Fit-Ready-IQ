@@ -5,7 +5,7 @@
  *
  * Fails when:
  *   - a relative link in any Markdown file points at a path that does not exist
- *   - a Markdown file is empty (docs/wiki/AI.md once sat empty for weeks)
+ *   - a Markdown file is empty (a wiki page once sat empty for weeks)
  *   - something sits directly under docs/ outside the three-folder taxonomy
  *     (guides = what it is, solution-plan = how we deliver it, adr = why)
  */
@@ -25,15 +25,17 @@ const SKIP_DIRS = new Set([
   'test-results',
   '.stryker-tmp',
   '.pytest_cache',
-  // Vendored skill packs, maintained upstream rather than here.
-  'skills',
 ]);
+// Vendored skill packs, maintained upstream rather than here. A path, not a
+// name, so a `skills` directory anywhere else is still checked.
+const SKIP_PATHS = new Set([path.join(ROOT, '.claude', 'skills')]);
 const DOCS_ALLOWED = new Set(['README.md', 'guides', 'solution-plan', 'adr']);
 
 function markdownFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const full = path.join(dir, name);
-    if (statSync(full).isDirectory()) return SKIP_DIRS.has(name) ? [] : markdownFiles(full);
+    if (statSync(full).isDirectory())
+      return SKIP_DIRS.has(name) || SKIP_PATHS.has(full) ? [] : markdownFiles(full);
     return name.endsWith('.md') ? [full] : [];
   });
 }
