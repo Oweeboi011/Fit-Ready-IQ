@@ -56,6 +56,8 @@ export default defineConfig({
         'src/components/ConfirmDialog.tsx',
         'src/components/PhotoGallery.tsx',
         'src/components/RouteFilter.tsx',
+        'src/components/WeatherWindowPanel.tsx',
+        'src/components/WeatherAlertBadge.tsx',
 
         // Route handlers with tests. Every route that writes user data or
         // spends money belongs here; the rest follow as they gain tests. A
