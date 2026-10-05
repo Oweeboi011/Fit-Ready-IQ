@@ -104,10 +104,19 @@ source_modules = ["src.application"]
 forbidden_modules = ["src.presentation", "src.infrastructure", "fastapi", "firebase_admin", "httpx"]
 
 [[tool.importlinter.contracts]]
-name = "Infrastructure never reaches up into presentation"
+name = "Infrastructure never reaches up into application or presentation"
 type = "forbidden"
 source_modules = ["src.infrastructure"]
-forbidden_modules = ["src.presentation"]
+forbidden_modules = ["src.application", "src.presentation"]
+
+# Adapters are wired in one place, the composition root
+# (presentation/dependencies.py). Route handlers get them injected.
+[[tool.importlinter.contracts]]
+name = "Routes reach infrastructure only through the composition root"
+type = "forbidden"
+source_modules = ["src.presentation.routes"]
+forbidden_modules = ["src.infrastructure"]
+allow_indirect_imports = true  # via dependencies.py is the point
 
 # Dead code. 80% confidence reports unused imports, variables and unreachable
 # code — the findings that are nearly always real. Unused methods and classes

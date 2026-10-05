@@ -1,8 +1,10 @@
 """Clean Architecture, as a test.
 
 The contracts live in pyproject.toml under [tool.importlinter]: layers point
-inward (presentation → application → domain) and infrastructure is reached
-only through the domain's ports. CI also runs `lint-imports` directly; this
+inward (presentation → application → domain), the domain imports no framework,
+application code depends on ports rather than adapters, infrastructure never
+reaches up, and routes get adapters only through the composition root
+(presentation/dependencies.py). CI also runs `lint-imports` directly; this
 test makes a local `pytest` catch the same break before a push.
 """
 
