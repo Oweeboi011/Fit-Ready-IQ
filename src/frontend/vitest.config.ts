@@ -67,6 +67,7 @@ export default defineConfig({
         'src/app/api/health/route.ts',
         'src/app/api/places/cache/route.ts',
         'src/app/api/strava/sync/route.ts',
+        'src/app/api/weather/route.ts',
       ],
       thresholds: {
         statements: 85,

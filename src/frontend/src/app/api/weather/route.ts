@@ -265,6 +265,39 @@ async function fetchOpenWeatherForecastHours(
   }));
 }
 
+// ── Provider failover ───────────────────────────────────────────────────────
+interface ProviderKeys {
+  googleKey: string | undefined;
+  openWeatherKey: string | undefined;
+}
+
+/**
+ * Google first when it is configured, then OpenWeather when *it* is configured.
+ *
+ * This used to be a provider choice, not a failover: with a Google key set, a
+ * Google outage was a 502 even when an OpenWeather key sat unused beside it.
+ * The fallback is logged, so a quietly failing primary shows up in the logs
+ * rather than only on the invoice of the secondary.
+ */
+async function withFailover<T>(
+  keys: ProviderKeys,
+  google: (key: string) => Promise<T>,
+  openWeather: (key: string) => Promise<T>,
+  log: Logger,
+  what: string
+): Promise<T> {
+  if (keys.googleKey) {
+    try {
+      return await google(keys.googleKey);
+    } catch (err) {
+      if (!keys.openWeatherKey) throw err;
+      log.warn('weather_google_failed_using_openweather', { what, error: serializeError(err) });
+    }
+  }
+  if (keys.openWeatherKey) return openWeather(keys.openWeatherKey);
+  throw new Error('No weather provider configured');
+}
+
 /**
  * Hazards ahead, and the span worth going.
  *
@@ -273,9 +306,7 @@ async function fetchOpenWeatherForecastHours(
  * `unknown` window rather than an empty one, so the UI says it does not know
  * instead of implying the forecast is clear.
  */
-interface ForecastRequest {
-  googleKey: string | undefined;
-  openWeatherKey: string | undefined;
+interface ForecastRequest extends ProviderKeys {
   lat: number;
   lng: number;
   requiredHours: number | null;
@@ -291,11 +322,13 @@ async function fetchForecast({
   log,
 }: ForecastRequest): Promise<{ alerts: WeatherAlert[]; window: WeatherWindow }> {
   try {
-    const hours = googleKey
-      ? await fetchGoogleForecastHours(googleKey, lat, lng)
-      : openWeatherKey
-        ? await fetchOpenWeatherForecastHours(openWeatherKey, lat, lng)
-        : [];
+    const hours = await withFailover(
+      { googleKey, openWeatherKey },
+      (key) => fetchGoogleForecastHours(key, lat, lng),
+      (key) => fetchOpenWeatherForecastHours(key, lat, lng),
+      log,
+      'forecast'
+    );
     return {
       alerts: summarizeAlerts(hours),
       window: findWeatherWindow(hours, requiredHours ? { requiredHours } : {}),
@@ -340,10 +373,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Prefer Google Weather API when its key is configured
-    const result = googleKey
-      ? await fetchGoogleWeather(googleKey, lat, lng, elevation)
-      : await fetchOpenWeather(openWeatherKey!, lat, lng, elevation);
+    const result = await withFailover(
+      { googleKey, openWeatherKey },
+      (key) => fetchGoogleWeather(key, lat, lng, elevation),
+      (key) => fetchOpenWeather(key, lat, lng, elevation),
+      log,
+      'current'
+    );
 
     const { alerts, window } = await fetchForecast({
       googleKey,

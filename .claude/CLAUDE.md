@@ -90,7 +90,7 @@ The FastAPI backend is not called by the frontend in production; it is planned f
 | `/api/strava/connection` | GET connection status (athlete, never a token); DELETE disconnects. | — |
 | `/api/strava/sync` | Sync the caller's Strava activities → Firestore. **Requires a Firebase ID token**; the destination `uid` comes from that token, never the body. | 60 s |
 | `/api/places/cache` | Grid-based places cache (0.5° cells, 24 h TTL). GET is public; **POST requires a Firebase ID token** and caps each kind at 200 items. | 15 s |
-| `/api/weather` | Google Weather when `GOOGLE_WEATHER_API_KEY` is set, else OpenWeather (a provider choice, not a retry), plus the route's weather window. Rate-limited to 200/hour per caller. | 15 s |
+| `/api/weather` | Google Weather first; on failure falls over to OpenWeather when its key is set (logged as `weather_google_failed_using_openweather`), plus the route's weather window. Rate-limited to 200/hour per caller. | 15 s |
 | `/api/health` | Credential-presence checks only (no live API calls), including `rate_limiting` (degraded without `RATE_LIMIT_SALT`). Public, so it names no project or client ids. `s-maxage=30, stale-while-revalidate=10`. | 15 s |
 | `/api/admin/cache` | Inspect / purge places cache (batch 400 docs). Admin-gated. DELETE needs `?gridKey=<key>`, or `?all=true` **plus** body `{"confirm":"PURGE"}` for everything; anything else is a 400. | 30 s |
 | `/api/admin/strava-sync` | Strava sync status across users. Admin-gated. | — |
@@ -469,8 +469,8 @@ Required keys that will break functionality if missing:
 
 Optional (graceful degradation): `GOOGLE_WEATHER_API_KEY` and
 `OPENWEATHER_API_KEY` — two *different* providers, not aliases; Google is used
-when its key is set, otherwise OpenWeather. A Google failure is a 502, not a retry
-against OpenWeather. Also `GOOGLE_ROUTES_API_KEY`,
+when its key is set; a Google failure falls over to OpenWeather if that key is
+set, else 502. Also `GOOGLE_ROUTES_API_KEY`,
 `OPENWEATHER_BASE_URL`, `ADVISORY_FEED_URL`, `LOG_LEVEL`, `CSP_ENFORCE_RESOURCES`,
 `CSP_REPORT_URI`.
 
