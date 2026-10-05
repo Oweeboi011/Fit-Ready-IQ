@@ -22,9 +22,6 @@ A stage-1 failure is cheap to fix and a stage-3 finding is expensive, so every c
 the earliest stage it can afford. CI repeats everything from stage 1, so a skipped hook
 (`--no-verify`, or no backend venv) is still caught before merge.
 
-The Azure DevOps mirror at `.azuredevops/pipelines/ci.yml` runs the same scripts and is **not
-enabled**; see [deployment](deployment.md#azure-devops-pipeline-disabled).
-
 ## What each concern is held by
 
 **High priority, gated:**
@@ -116,6 +113,5 @@ suppress.
 1. Make sure it is deterministic. If the failing case needs the word "usually", it belongs on
    the checklist.
 2. Run it on the current tree first. Fix what it finds, or baseline it with a date.
-3. Add it to the `quality` script (or `pyproject.toml`) so GitHub CI, Azure DevOps and local
-   runs pick it up from one place, then add a CI step.
+3. Add it to the `quality` script (or `pyproject.toml`) so CI and local runs pick it up from one place, then add a CI step.
 4. Add a row to the table above. If it changes how people work, record an ADR.

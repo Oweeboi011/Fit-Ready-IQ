@@ -376,10 +376,6 @@ feature/* → develop → main
 | `agent-review.yml` | PR open/synchronize | Posts AI review comment via Claude Haiku. Needs `ANTHROPIC_API_KEY` secret. Add `[skip review]` to PR title to suppress. |
 | `uptime.yml` | Every 15 min, manual dispatch | Curls `{PRODUCTION_URL}/api/health` (10 s timeout, 2 retries); fails on non-2xx, warns on `degraded`. Needs the `PRODUCTION_URL` repo variable — **unset until 2026-09-28, so it never passed**. |
 
-`.azuredevops/pipelines/ci.yml` mirrors `ci.yml` + `security.yml` for Azure DevOps and is
-**deliberately disabled** (`trigger: none`, `pr: none`, unregistered). Vercel deploys from Git,
-so it has no deploy stage. See `docs/guides/deployment.md`.
-
 The AI review workflow uses `claude-haiku-4-5-20251001`, trims diffs to 10 KB, and caps output at 1 024 tokens (~$0.004/PR).
 
 ### Required GitHub Secrets

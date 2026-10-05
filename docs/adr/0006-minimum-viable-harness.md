@@ -38,7 +38,7 @@ Choices worth remembering:
   as unused. A gate that cries wolf gets disabled, so the 60% tier is a review aid.
 - **jscpd extended to Python** rather than adding pylint for its duplicate checker: one tool,
   one config, one threshold.
-- **Scripts are the interface.** Both GitHub Actions and the disabled Azure DevOps pipeline
+- **Scripts are the interface.** CI and local runs both
   call `npm run quality` and `poetry run`, so a new gate is added in one place.
 
 The cost: knip and vulture need their entry points declared (`knip.jsonc`, the vulture

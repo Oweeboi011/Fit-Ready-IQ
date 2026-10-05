@@ -62,7 +62,6 @@ docs/guides/         what it is
 docs/solution-plan/  how we deliver it, and what it should do
 docs/adr/            why it is this way
 .github/workflows/   CI (GitHub Actions)
-.azuredevops/        Azure DevOps mirror of CI (disabled)
 ```
 
 ## Documentation

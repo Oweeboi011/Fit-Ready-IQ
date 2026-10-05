@@ -47,19 +47,3 @@ Rollback: Vercel → Deployments → last good one → *Promote to Production*, 
 | CSP enforcement | [runbooks/csp-enforcement.md](runbooks/csp-enforcement.md) | Promote the policy from Report-Only |
 | Branch protection on `main` and `develop` | GitHub → Settings → Branches | Required: `Frontend Quality`, `Backend Quality`, `Playwright E2E`, `Secret Scan`; 1 review; dismiss stale reviews |
 | GitHub secrets | Settings → Secrets → Actions | E2E uses real keys (listed in `.claude/CLAUDE.md`) |
-
-## Azure DevOps pipeline (disabled)
-
-`.azuredevops/pipelines/ci.yml` mirrors the GitHub quality and security jobs for a future move
-to Azure DevOps. It is inert: `trigger: none`, `pr: none`, and not registered.
-
-To enable it:
-
-1. Azure DevOps → Pipelines → New → GitHub → *Existing YAML* →
-   `/.azuredevops/pipelines/ci.yml`.
-2. Replace the two `none` triggers with the branch filters at the bottom of the file.
-3. Move the required checks from the GitHub jobs to the ADO stages. Never gate the same branch
-   with both.
-
-It has **no deploy stage**, because Vercel deploys from Git. It calls the same `npm run quality`
-and `poetry run` commands as GitHub, so the two cannot drift on what they check.
