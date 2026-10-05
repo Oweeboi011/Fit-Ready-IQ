@@ -314,7 +314,7 @@ export default function MapView({
       if (
         /Google Maps JavaScript API error/i.test(text) ||
         /RefererNotAllowedMapError/i.test(text) ||
-        (/IntersectionObserver/i.test(text) && /maps\.googleapis\.com/i.test(text))
+        (/IntersectionObserver/i.test(text) && text.toLowerCase().includes('maps.googleapis.com'))
       ) {
         setRuntimeMapError(text);
       }
@@ -326,7 +326,8 @@ export default function MapView({
         typeof reason === 'string' ? reason : `${reason?.message ?? ''} ${reason?.stack ?? ''}`;
 
       if (
-        /maps\.googleapis\.com/i.test(text) ||
+        // Matching error text, not validating a URL: a substring is the intent.
+        text.toLowerCase().includes('maps.googleapis.com') ||
         /Google Maps/i.test(text) ||
         /RefererNotAllowedMapError/i.test(text) ||
         /IntersectionObserver/i.test(text)
