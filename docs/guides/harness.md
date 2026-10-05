@@ -85,8 +85,12 @@ Accepted findings, as of 2026-10-05:
   `MapArea.tsx` ↔ `map/MapNavDock.tsx`.
 - ESLint: 30 `react-hooks/set-state-in-effect` warnings, demoted to warnings at the Next 16
   upgrade.
-- Semgrep: advisory (`continue-on-error`) until its pre-existing findings are triaged; then
-  make it a required check.
+- Semgrep: the 30 findings on `main` were triaged 2026-10-06 (actions pinned to SHAs,
+  Dependabot cooldown; the README secret is already gone). Still advisory until a CI run on
+  this tree comes back clean; then drop `continue-on-error` and make it required.
+- CodeQL `js/clear-text-storage-of-sensitive-data` (`useUserLocation.ts`, `activityTypes.ts`):
+  device-local location and activities are a feature, cleared on sign-out
+  (`personalStorage.ts`). Dismiss as "won't fix" in GitHub, not in code.
 - vulture reports unused methods and classes only at 60% confidence, because it cannot see
   FastAPI routing or pydantic. Those are checked in review, not gated.
 
