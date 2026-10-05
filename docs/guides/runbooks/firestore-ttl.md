@@ -9,12 +9,12 @@ the product claims.
 
 ## The policies
 
-| Collection | Field | Retention | Why it matters |
-| --- | --- | --- | --- |
-| `rate_limits` | `expiresAt` | ~2 windows (set by the writer) | One document per caller per window. Pure garbage after the window closes, and the highest-volume collection in the product. |
-| `chat_sessions` | `expiresAt` | 90 days | Free-text conversation. In a fitness product this routinely contains health information. |
-| `chat_sessions/{id}/messages` | `expiresAt` | 90 days | **Collection-group scope.** Deleting a parent document does *not* delete its subcollection, so without this the transcripts outlive the sessions permanently. |
-| `audit_logs` | `expiresAt` | 730 days | Compliance evidence. Two years is the common floor for SOC 2 / ISO 27001 and covers the window for proving a GDPR erasure was honoured. |
+| Collection                    | Field       | Retention                      | Why it matters                                                                                                                                                |
+| ----------------------------- | ----------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rate_limits`                 | `expiresAt` | ~2 windows (set by the writer) | One document per caller per window. Pure garbage after the window closes, and the highest-volume collection in the product.                                   |
+| `chat_sessions`               | `expiresAt` | 90 days                        | Free-text conversation. In a fitness product this routinely contains health information.                                                                      |
+| `chat_sessions/{id}/messages` | `expiresAt` | 90 days                        | **Collection-group scope.** Deleting a parent document does _not_ delete its subcollection, so without this the transcripts outlive the sessions permanently. |
+| `audit_logs`                  | `expiresAt` | 730 days                       | Compliance evidence. Two years is the common floor for SOC 2 / ISO 27001 and covers the window for proving a GDPR erasure was honoured.                       |
 
 ## Creating them
 

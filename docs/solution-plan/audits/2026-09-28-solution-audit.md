@@ -24,38 +24,38 @@ Fixes on a branch are not fixes. The phases now land in order through PRs (#83 i
 
 ### P0
 
-| Finding | Status |
-|---|---|
-| `next@16.3.0` critical RCE; `sharp` high | Fixed in phase 1 (PR #83), **not yet merged** |
-| Rate limits bypassable with a random bearer token | Fixed (phase 2): keyed by verified uid, IP otherwise |
-| Chat transcripts saved with `user_id: null`, so export and erasure never found them | Fixed (phase 2) for signed-in chats; signed-out chats are no longer stored at all (`c62c48b`) |
-| Chat sessions could be re-owned by anyone holding the id | Fixed (phase 2): owner written once at create |
-| Shared places cache writable by any account, unvalidated | Fixed (phase 3); the owner exemption that let one account hold a cell indefinitely closed in `d14863d` |
+| Finding                                                                                      | Status                                                                                                                                                                                           |
+| -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `next@16.3.0` critical RCE; `sharp` high                                                     | Fixed in phase 1 (PR #83), **not yet merged**                                                                                                                                                    |
+| Rate limits bypassable with a random bearer token                                            | Fixed (phase 2): keyed by verified uid, IP otherwise                                                                                                                                             |
+| Chat transcripts saved with `user_id: null`, so export and erasure never found them          | Fixed (phase 2) for signed-in chats; signed-out chats are no longer stored at all (`c62c48b`)                                                                                                    |
+| Chat sessions could be re-owned by anyone holding the id                                     | Fixed (phase 2): owner written once at create                                                                                                                                                    |
+| Shared places cache writable by any account, unvalidated                                     | Fixed (phase 3); the owner exemption that let one account hold a cell indefinitely closed in `d14863d`                                                                                           |
 | Trail length was the distance from the viewer, and difficulty and readiness were built on it | Fixed (phase 4); remaining invented values — "technical" gear from altitude, "Beginner" for unrated, "–h" climb time, forecast "unavailable" while loading, zero directions — fixed in `f5c86dd` |
 
 ### P1 found or confirmed on 2026-09-28
 
-| Finding | Status |
-|---|---|
+| Finding                                                                                                                                  | Status                                                                                                          |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | A Strava sync running during account deletion wrote activities back into the erased tree; the manifest write recreated the user document | Fixed `ff72c02`: tokens revoked and deleted first, every write re-checks the connection in the same transaction |
-| A token refresh finishing after a disconnect recreated the connection; concurrent refreshes could disconnect a user | Fixed `ff72c02`: refresh lease, compare-and-set write |
-| Account deletion never revoked the grant at Strava | Fixed `ff72c02` |
-| `DELETE /api/admin/cache` with an empty `gridKey` purged every region | Fixed `5114a2c` |
-| Chat model context taken from the client, so a caller could write the assistant's turns | Fixed `c62c48b` |
-| Weather and the Firebase probe returned upstream error text to callers | Fixed `5114a2c` |
-| A corrupt advisories file silently became "no source connected" | Fixed `5114a2c` |
-| Undo after save repeated the save; Disconnect removed nothing | Fixed `75f97dd` |
-| Strava refresh overwrote GPX imports made while it ran | Fixed `75f97dd` |
-| Export and deletion had no way in from the UI | Fixed `ed36d30` (Profile → Your data) |
-| No privacy policy (required by Google sign-in and the Strava API agreement) | `/privacy` added `ed36d30` — **needs owner review and a contact address** |
-| Signing out left activities, chat and location in the browser | Fixed `f5c86dd` |
-| Places cache on the device ignored location, showing the previous area's places | Fixed `b7ced42` |
-| Refused requests still cost a Firestore write each; unsalted keys and fail-open were silent | Fixed `970c988` |
-| `CODEOWNERS` named a GitHub account that does not exist, so no rule ever applied | Fixed `37e7fb6` |
-| Backend Docker image could not build (Poetry 1.7 vs a Poetry 2 lock) | Fixed `37e7fb6` (not built locally — no Docker here) |
-| Owner-writable, unbounded `activities` / `training_*` / `itineraries` in rules | Closed to client writes `d14863d` (no client writes them) |
-| Pricing says Garmin/COROS/Apple Health "sync" | Fixed `ed36d30` — they are imports |
-| Nested buttons in list cards and search results | Fixed `b54e8d4` |
+| A token refresh finishing after a disconnect recreated the connection; concurrent refreshes could disconnect a user                      | Fixed `ff72c02`: refresh lease, compare-and-set write                                                           |
+| Account deletion never revoked the grant at Strava                                                                                       | Fixed `ff72c02`                                                                                                 |
+| `DELETE /api/admin/cache` with an empty `gridKey` purged every region                                                                    | Fixed `5114a2c`                                                                                                 |
+| Chat model context taken from the client, so a caller could write the assistant's turns                                                  | Fixed `c62c48b`                                                                                                 |
+| Weather and the Firebase probe returned upstream error text to callers                                                                   | Fixed `5114a2c`                                                                                                 |
+| A corrupt advisories file silently became "no source connected"                                                                          | Fixed `5114a2c`                                                                                                 |
+| Undo after save repeated the save; Disconnect removed nothing                                                                            | Fixed `75f97dd`                                                                                                 |
+| Strava refresh overwrote GPX imports made while it ran                                                                                   | Fixed `75f97dd`                                                                                                 |
+| Export and deletion had no way in from the UI                                                                                            | Fixed `ed36d30` (Profile → Your data)                                                                           |
+| No privacy policy (required by Google sign-in and the Strava API agreement)                                                              | `/privacy` added `ed36d30` — **needs owner review and a contact address**                                       |
+| Signing out left activities, chat and location in the browser                                                                            | Fixed `f5c86dd`                                                                                                 |
+| Places cache on the device ignored location, showing the previous area's places                                                          | Fixed `b7ced42`                                                                                                 |
+| Refused requests still cost a Firestore write each; unsalted keys and fail-open were silent                                              | Fixed `970c988`                                                                                                 |
+| `CODEOWNERS` named a GitHub account that does not exist, so no rule ever applied                                                         | Fixed `37e7fb6`                                                                                                 |
+| Backend Docker image could not build (Poetry 1.7 vs a Poetry 2 lock)                                                                     | Fixed `37e7fb6` (not built locally — no Docker here)                                                            |
+| Owner-writable, unbounded `activities` / `training_*` / `itineraries` in rules                                                           | Closed to client writes `d14863d` (no client writes them)                                                       |
+| Pricing says Garmin/COROS/Apple Health "sync"                                                                                            | Fixed `ed36d30` — they are imports                                                                              |
+| Nested buttons in list cards and search results                                                                                          | Fixed `b54e8d4`                                                                                                 |
 
 ### Open — needs the owner
 

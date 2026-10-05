@@ -6,13 +6,13 @@ quick index; this page is the contract.
 
 ## Conventions every route follows
 
-| Concern | Rule | Where it lives |
-|---|---|---|
-| Identity | `requireUser(request)` or `optionalUser(request)` verifies a Firebase ID token. A `uid` in a body or query string is never an identity, because the Admin SDK bypasses Firestore rules | `lib/serverAuth.ts` |
-| Admin | `requireRole(request, 'viewer' \| 'admin')`. Every denial is audited | `lib/adminAuth.ts`, `lib/auditLog.ts` |
-| Rate limits | One budget per route, declared in a single table. Callers are keyed by **verified uid**, else by IP. `rateLimitCoverage.test.ts` fails the build on a route with no budget | `lib/rateLimitRules.ts` |
-| Errors | `{ "error": "<human-readable>" }`. Upstream bodies are logged (redacted), never returned | `lib/logger.ts` |
-| Logs | One JSON line per event, with `request_id` from `x-vercel-id`. Never `console.*` (ESLint-gated) | `lib/logger.ts` |
+| Concern     | Rule                                                                                                                                                                                   | Where it lives                        |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Identity    | `requireUser(request)` or `optionalUser(request)` verifies a Firebase ID token. A `uid` in a body or query string is never an identity, because the Admin SDK bypasses Firestore rules | `lib/serverAuth.ts`                   |
+| Admin       | `requireRole(request, 'viewer' \| 'admin')`. Every denial is audited                                                                                                                   | `lib/adminAuth.ts`, `lib/auditLog.ts` |
+| Rate limits | One budget per route, declared in a single table. Callers are keyed by **verified uid**, else by IP. `rateLimitCoverage.test.ts` fails the build on a route with no budget             | `lib/rateLimitRules.ts`               |
+| Errors      | `{ "error": "<human-readable>" }`. Upstream bodies are logged (redacted), never returned                                                                                               | `lib/logger.ts`                       |
+| Logs        | One JSON line per event, with `request_id` from `x-vercel-id`. Never `console.*` (ESLint-gated)                                                                                        | `lib/logger.ts`                       |
 
 ```mermaid
 flowchart LR
@@ -25,14 +25,14 @@ flowchart LR
     U --> R -->|JSON| B
 ```
 
-| Status | Meaning for a client |
-|---|---|
-| 400 / 413 | Fix the request; do not retry |
-| 401 / 403 | Sign in again / not permitted |
-| 409 | State conflict (for example, Strava not connected) |
-| 429 | Wait for `Retry-After` |
-| 502 / 504 | Upstream failed or timed out; retry with backoff |
-| 503 | Not configured; retrying will not help |
+| Status    | Meaning for a client                               |
+| --------- | -------------------------------------------------- |
+| 400 / 413 | Fix the request; do not retry                      |
+| 401 / 403 | Sign in again / not permitted                      |
+| 409       | State conflict (for example, Strava not connected) |
+| 429       | Wait for `Retry-After`                             |
+| 502 / 504 | Upstream failed or timed out; retry with backoff   |
+| 503       | Not configured; retrying will not help             |
 
 ## Routes
 
@@ -67,23 +67,23 @@ Authorization: Bearer <Firebase ID token>   (optional)
 }
 ```
 
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `sessionId` | string (UUID) | No | A session this caller owns. Anything else is replaced by a new id. |
-| `messages` | array | Yes | 1–200 messages; the **last must be `role: "user"`**. Each at most 8,000 characters. |
+| Field       | Type          | Required | Description                                                                         |
+| ----------- | ------------- | -------- | ----------------------------------------------------------------------------------- |
+| `sessionId` | string (UUID) | No       | A session this caller owns. Anything else is replaced by a new id.                  |
+| `messages`  | array         | Yes      | 1–200 messages; the **last must be `role: "user"`**. Each at most 8,000 characters. |
 
 **Responses:**
 
-| Status | Body | Condition |
-| --- | --- | --- |
-| 200 | `{ "message": "…", "sessionId": "…" }` | Signed in |
-| 200 | `{ "message": "…" }` | Signed out (nothing stored) |
-| 400 | `{ "error": "Invalid request body" \| "Messages array required" \| "Invalid message format" }` | Malformed, or the last turn is not the user's |
-| 413 | `{ "error": "Request too large" \| "Too many messages" \| "Message too long" }` | Body over 256 KB, >200 messages, or a message over 8,000 chars |
-| 429 | `{ "error": "Too many requests…" }` + `Retry-After` | Budget spent |
-| 502 | `{ "error": "AI service unavailable" }` | Gemini refused |
-| 503 | `{ "error": "AI assistant is not configured…" }` | `GEMINI_API_KEY` not set |
-| 504 | `{ "error": "AI service timed out" }` | Gemini exceeded 20 s |
+| Status | Body                                                                                           | Condition                                                      |
+| ------ | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| 200    | `{ "message": "…", "sessionId": "…" }`                                                         | Signed in                                                      |
+| 200    | `{ "message": "…" }`                                                                           | Signed out (nothing stored)                                    |
+| 400    | `{ "error": "Invalid request body" \| "Messages array required" \| "Invalid message format" }` | Malformed, or the last turn is not the user's                  |
+| 413    | `{ "error": "Request too large" \| "Too many messages" \| "Message too long" }`                | Body over 256 KB, >200 messages, or a message over 8,000 chars |
+| 429    | `{ "error": "Too many requests…" }` + `Retry-After`                                            | Budget spent                                                   |
+| 502    | `{ "error": "AI service unavailable" }`                                                        | Gemini refused                                                 |
+| 503    | `{ "error": "AI assistant is not configured…" }`                                               | `GEMINI_API_KEY` not set                                       |
+| 504    | `{ "error": "AI service timed out" }`                                                          | Gemini exceeded 20 s                                           |
 
 ### POST /api/strava/exchange
 
@@ -92,12 +92,12 @@ code for tokens, stores them in `strava_tokens/{uid}` (`lib/stravaTokens.ts`) an
 the connection: `{ connected, athleteId, athleteName, connectedAt }`. The token payload never
 reaches the browser. The OAuth `state` nonce is checked client-side in the callback page.
 
-| Status | Condition |
-|---|---|
-| 200 | Connected |
-| 400 | Missing code, or Strava rejected it |
-| 502 | Strava answered without a usable connection |
-| 504 | Strava unreachable |
+| Status | Condition                                   |
+| ------ | ------------------------------------------- |
+| 200    | Connected                                   |
+| 400    | Missing code, or Strava rejected it         |
+| 502    | Strava answered without a usable connection |
+| 504    | Strava unreachable                          |
 
 ### GET /api/strava/activities
 
@@ -112,13 +112,13 @@ GET /api/strava/activities?page=1
 Authorization: Bearer <Firebase ID token>
 ```
 
-| Status | Body | Condition |
-| --- | --- | --- |
-| 200 | Array of Strava activity objects | |
-| 401 | — | No valid Firebase ID token |
-| 409 | `{ "error": "Strava is not connected…" }` | Never connected, or Strava refused our token (it is then forgotten) |
-| 502 | `{ "error": "…" }` | Strava failed, or timed out (10 s) |
-| 503 | `{ "error": "…" }` | Strava rate-limited us (its 429) |
+| Status | Body                                      | Condition                                                           |
+| ------ | ----------------------------------------- | ------------------------------------------------------------------- |
+| 200    | Array of Strava activity objects          |                                                                     |
+| 401    | —                                         | No valid Firebase ID token                                          |
+| 409    | `{ "error": "Strava is not connected…" }` | Never connected, or Strava refused our token (it is then forgotten) |
+| 502    | `{ "error": "…" }`                        | Strava failed, or timed out (10 s)                                  |
+| 503    | `{ "error": "…" }`                        | Strava rate-limited us (its 429)                                    |
 
 ### GET /api/weather
 
@@ -162,12 +162,10 @@ Admin only. A deep probe that writes to Firestore. Use `/api/health` for uptime 
 
 Every purge, successful or failed, is written to `audit_logs`.
 
-
 ### GET /api/admin/strava-sync
 
 **Identity:** `requireRole(…, 'viewer')`. Returns each user's `strava_sync` manifest:
 `last_synced_at`, `total_activities` (the count stored, not the last run's) and up to five errors.
-
 
 ### /api/strava/connection
 

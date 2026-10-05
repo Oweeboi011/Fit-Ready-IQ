@@ -14,11 +14,11 @@ five, and nobody does.
 
 We now keep **three folders, each answering one question**:
 
-| Folder | Question | Holds |
-|---|---|---|
-| `docs/guides/` | What is it? | architecture, api, harness, development, security, deployment, runbooks |
-| `docs/solution-plan/` | How do we deliver it, and what should it do? | the plan, and audits measured against it |
-| `docs/adr/` | Why is it this way? | one decision per file, never edited after acceptance |
+| Folder                | Question                                     | Holds                                                                   |
+| --------------------- | -------------------------------------------- | ----------------------------------------------------------------------- |
+| `docs/guides/`        | What is it?                                  | architecture, api, harness, development, security, deployment, runbooks |
+| `docs/solution-plan/` | How do we deliver it, and what should it do? | the plan, and audits measured against it                                |
+| `docs/adr/`           | Why is it this way?                          | one decision per file, never edited after acceptance                    |
 
 How the folders are kept honest:
 

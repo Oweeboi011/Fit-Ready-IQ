@@ -13,10 +13,10 @@ the app carries the maintenance cost of a CSP and none of the protection.
 `CSP_ENFORCE_RESOURCES=true` in the environment. Set in `next.config.js`; no code
 change and no rebuild of the policy itself.
 
-| Flag | `Content-Security-Policy` | `Content-Security-Policy-Report-Only` |
-| --- | --- | --- |
-| unset / `false` | baseline only (`object-src`, `base-uri`, `form-action`, `frame-ancestors`) | full resource policy |
-| `true` | full resource policy | *not sent* |
+| Flag            | `Content-Security-Policy`                                                  | `Content-Security-Policy-Report-Only` |
+| --------------- | -------------------------------------------------------------------------- | ------------------------------------- |
+| unset / `false` | baseline only (`object-src`, `base-uri`, `form-action`, `frame-ancestors`) | full resource policy                  |
+| `true`          | full resource policy                                                       | _not sent_                            |
 
 The Report-Only header is dropped when enforcing, deliberately: sending both
 makes the browser evaluate the same policy twice and report every violation
@@ -36,8 +36,8 @@ twice, which makes the report noise look like a regression.
    - place photos and user avatars (`img-src` → `ggpht`, `googleusercontent`)
    - the route planner drawing a snapped path (`connect-src` → our own API)
    - GPX import (`worker-src`, `blob:`)
-   With DevTools open. A CSP failure is a console error and a missing element,
-   not an exception — it is easy to miss if you are only clicking around.
+     With DevTools open. A CSP failure is a console error and a missing element,
+     not an exception — it is easy to miss if you are only clicking around.
 3. **Production.** Set the same variable. Watch the report collector and the
    error rate for one release cycle.
 4. **Make it the default.** Once a release has run enforced without violations,

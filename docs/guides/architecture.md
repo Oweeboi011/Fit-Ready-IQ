@@ -1,7 +1,7 @@
 # Architecture
 
-Fit-Ready-IQ helps outdoor athletes answer one question: *am I ready for this route, and when
-should I go?* It finds routes, peaks and campsites; scores them against the athlete's recorded
+Fit-Ready-IQ helps outdoor athletes answer one question: _am I ready for this route, and when
+should I go?_ It finds routes, peaks and campsites; scores them against the athlete's recorded
 activities; and shows the weather window for that specific route. The vocabulary (Trip, Route,
 Place, Activity, Readiness, Weather window) is defined in [`CONTEXT.md`](../../CONTEXT.md).
 
@@ -49,11 +49,11 @@ flowchart LR
     APP --> LIB
 ```
 
-| Layer | Holds | Rule |
-|---|---|---|
-| `src/lib/` | Parsers, scoring, caches, hooks, server-only modules | Imports nothing above it. Server-only modules (`firebaseAdmin`, `serverAuth`, `adminAuth`, `stravaTokens`, `rateLimit*`, `auditLog`, `logger`) are importable only from route handlers |
-| `src/components/` | UI. `Modal`, `ConfirmDialog` and `ui.ts` buttons are the shared primitives | Never imports a page or route |
-| `src/app/` | `page.tsx` composes hooks and components; `app/app/page.tsx` is wiring only | — |
+| Layer             | Holds                                                                       | Rule                                                                                                                                                                                   |
+| ----------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/`        | Parsers, scoring, caches, hooks, server-only modules                        | Imports nothing above it. Server-only modules (`firebaseAdmin`, `serverAuth`, `adminAuth`, `stravaTokens`, `rateLimit*`, `auditLog`, `logger`) are importable only from route handlers |
+| `src/components/` | UI. `Modal`, `ConfirmDialog` and `ui.ts` buttons are the shared primitives  | Never imports a page or route                                                                                                                                                          |
+| `src/app/`        | `page.tsx` composes hooks and components; `app/app/page.tsx` is wiring only | —                                                                                                                                                                                      |
 
 Rules the UI holds to (from [`.claude/CLAUDE.md`](../../.claude/CLAUDE.md)):
 
@@ -89,11 +89,11 @@ Signing in is never needed to browse. It gates saving places, Strava and chat hi
 `computeReadiness()` (`lib/readiness.ts`) runs in the browser. The score is the **worst** of
 three factors, never their average, and the summary names that limiting factor:
 
-| Factor | Your capacity | The route's demand |
-|---|---|---|
-| Longest outing | Longest single activity in 8 weeks | Route distance |
-| Weekly volume | Average weekly distance | Half the route distance per week |
-| Biggest climb | Largest single ascent | Route ascent (skipped and flagged if unknown) |
+| Factor         | Your capacity                      | The route's demand                            |
+| -------------- | ---------------------------------- | --------------------------------------------- |
+| Longest outing | Longest single activity in 8 weeks | Route distance                                |
+| Weekly volume  | Average weekly distance            | Half the route distance per week              |
+| Biggest climb  | Largest single ascent              | Route ascent (skipped and flagged if unknown) |
 
 Bands: `ready` ≥ 80, `nearly` ≥ 60, `build` ≥ 40, `not-yet` below that, and `unknown` with
 no activities. `readinessRecommender.ts` sorts the ready band by demand, not score: everything
@@ -135,15 +135,15 @@ erDiagram
     }
 ```
 
-| Collection | Written by | Notes |
-|---|---|---|
-| `users/{uid}/saved_places` | Browser | The only browser write. Rules do not cascade, so every subcollection needs its own `match` |
-| `users/{uid}/strava_activities` | `/api/strava/sync` | Upsert by Strava id. Each page is a transaction that re-checks the connection |
-| `strava_tokens/{uid}` | `/api/strava/exchange` | Never readable by any client |
-| `places_cache/{gridKey}` | `/api/places/cache` POST | Shared and public-read. The first writer wins while fresh (24 h) |
-| `chat_sessions/…/messages` | `/api/chat` | Signed-in only |
-| `rate_limits`, `audit_logs` | Server | Append-only audit trail |
-| `activities`, `routes`, `training_*`, `itineraries` | No live writer | Rules and erasure cover them ahead of ADR-0003 (Trip) and ADR-0004 (geometry) |
+| Collection                                          | Written by               | Notes                                                                                      |
+| --------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------ |
+| `users/{uid}/saved_places`                          | Browser                  | The only browser write. Rules do not cascade, so every subcollection needs its own `match` |
+| `users/{uid}/strava_activities`                     | `/api/strava/sync`       | Upsert by Strava id. Each page is a transaction that re-checks the connection              |
+| `strava_tokens/{uid}`                               | `/api/strava/exchange`   | Never readable by any client                                                               |
+| `places_cache/{gridKey}`                            | `/api/places/cache` POST | Shared and public-read. The first writer wins while fresh (24 h)                           |
+| `chat_sessions/…/messages`                          | `/api/chat`              | Signed-in only                                                                             |
+| `rate_limits`, `audit_logs`                         | Server                   | Append-only audit trail                                                                    |
+| `activities`, `routes`, `training_*`, `itineraries` | No live writer           | Rules and erasure cover them ahead of ADR-0003 (Trip) and ADR-0004 (geometry)              |
 
 - **TTL.** `rate_limits`, `chat_sessions` (plus `messages` at collection-group scope) and
   `audit_logs` need a Firestore TTL policy on `expiresAt`; see
@@ -154,12 +154,12 @@ erDiagram
 
 ### Browser caches
 
-| What | Where | TTL |
-|---|---|---|
-| Places | `localStorage` `fri_places_cache`, keyed on the 0.1° location | 24 h |
-| Reverse geocode | `sessionStorage` `fri_geocode_*` | 24 h |
-| Weather, photos | Module memory in `DetailsModal` | 30 min, session |
-| Last location | `localStorage` `fri_last_location`, restored in an effect | — |
+| What            | Where                                                         | TTL             |
+| --------------- | ------------------------------------------------------------- | --------------- |
+| Places          | `localStorage` `fri_places_cache`, keyed on the 0.1° location | 24 h            |
+| Reverse geocode | `sessionStorage` `fri_geocode_*`                              | 24 h            |
+| Weather, photos | Module memory in `DetailsModal`                               | 30 min, session |
+| Last location   | `localStorage` `fri_last_location`, restored in an effect     | —               |
 
 Sign-out clears every personal `fri_*` key (`lib/personalStorage.ts`, classified by test).
 
