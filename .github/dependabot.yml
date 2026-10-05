@@ -9,6 +9,10 @@ updates:
     # develop, not main: main only takes release merges from develop, and
     # updates landing on main directly bypassed the develop gate entirely.
     target-branch: develop
+    # A week's delay before a new release is proposed: most compromised
+    # packages are caught and yanked inside that window.
+    cooldown:
+      default-days: 7
     groups:
       dev-tooling:
         patterns:
@@ -36,6 +40,8 @@ updates:
       day: monday
     open-pull-requests-limit: 5
     target-branch: develop
+    cooldown:
+      default-days: 7
 
   # The backend image's base; nothing watched it.
   - package-ecosystem: docker
@@ -45,6 +51,8 @@ updates:
       day: monday
     open-pull-requests-limit: 2
     target-branch: develop
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: github-actions
     directory: /
@@ -53,3 +61,5 @@ updates:
       day: monday
     open-pull-requests-limit: 5
     target-branch: develop
+    cooldown:
+      default-days: 7
