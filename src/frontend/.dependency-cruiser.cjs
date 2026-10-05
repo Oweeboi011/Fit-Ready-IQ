@@ -126,8 +126,7 @@ module.exports = {
 
     {
       name: 'no-dev-dep-in-src',
-      comment:
-        'A devDependency reached from src/ will be missing at runtime in the Vercel build.',
+      comment: 'A devDependency reached from src/ will be missing at runtime in the Vercel build.',
       severity: 'error',
       from: { path: '^src/', pathNot: '[.](test|spec)[.](ts|tsx)$' },
       to: { dependencyTypes: ['npm-dev'] },

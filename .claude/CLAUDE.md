@@ -16,7 +16,7 @@ npm run build        # Production build
 npm run lint         # ESLint
 npm run type-check   # TypeScript (tsc --noEmit)
 npm run format       # Prettier
-npm run quality      # every static gate: lint, types, layering, duplication, dead code (knip), docs
+npm run quality      # every static gate: lint, format, types, layering, duplication, dead code (knip), docs
 npm run test:unit    # Vitest: unit + component + API integration, with coverage
 npm run test:e2e     # Playwright (E2E tests)
 ```
