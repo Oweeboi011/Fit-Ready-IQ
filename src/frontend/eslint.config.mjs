@@ -218,8 +218,16 @@ const config = [
   {
     // Server logs go through logger.ts: one JSON line per event, redacted, with
     // a request id. A raw console call can serialise an Authorization header.
-    files: ['src/app/api/**/*.ts', ...SERVER_ONLY],
-    ignores: ['src/lib/logger.ts', 'src/**/*.test.ts'],
+    // All of src/lib, not just SERVER_ONLY: shared modules (weatherWindow,
+    // advisories, …) run inside route handlers too. Client hooks and the
+    // browser-only Maps helper are the exceptions.
+    files: ['src/app/api/**/*.ts', 'src/lib/**/*.ts'],
+    ignores: [
+      'src/lib/logger.ts',
+      'src/lib/use*.ts',
+      'src/lib/mapsGeometry.ts',
+      'src/**/*.test.ts',
+    ],
     rules: {
       'no-console': 'error',
     },
