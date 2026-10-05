@@ -3,7 +3,8 @@ services:
   # declares. Storage is not used by the product, and asking
   # for its emulator failed startup because firebase.json configures none.
   firebase-emulator:
-    image: andreysenov/firebase-tools:latest
+    # Pinned by digest; `latest` changed under us without a diff.
+    image: andreysenov/firebase-tools@sha256:120d06169466fca49003a08eb96dca19d95b23d1653a992b1879537aa7086577
     container_name: fit-ready-iq-firebase
     ports:
       - "4000:4000" # Emulator UI

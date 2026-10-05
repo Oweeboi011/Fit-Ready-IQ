@@ -59,13 +59,12 @@ jobs:
   semgrep:
     name: Semgrep
     runs-on: ubuntu-latest
-    # Advisory for now. Semgrep has no supported Windows binary, so the ruleset
-    # could not be dry-run against this repo before landing and the first PR may
-    # surface a backlog of pre-existing findings. Triage that backlog, then drop
-    # this line to make Semgrep blocking (and add it to branch protection).
+    # Advisory until a run on the triaged tree comes back clean (see
+    # docs/guides/harness.md); then drop this line and add it to branch protection.
     continue-on-error: true
     container:
-      image: semgrep/semgrep
+      # Pinned by digest, like the actions: a moved tag is a supply-chain change.
+      image: semgrep/semgrep@sha256:32e459968daabe7ab86968184a29109b9564aa00392401156f9788452b42786b
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
