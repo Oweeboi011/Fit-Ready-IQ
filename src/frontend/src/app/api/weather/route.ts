@@ -117,7 +117,6 @@ async function fetchGoogleWeather(
   });
 
   return {
-    provider: 'google-weather',
     location: { lat, lng },
     current: { condition: condType, description: desc, tempC, humidity, windKph },
     summary,
@@ -175,7 +174,6 @@ async function fetchOpenWeather(
   });
 
   return {
-    provider: 'openweather',
     location: { lat, lng },
     current: { condition: condType, description: desc, tempC, humidity, windKph },
     summary,
@@ -279,7 +277,8 @@ interface ProviderKeys {
  * This used to be a provider choice, not a failover: with a Google key set, a
  * Google outage was a 502 even when an OpenWeather key sat unused beside it.
  * The fallback is logged, so a quietly failing primary shows up in the logs
- * rather than only on the invoice of the secondary.
+ * rather than only on the invoice of the secondary. Returns the provider that
+ * answered, so the response names its source from what happened, not a literal.
  */
 async function withFailover<T>(
   keys: ProviderKeys,
@@ -287,16 +286,18 @@ async function withFailover<T>(
   openWeather: (key: string) => Promise<T>,
   log: Logger,
   what: string
-): Promise<T> {
+): Promise<{ value: T; provider: WeatherProvider }> {
   if (keys.googleKey) {
     try {
-      return await google(keys.googleKey);
+      return { value: await google(keys.googleKey), provider: 'google-weather' };
     } catch (err) {
       if (!keys.openWeatherKey) throw err;
       log.warn('weather_google_failed_using_openweather', { what, error: serializeError(err) });
     }
   }
-  if (keys.openWeatherKey) return openWeather(keys.openWeatherKey);
+  if (keys.openWeatherKey) {
+    return { value: await openWeather(keys.openWeatherKey), provider: 'openweather' };
+  }
   throw new Error('No weather provider configured');
 }
 
@@ -329,18 +330,11 @@ async function fetchForecast({
 }> {
   // Named separately from `provider`: Google can answer the current conditions
   // and fail on the forecast, which then comes from OpenWeather.
-  let forecastProvider: WeatherProvider | null = null;
   try {
-    const hours = await withFailover(
+    const { value: hours, provider: forecastProvider } = await withFailover(
       { googleKey, openWeatherKey },
-      (key) => {
-        forecastProvider = 'google-weather';
-        return fetchGoogleForecastHours(key, lat, lng);
-      },
-      (key) => {
-        forecastProvider = 'openweather';
-        return fetchOpenWeatherForecastHours(key, lat, lng);
-      },
+      (key) => fetchGoogleForecastHours(key, lat, lng),
+      (key) => fetchOpenWeatherForecastHours(key, lat, lng),
       log,
       'forecast'
     );
@@ -390,14 +384,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    let googleFailed = false;
-    const result = await withFailover(
+    const { value: result, provider } = await withFailover(
       { googleKey, openWeatherKey },
       (key) => fetchGoogleWeather(key, lat, lng, elevation),
-      (key) => {
-        googleFailed = Boolean(googleKey);
-        return fetchOpenWeather(key, lat, lng, elevation);
-      },
+      (key) => fetchOpenWeather(key, lat, lng, elevation),
       log,
       'current'
     );
@@ -406,7 +396,7 @@ export async function GET(request: NextRequest) {
     // OpenWeather: a second 8 s Google timeout would overrun the 15 s budget,
     // and the forecast then comes from the provider the response names.
     const { alerts, window, forecastProvider } = await fetchForecast({
-      googleKey: googleFailed ? undefined : googleKey,
+      googleKey: provider === 'google-weather' ? googleKey : undefined,
       openWeatherKey,
       lat,
       lng,
@@ -415,7 +405,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(
-      { ...result, alerts, window, forecastProvider },
+      { provider, ...result, alerts, window, forecastProvider },
       // s-maxage is what Vercel's CDN honours; max-age alone only ever cached
       // in the one browser, so every visitor paid for two upstream calls.
       {
