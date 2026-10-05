@@ -224,7 +224,7 @@ const config = [
     files: ['src/app/api/**/*.ts', 'src/lib/**/*.ts'],
     ignores: [
       'src/lib/logger.ts',
-      'src/lib/use*.ts',
+      'src/lib/use[A-Z]*.ts', // hooks; not userDataFootprint.ts, which is server-side
       'src/lib/mapsGeometry.ts',
       'src/**/*.test.ts',
     ],
