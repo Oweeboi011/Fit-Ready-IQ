@@ -11,9 +11,11 @@ import type { RateLimitRule } from './rateLimit';
  * writes. A budget nobody can enumerate is a budget nobody reviews, so they are
  * enumerated here and imported by name.
  *
- * Every rule keys on `callerKey` from ./rateLimit: the bearer token when the
- * caller has one, the forwarded IP otherwise. Windows are one hour throughout,
- * because the thing being defended is a daily spend, not a burst.
+ * Every rule keys on `callerKey` from ./rateLimit: the verified uid when the
+ * route has authenticated the caller, the forwarded IP otherwise. Never the raw
+ * bearer string — an unverified token is not an identity, and keying on one let
+ * a made-up token buy a fresh budget per request. Windows are one hour
+ * throughout, because the thing being defended is a daily spend, not a burst.
  *
  * Adding a route? Add its budget here in the same change. A route with no entry
  * is a route with no ceiling.
@@ -134,5 +136,17 @@ export const ACCOUNT_EXPORT_RATE_LIMIT: RateLimitRule = {
 export const ACCOUNT_DELETE_RATE_LIMIT: RateLimitRule = {
   name: 'account_delete',
   limit: 5,
+  windowSeconds: 3600,
+};
+
+/**
+ * "Am I an admin?" — asked on every page load by every signed-in visitor, so it
+ * is not an admin-only endpoint in practice however it is named. Each call is a
+ * token verification; the ceiling is several hundred page views an hour, far
+ * past a person and well short of a loop.
+ */
+export const ADMIN_WHOAMI_RATE_LIMIT: RateLimitRule = {
+  name: 'admin_whoami',
+  limit: 300,
   windowSeconds: 3600,
 };

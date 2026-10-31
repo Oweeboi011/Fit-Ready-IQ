@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint';
  * (2026-08-06). Exempting them lets the rules be errors everywhere else;
  * shrinking these two lists is the ratchet.
  *
- * Do not add entries — see docs/wiki/CODE-QUALITY.md and
+ * Do not add entries — see docs/guides/harness.md and
  * docs/adr/0002-mechanical-code-quality-gates.md.
  */
 const LEGACY_OVERSIZED = [
@@ -74,13 +74,12 @@ const config = [
     // resolution against root-level config files such as .dependency-cruiser.cjs.
     files: ['src/**/*.{ts,tsx}'],
     rules: {
-      // New in the react-hooks v6 rules that ship with Next 16. It flags nine
-      // pre-existing effects across page.tsx, MapView, ChatBot, DetailsModal,
-      // ConnectDevicesModal and useSavedPlaces that set state synchronously.
-      // They are a render-performance concern, not a correctness bug, and
-      // unpicking them is a refactor in its own right — demoted to a warning
-      // so it stays visible without blocking the upgrade. Tracked separately.
-      'react-hooks/set-state-in-effect': 'warn',
+      // New in the react-hooks v6 rules that ship with Next 16. A synchronous
+      // setState in an effect costs an extra render. Where one is genuinely the
+      // right place — restoring browser storage after mount, resetting a hook
+      // to idle — it carries an inline disable that says why. A new site
+      // without a reason fails the build.
+      'react-hooks/set-state-in-effect': 'error',
     },
   },
 
@@ -144,7 +143,7 @@ const config = [
   },
   {
     // Test files describe scenarios; length there is not a design smell.
-    files: ['src/**/*.test.{ts,tsx}', 'e2e/**/*.ts', 'tests/**/*.{ts,js}'],
+    files: ['src/**/*.test.{ts,tsx}', 'tests/**/*.{ts,js}'],
     rules: {
       'max-lines': 'off',
       'max-lines-per-function': 'off',
@@ -153,7 +152,7 @@ const config = [
   },
 
   // ── Naming conventions ─────────────────────────────────────────────────────
-  // The subset of docs/wiki/CONTRIBUTING.md's naming rules that a linter can
+  // The subset of the naming rules in .claude/CLAUDE.md that a linter can
   // actually express. Casing of ordinary variables is left to review.
   {
     files: ['src/**/*.{ts,tsx}'],
@@ -182,6 +181,54 @@ const config = [
           leadingUnderscore: 'require',
         },
       ],
+    },
+  },
+
+  // ── Banned APIs and the shared primitives ──────────────────────────────────
+  // Each of these has a house replacement that already does the job properly;
+  // the ban is what makes reaching for the replacement the path of least
+  // resistance. See docs/guides/harness.md.
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/**/*.test.{ts,tsx}'],
+    rules: {
+      // window.confirm/alert/prompt block the tab and cannot be styled or
+      // focus-managed. Use ConfirmDialog.
+      'no-alert': 'error',
+      // A modal dialog needs the focus trap, Escape, scroll lock and focus
+      // restore that Modal.tsx already implements. Build on Modal instead.
+      'react/forbid-dom-props': [
+        'error',
+        {
+          forbid: [
+            {
+              propName: 'aria-modal',
+              message: 'Modal dialogs go through src/components/Modal.tsx.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/components/Modal.tsx'],
+    rules: { 'react/forbid-dom-props': 'off' },
+  },
+  {
+    // Server logs go through logger.ts: one JSON line per event, redacted, with
+    // a request id. A raw console call can serialise an Authorization header.
+    // All of src/lib, not just SERVER_ONLY: shared modules (weatherWindow,
+    // advisories, …) run inside route handlers too. Client hooks and the
+    // browser-only Maps helper are the exceptions.
+    files: ['src/app/api/**/*.ts', 'src/lib/**/*.ts'],
+    ignores: [
+      'src/lib/logger.ts',
+      'src/lib/use[A-Z]*.ts', // hooks; not userDataFootprint.ts, which is server-side
+      'src/lib/mapsGeometry.ts',
+      'src/**/*.test.ts',
+    ],
+    rules: {
+      'no-console': 'error',
     },
   },
 

@@ -2,9 +2,9 @@
 
 import { ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
-import { isFirebaseAuthConfigured, signInWithGoogle } from '@/lib/firebaseClient';
+type FirebaseClient = typeof import('@/lib/firebaseClient');
 import { rememberSelectedPlan, type PlanId } from '@/lib/plans';
 import { buttonPrimary, buttonSecondary, buttonSize } from '@/lib/ui';
 
@@ -39,13 +39,30 @@ export function StartTrialButton({
   const [error, setError] = useState<string | null>(null);
   const errorId = useId();
 
+  // Firebase is loaded after the page is interactive, not in the landing
+  // page's initial bundle — this is the one page that has to be fast. It is
+  // preloaded rather than imported on click because an await between the
+  // click and the sign-in popup can cost the user gesture, and strict popup
+  // blockers then refuse the window.
+  const clientRef = useRef<FirebaseClient | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void import('@/lib/firebaseClient').then((m) => {
+      if (!cancelled) clientRef.current = m;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const classes = `${variant === 'primary' ? buttonPrimary : buttonSecondary} ${buttonSize[size]} ${className}`;
   const destination = plan ? `/app?plan=${plan}` : '/app';
 
   async function handleClick() {
     if (plan) rememberSelectedPlan(plan);
 
-    if (!isFirebaseAuthConfigured()) {
+    const client = clientRef.current ?? (await import('@/lib/firebaseClient'));
+    if (!client.isFirebaseAuthConfigured()) {
       router.push(destination);
       return;
     }
@@ -53,7 +70,7 @@ export function StartTrialButton({
     setBusy(true);
     setError(null);
     try {
-      await signInWithGoogle();
+      await client.signInWithGoogle();
       router.push(destination);
     } catch (err: unknown) {
       const code = (err as { code?: string })?.code ?? '';

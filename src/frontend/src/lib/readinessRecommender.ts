@@ -48,7 +48,7 @@ export interface RecommendOptions {
 }
 
 function effortOf(demand: RouteDemand): number {
-  return demand.distanceKm + (demand.ascentM ?? 0) / METRES_PER_FLAT_KM;
+  return (demand.distanceKm ?? 0) + (demand.ascentM ?? 0) / METRES_PER_FLAT_KM;
 }
 
 /**

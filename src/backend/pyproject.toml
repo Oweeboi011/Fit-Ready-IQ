@@ -36,6 +36,97 @@ locust = "^2.29.1"
 mypy = "^1.8.0"
 pytest-httpx = "^0.36.2"
 faker = "^22.0.0"
+import-linter = "^2.15"
+vulture = "^2.16"
+
+[tool.ruff]
+target-version = "py311"
+extend-exclude = [".venv", "htmlcov"]
+
+# The gate set is described in docs/guides/harness.md. Each family is here
+# because it catches a class of defect, not for style points:
+#   S    bandit — insecure patterns (hard-coded secrets, bind-all, eval, …)
+#   B    bugbear — likely bugs (swallowed exception context, mutable defaults)
+#   C90  cyclomatic complexity, held at 15 like the frontend's ESLint ceiling
+#   ERA  commented-out code, which is dead code wearing a disguise
+#   TID  banned APIs (below)
+#   N    naming conventions
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "B", "S", "C90", "UP", "SIM", "TID", "ERA", "T20"]
+# E501: ruff format owns line length; the leftovers are URLs and log strings.
+# TID252: relative imports inside a package are fine — layering is checked by
+# import-linter, which understands them.
+# UP038: isinstance(x, (A, B)) is faster than A | B, and ruff later dropped the rule.
+ignore = ["E501", "TID252", "UP038"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency injection is declared in argument defaults by design.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Header"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"os.getenv".msg = "Read configuration through src.config.settings.get_settings(), the one place env is parsed."
+"os.environ".msg = "Read configuration through src.config.settings.get_settings(), the one place env is parsed."
+"requests".msg = "Use httpx — it is async and already a dependency."
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "TID251"]
+# Firebase reads emulator hosts from process env; the values come from settings.
+"src/infrastructure/database/connection.py" = ["TID251"]
+
+# Clean Architecture, enforced. Dependencies point inward only:
+#   presentation → application → domain ← infrastructure
+# See docs/adr/0006-minimum-viable-harness.md.
+[tool.importlinter]
+root_package = "src"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Layers point inward"
+type = "layers"
+layers = ["src.presentation", "src.application", "src.domain"]
+
+[[tool.importlinter.contracts]]
+name = "Domain is pure"
+type = "forbidden"
+source_modules = ["src.domain"]
+forbidden_modules = [
+    "src.application", "src.presentation", "src.infrastructure", "src.config",
+    "fastapi", "firebase_admin", "httpx", "pydantic_settings", "structlog",
+]
+
+[[tool.importlinter.contracts]]
+name = "Application depends on ports, not adapters"
+type = "forbidden"
+source_modules = ["src.application"]
+forbidden_modules = ["src.presentation", "src.infrastructure", "fastapi", "firebase_admin", "httpx"]
+
+[[tool.importlinter.contracts]]
+name = "Infrastructure never reaches up into application or presentation"
+type = "forbidden"
+source_modules = ["src.infrastructure"]
+forbidden_modules = ["src.application", "src.presentation"]
+
+# Adapters are wired in one place, the composition root
+# (presentation/dependencies.py). Route handlers get them injected.
+[[tool.importlinter.contracts]]
+name = "Routes reach infrastructure only through the composition root"
+type = "forbidden"
+source_modules = ["src.presentation.routes"]
+forbidden_modules = ["src.infrastructure"]
+allow_indirect_imports = true  # via dependencies.py is the point
+
+# Dead code. 80% confidence reports unused imports, variables and unreachable
+# code — the findings that are nearly always real. Unused methods and classes
+# only reach 60% (vulture cannot see FastAPI routing or pydantic), so they are
+# checked by hand in review rather than gated. See docs/guides/harness.md.
+[tool.vulture]
+paths = ["src"]
+min_confidence = 80
+# The async context-manager protocol fixes these parameter names.
+ignore_names = ["exc_type", "exc_val", "exc_tb"]
 
 [build-system]
 requires = ["poetry-core"]

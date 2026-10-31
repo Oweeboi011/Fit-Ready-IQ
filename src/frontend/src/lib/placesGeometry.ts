@@ -9,7 +9,7 @@ import { haversineDistanceKm } from '@/lib/gpxParser';
  * `fitBounds`, which is why the map opened zoomed out to the whole planet.
  * Nothing upstream enforces this, so we enforce it here.
  */
-export const SEARCH_RADIUS_KM = 80;
+const SEARCH_RADIUS_KM = 80;
 
 /** Drop anything the Places API returned that is not actually near the user. */
 export function withinSearchRadius<T extends { coordinates: [number, number] }>(

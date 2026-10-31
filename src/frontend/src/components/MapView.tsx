@@ -27,7 +27,7 @@ interface Route {
   id: string;
   name: string;
   coordinates: [number, number];
-  distance_km: number;
+  distance_km: number | null;
   elevation_gain_m: number | null;
   difficulty: Difficulty;
   activity_type: string;
@@ -309,12 +309,16 @@ export default function MapView({
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    // Reads error text, it does not validate a URL: nothing is trusted on the
+    // strength of this match, it only decides whether to show the map error.
+    const mentionsMapsApi = (text: string) => text.toLowerCase().includes('maps.googleapis.com');
+
     const onWindowError = (event: ErrorEvent) => {
       const text = `${event.message ?? ''} ${event.error?.message ?? ''} ${event.error?.stack ?? ''}`;
       if (
         /Google Maps JavaScript API error/i.test(text) ||
         /RefererNotAllowedMapError/i.test(text) ||
-        (/IntersectionObserver/i.test(text) && /maps\.googleapis\.com/i.test(text))
+        (/IntersectionObserver/i.test(text) && mentionsMapsApi(text))
       ) {
         setRuntimeMapError(text);
       }
@@ -326,7 +330,7 @@ export default function MapView({
         typeof reason === 'string' ? reason : `${reason?.message ?? ''} ${reason?.stack ?? ''}`;
 
       if (
-        /maps\.googleapis\.com/i.test(text) ||
+        mentionsMapsApi(text) ||
         /Google Maps/i.test(text) ||
         /RefererNotAllowedMapError/i.test(text) ||
         /IntersectionObserver/i.test(text)
@@ -503,6 +507,7 @@ export default function MapView({
 
   useEffect(() => {
     if (userLng == null || userLat == null) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the controlled map center follows the user only when the coordinates change, never on re-render
     setUserLocation([userLng, userLat]);
     setMapCenter({ lat: userLat, lng: userLng });
   }, [userLng, userLat]);

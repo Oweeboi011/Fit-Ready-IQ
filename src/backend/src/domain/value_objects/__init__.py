@@ -4,19 +4,6 @@ from dataclasses import dataclass
 from enum import Enum
 
 
-class ActivityType(str, Enum):
-    """Supported activity types."""
-
-    RUN = "run"
-    RIDE = "ride"
-    HIKE = "hike"
-    WALK = "walk"
-    SWIM = "swim"
-    SKI = "ski"
-    ROCK_CLIMB = "rock_climb"
-    OTHER = "other"
-
-
 class DifficultyLevel(str, Enum):
     """Route difficulty classifications."""
 
@@ -66,7 +53,7 @@ class Coordinates:
         """
         from math import asin, cos, radians, sin, sqrt
 
-        R = 6371000  # Earth radius in meters
+        earth_radius_m = 6371000  # Earth radius in meters
 
         lat1, lon1 = radians(self.latitude), radians(self.longitude)
         lat2, lon2 = radians(other.latitude), radians(other.longitude)
@@ -77,7 +64,7 @@ class Coordinates:
         a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
         c = 2 * asin(sqrt(a))
 
-        return R * c
+        return earth_radius_m * c
 
 
 @dataclass(frozen=True)

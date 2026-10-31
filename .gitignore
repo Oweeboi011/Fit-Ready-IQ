@@ -47,6 +47,10 @@ env/
 # Node.js
 node_modules/
 npm-debug.log*
+# Firebase emulator logs (npm run test:rules)
+firestore-debug.log
+ui-debug.log
+firebase-debug.log
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
@@ -103,3 +107,10 @@ docker-compose.override.yml
 temp/
 tmp/
 deployed-rules.txt
+
+# Firebase / Google service-account keys. They belong in the environment
+# (FIREBASE_SERVICE_ACCOUNT_KEY_JSON), never in a file that can be committed.
+*-firebase-adminsdk-*.json
+service-account*.json
+serviceAccount*.json
+*credentials*.json

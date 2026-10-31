@@ -22,7 +22,7 @@
  * mode should not be handed the theme nobody designed against first.
  */
 
-export const THEMES = ['dark', 'light'] as const;
+const THEMES = ['dark', 'light'] as const;
 export type Theme = (typeof THEMES)[number];
 
 /** Dark unless the visitor has said otherwise. */

@@ -43,7 +43,7 @@ const EXTREME_COLD_C = -10;
 const EXTREME_HEAT_C = 35;
 
 /** How far ahead a card badge or dock summary looks by default. */
-export const DEFAULT_ALERT_WINDOW_HOURS = 48;
+const DEFAULT_ALERT_WINDOW_HOURS = 48;
 
 export const WEATHER_ALERT_LABELS: Record<WeatherAlertKind, string> = {
   storm: 'Storm risk',

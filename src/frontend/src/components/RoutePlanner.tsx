@@ -337,6 +337,7 @@ export function RoutePlanner({
   // Read after mount, never during render — storage reads during render make
   // the server and client disagree on first paint.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- browser state is read after mount; reading it during render breaks hydration
     if (isOpen) setPlans(loadPlans());
   }, [isOpen]);
 

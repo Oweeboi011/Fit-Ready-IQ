@@ -118,6 +118,7 @@ export function useUserLocation(): UseUserLocationResult {
 
     const stored = readStoredLocation();
     if (stored) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- browser state is read after mount; reading it during render breaks hydration
       setLocationState(stored);
       setSource('restored');
       setStatus('ready');

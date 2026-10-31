@@ -19,7 +19,6 @@ from src.infrastructure.database.repositories import (
     FirestoreUserRepository,
 )
 
-
 # ── A minimal async Firestore stand-in ─────────────────────────────────────────
 
 

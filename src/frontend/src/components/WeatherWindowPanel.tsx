@@ -105,5 +105,3 @@ export function WeatherWindowPanel({ window }: { window: WeatherWindow | null })
     </section>
   );
 }
-
-export default WeatherWindowPanel;

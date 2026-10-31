@@ -27,8 +27,9 @@ interface LatLng {
 export interface DirectionsResult {
   /** Encoded polyline, precision 5 — feed to `decodePolyline`. */
   polyline: string;
-  distanceKm: number;
-  durationSeconds: number;
+  /** Null when Routes did not report one — never a zero standing in for it. */
+  distanceKm: number | null;
+  durationSeconds: number | null;
 }
 
 /**
@@ -58,7 +59,9 @@ function isLatLng(value: unknown): value is LatLng {
     typeof v.lat === 'number' &&
     typeof v.lng === 'number' &&
     Number.isFinite(v.lat) &&
-    Number.isFinite(v.lng)
+    Number.isFinite(v.lng) &&
+    Math.abs(v.lat) <= 90 &&
+    Math.abs(v.lng) <= 180
   );
 }
 
@@ -100,7 +103,11 @@ async function parseRequest(request: Request): Promise<RouteRequest | null> {
   return {
     origin,
     destination,
-    stops: Array.isArray(intermediates) ? intermediates.filter(isLatLng) : [],
+    // Capped before validation, so a body of a million points costs one slice
+    // rather than a million checks. The Routes API takes 25 at most anyway.
+    stops: Array.isArray(intermediates)
+      ? intermediates.slice(0, MAX_INTERMEDIATES).filter(isLatLng)
+      : [],
     // Unknown or missing modes fall back to walking — the most conservative
     // routing of the three, and the planner's original behaviour.
     travelMode: TRAVEL_MODES.includes(mode as TravelMode) ? (mode as TravelMode) : 'WALK',
@@ -143,12 +150,15 @@ function toResult(data: unknown): DirectionsResult | null {
   if (!polyline) return null;
 
   // Routes returns duration as a string like "1234s".
-  const seconds = Number.parseInt(String(route?.duration ?? '0').replace('s', ''), 10);
+  const seconds = route?.duration
+    ? Number.parseInt(String(route.duration).replace('s', ''), 10)
+    : Number.NaN;
+  const metres = route?.distanceMeters;
 
   return {
     polyline,
-    distanceKm: (route?.distanceMeters ?? 0) / 1000,
-    durationSeconds: Number.isFinite(seconds) ? seconds : 0,
+    distanceKm: typeof metres === 'number' && Number.isFinite(metres) ? metres / 1000 : null,
+    durationSeconds: Number.isFinite(seconds) ? seconds : null,
   };
 }
 
@@ -177,7 +187,7 @@ async function callRoutesApi(key: string, req: RouteRequest, log: Logger) {
       body: JSON.stringify({
         origin: waypoint(origin),
         destination: waypoint(destination),
-        intermediates: stops.slice(0, MAX_INTERMEDIATES).map(waypoint),
+        intermediates: stops.map(waypoint),
         travelMode,
         polylineQuality: 'HIGH_QUALITY',
         ...(travelMode === 'DRIVE' ? { routingPreference: 'TRAFFIC_UNAWARE' } : {}),

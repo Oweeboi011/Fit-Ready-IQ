@@ -97,8 +97,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 # The interactive docs publish the full API surface — every route, every schema,
 # every field name — to anyone who asks. That is exactly what you want while
 # building and exactly what you do not want facing the internet, so they are on
-# everywhere except production.
-_docs_enabled = settings.environment != "production"
+# in development only. This used to be "anything but production", so a staging
+# or misspelled environment published the schema; failing closed means a new
+# environment has to opt in.
+_docs_enabled = settings.environment == "development"
 
 # Create FastAPI application
 app = FastAPI(
@@ -151,7 +153,9 @@ def _on_rate_limit_exceeded(request: Request, exc: Exception) -> Response:
     passing it directly. Narrowing here keeps the gate honest instead of
     reaching for a blanket type: ignore.
     """
-    assert isinstance(exc, RateLimitExceeded)
+    # An explicit check, not `assert`: asserts vanish under `python -O`.
+    if not isinstance(exc, RateLimitExceeded):
+        raise exc
     return cast(Response, _rate_limit_exceeded_handler(request, exc))
 
 
@@ -190,12 +194,6 @@ async def root(request: Request) -> dict[str, str]:
 
 
 app.include_router(routes.router, prefix="/api/routes", tags=["Routes"])
-
-# Additional routers, not yet built:
-# from .presentation.routes import auth, fitness, itinerary
-# app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
-# app.include_router(fitness.router, prefix="/api/fitness", tags=["Fitness"])
-# app.include_router(itinerary.router, prefix="/api/itinerary", tags=["Itinerary"])
 
 
 if __name__ == "__main__":

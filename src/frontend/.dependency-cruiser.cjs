@@ -1,7 +1,7 @@
 /**
  * Architectural gates for the Next.js frontend.
  *
- * The rules here encode the layering described in docs/wiki/ARCHITECTURE.md and
+ * The rules here encode the layering described in docs/guides/architecture.md and
  * the credential split in CLAUDE.md. Anything expressible as "module A may not
  * reach module B" belongs in this file rather than in a review checklist —
  * see docs/adr/0002-mechanical-code-quality-gates.md.
@@ -126,8 +126,7 @@ module.exports = {
 
     {
       name: 'no-dev-dep-in-src',
-      comment:
-        'A devDependency reached from src/ will be missing at runtime in the Vercel build.',
+      comment: 'A devDependency reached from src/ will be missing at runtime in the Vercel build.',
       severity: 'error',
       from: { path: '^src/', pathNot: '[.](test|spec)[.](ts|tsx)$' },
       to: { dependencyTypes: ['npm-dev'] },

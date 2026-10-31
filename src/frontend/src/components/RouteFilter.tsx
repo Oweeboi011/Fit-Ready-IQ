@@ -242,7 +242,7 @@ export default function RouteFilter({ filters, onFilterChange }: RouteFilterProp
           <div>
             <div className="mb-3 flex items-center justify-between">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
-                Max Distance
+                Max Distance From You
               </p>
               <span className="rounded-md border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-xs font-semibold text-blue-400">
                 {filters.maxDistance.toLocaleString()} km
@@ -251,7 +251,7 @@ export default function RouteFilter({ filters, onFilterChange }: RouteFilterProp
             <div className="relative">
               <input
                 type="range"
-                aria-label="Maximum route distance"
+                aria-label="Maximum distance from you"
                 aria-valuetext={`${filters.maxDistance} kilometres`}
                 min="1"
                 max="10000"

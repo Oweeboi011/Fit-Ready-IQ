@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { authedFetch } from '@/lib/firebaseClient';
 import type { Route as RouteData, Mountain as MountainData, Campsite } from '@/lib/placesTypes';
+import { PLACES_CACHE_VERSION } from '@/lib/placesCacheSchema';
 import { withinSearchRadius } from '@/lib/placesGeometry';
 import { normaliseDifficulty } from '@/lib/routeDifficulty';
 import {
@@ -19,41 +20,40 @@ export const COLLECTION_LABELS: Record<CollectionName, string> = {
 };
 
 /**
- * Schema version for cached place payloads.
+ * This device's copy of the last area's results.
  *
- * Both cache tiers store whole `Route`/`Mountain`/`Campsite` objects, so a
- * change to what a field *means* silently keeps serving the old meaning until
- * the entry expires — and the Firestore tier is shared, so one stale entry
- * feeds every visitor to that region for 24 hours. That is how a hardcoded
- * "50 m" elevation floor kept appearing long after the code that produced it
- * was deleted.
- *
- * Bump this whenever the shape or the semantics of a cached field change.
- *
- * v2 — elevation may be null, difficulty derived from terrain not star rating.
+ * `localStorage` for 24 h — the shared Firestore tier's TTL — rather than
+ * `sessionStorage` for 30 minutes: every new tab and every return after half
+ * an hour used to re-run ~100 paid Places calls for an area whose results had
+ * not changed. Keyed on the location, because it used to be read regardless
+ * of where the user now was, so moving within the TTL showed the previous
+ * area's places as if they were nearby. It holds the resolved location, so it
+ * is cleared on sign-out (`lib/personalStorage.ts`).
  */
-const PLACES_CACHE_VERSION = 2;
-const SESSION_CACHE_KEY = 'fri_places_cache';
-const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const LOCAL_CACHE_KEY = 'fri_places_cache';
+const LOCAL_TTL_MS = 24 * 60 * 60 * 1000;
 const GEO_TTL_MS = 24 * 60 * 60 * 1000;
 
 interface CachedPlacesPayload {
   ts: number;
   v?: number;
+  /** The 0.1° key the results were fetched for. */
+  locationKey?: string;
   routes: RouteData[];
   mountains: MountainData[];
   campsites: Campsite[];
   location?: { lat: number; lng: number; address?: string };
 }
 
-function readSessionCache(): CachedPlacesPayload | null {
+function readLocalCache(locationKey: string): CachedPlacesPayload | null {
   try {
-    const cached = sessionStorage.getItem(SESSION_CACHE_KEY);
+    const cached = localStorage.getItem(LOCAL_CACHE_KEY);
     if (!cached) return null;
     const parsed = JSON.parse(cached) as CachedPlacesPayload;
     if (
       parsed.v === PLACES_CACHE_VERSION &&
-      Date.now() - parsed.ts < SESSION_TTL_MS &&
+      parsed.locationKey === locationKey &&
+      Date.now() - parsed.ts < LOCAL_TTL_MS &&
       parsed.routes &&
       parsed.mountains &&
       parsed.campsites
@@ -66,11 +66,14 @@ function readSessionCache(): CachedPlacesPayload | null {
   return null;
 }
 
-function writeSessionCache(payload: Omit<CachedPlacesPayload, 'ts' | 'v'>) {
+function writeLocalCache(
+  locationKey: string,
+  payload: Omit<CachedPlacesPayload, 'ts' | 'v' | 'locationKey'>
+) {
   try {
-    sessionStorage.setItem(
-      SESSION_CACHE_KEY,
-      JSON.stringify({ ts: Date.now(), v: PLACES_CACHE_VERSION, ...payload })
+    localStorage.setItem(
+      LOCAL_CACHE_KEY,
+      JSON.stringify({ ts: Date.now(), v: PLACES_CACHE_VERSION, locationKey, ...payload })
     );
   } catch {
     /* storage quota */
@@ -166,7 +169,6 @@ function writeFirestoreCache(
     routes: RouteData[];
     mountains: MountainData[];
     campsites: Campsite[];
-    location: unknown;
   }
 ) {
   authedFetch('/api/places/cache', {
@@ -192,7 +194,7 @@ interface UsePlacesDataParams {
 }
 
 // Loads routes/mountains/campsites near the user via a 3-tier cache
-// (sessionStorage → Firestore /api/places/cache → live Google
+// (localStorage → Firestore /api/places/cache → live Google
 // Places/Elevation/Distance-Matrix calls via placesFetchers.ts), scoped to a
 // search radius since Google's `location`+`radius` is a bias, not a filter.
 // Location comes from the already-extracted useUserLocation() hook rather
@@ -219,6 +221,10 @@ export function usePlacesData({
     ? `${(Math.round(userLocation.lat * 10) / 10).toFixed(1)},${(Math.round(userLocation.lng * 10) / 10).toFixed(1)}`
     : null;
   const fetchedLocationKeyRef = useRef<string | null>(null);
+  // Identifies the newest run. A run for a location the user has since left
+  // used to finish anyway and overwrite the newer area's results; each await
+  // now checks it is still the latest before it touches state.
+  const runIdRef = useRef(0);
 
   const applyResult = (data: {
     routes: RouteData[];
@@ -248,14 +254,17 @@ export function usePlacesData({
     if (locationStatus !== 'ready' || !userLocation || !locationKey) return;
     if (fetchedLocationKeyRef.current === locationKey) return;
     fetchedLocationKeyRef.current = locationKey;
+    const runId = ++runIdRef.current;
+    const superseded = () => runIdRef.current !== runId;
 
     // --- 3-tier cache strategy ---
-    // L1: sessionStorage (30-min TTL, instant, per-tab)
+    // L1: localStorage (24-h TTL, instant, this device, this location only)
     // L2: Firestore via /api/places/cache (24-h TTL, shared across users in same region)
     // L3: Live Google Maps API calls (expensive, only on full miss)
-    const sessionCached = readSessionCache();
-    if (sessionCached) {
-      applyResult(sessionCached);
+    const localCached = readLocalCache(locationKey);
+    if (localCached) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- starts a load; the state set is its loading flag or a synchronous cache hit
+      applyResult(localCached);
       return;
     }
 
@@ -270,6 +279,7 @@ export function usePlacesData({
         // longer prompts for it a second time.
         const userCoords: [number, number] = [userLocation.lng, userLocation.lat];
         const address = await resolveAddress(userCoords, userLocation.address ?? 'this area');
+        if (superseded()) return;
         const resolvedLocation = { lat: userCoords[1], lng: userCoords[0], address };
 
         // Keep the provenance we already established — attaching an address
@@ -277,8 +287,9 @@ export function usePlacesData({
         saveAndSetUserLocation(resolvedLocation, locationSource ?? 'restored');
 
         const firestoreCached = await fetchFirestoreCache(userCoords);
+        if (superseded()) return;
         if (firestoreCached) {
-          writeSessionCache({ ...firestoreCached, location: resolvedLocation });
+          writeLocalCache(locationKey, { ...firestoreCached, location: resolvedLocation });
           applyResult({ ...firestoreCached, location: resolvedLocation });
           return;
         }
@@ -324,6 +335,8 @@ export function usePlacesData({
           failed.push('campsites');
         }
 
+        if (superseded()) return;
+
         // An empty tab after a failed fetch is indistinguishable from "nothing
         // here" unless we say which collections did not come back.
         setFailedCollections(failed);
@@ -342,14 +355,14 @@ export function usePlacesData({
         setIsLoading(false);
 
         // Write live results to both caches so future visitors skip the API calls
-        writeSessionCache({ routes, mountains, campsites, location: resolvedLocation });
+        writeLocalCache(locationKey, { routes, mountains, campsites, location: resolvedLocation });
         writeFirestoreCache(userCoords, {
           routes,
           mountains,
           campsites,
-          location: resolvedLocation,
         });
       } catch (err) {
+        if (superseded()) return;
         console.error('Places pipeline failed:', err);
         setError("We couldn't load places near you.");
         setIsLoading(false);
@@ -360,11 +373,11 @@ export function usePlacesData({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, locationStatus, locationKey, placesAttempt]);
 
-  // Drop both caches and re-run the pipeline. Without clearing sessionStorage
+  // Drop the local cache and re-run the pipeline. Without clearing it
   // the retry would replay the same failed-and-cached result.
   const retryPlacesFetch = () => {
     try {
-      sessionStorage.removeItem(SESSION_CACHE_KEY);
+      localStorage.removeItem(LOCAL_CACHE_KEY);
     } catch {
       /* nothing cached to clear */
     }

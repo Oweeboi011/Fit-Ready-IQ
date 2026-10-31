@@ -22,11 +22,11 @@ report that arrives a month later.
 
 ## What to expect
 
-| Stage | Target |
-| --- | --- |
-| Acknowledgement | 3 working days |
-| Initial assessment, with a severity | 10 working days |
-| Fix for a critical issue | 30 days, or a documented mitigation |
+| Stage                               | Target                              |
+| ----------------------------------- | ----------------------------------- |
+| Acknowledgement                     | 3 working days                      |
+| Initial assessment, with a severity | 10 working days                     |
+| Fix for a critical issue            | 30 days, or a documented mitigation |
 
 If we disagree with a severity assessment we will say so and explain why, rather
 than quietly downgrading it.
@@ -47,7 +47,7 @@ Also out of scope:
 - denial of service through sheer request volume. Every route that spends money
   or third-party quota is rate-limited (`src/frontend/src/lib/rateLimitRules.ts`);
   a report that a limit can be reached is not a finding, a report that one can be
-  *bypassed* very much is
+  _bypassed_ very much is
 - social engineering of maintainers or users
 
 ## Testing safely
@@ -62,7 +62,7 @@ demonstrate something, describe it and we will reproduce it ourselves.
 ## Known gaps
 
 Issues we already know about are recorded, with their reasoning and remediation
-plan, in [`docs/wiki/SECURITY.md`](docs/wiki/SECURITY.md) §12. Reading that first
+plan, in [`docs/guides/security.md`](docs/guides/security.md#known-gaps). Reading that first
 may save you writing up something already tracked — though a report that one of
 those is worse than we assessed is genuinely welcome.
 

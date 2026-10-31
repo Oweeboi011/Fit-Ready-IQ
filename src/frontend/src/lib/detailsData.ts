@@ -10,7 +10,8 @@ export interface RouteDetails {
   id: string;
   name: string;
   coordinates: [number, number];
-  distance_km: number;
+  /** Null when the trail's length is unknown. See `Route.distance_km`. */
+  distance_km: number | null;
   elevation_gain_m: number | null;
   difficulty: Difficulty;
   activity_type: string;
@@ -35,7 +36,8 @@ export interface MountainDetails {
   name: string;
   coordinates: [number, number];
   elevation_m: number | null;
-  prominence_m: number;
+  /** Absent unless measured. It used to be 28% of the summit height. */
+  prominence_m?: number;
   mountain_type: string;
   photos?: string[];
   place_id?: string;

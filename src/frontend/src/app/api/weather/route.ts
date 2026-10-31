@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createLogger, serializeError, type Logger } from '@/lib/logger';
+import { createLogger, serializeError, upstreamSnippet, type Logger } from '@/lib/logger';
 import { summarizeAlerts, type ForecastHour, type WeatherAlert } from '@/lib/weatherAlerts';
 import { rateLimit, tooManyRequests } from '@/lib/rateLimit';
 import { WEATHER_RATE_LIMIT } from '@/lib/rateLimitRules';
 import { findWeatherWindow, type WeatherWindow } from '@/lib/weatherWindow';
 
 export const runtime = 'nodejs';
+
+const MAX_REQUIRED_HOURS = 240;
 
 function toNumber(value: string | null): number | null {
   if (!value) return null;
@@ -82,7 +84,7 @@ async function fetchGoogleWeather(
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Google Weather ${res.status}: ${body.slice(0, 200)}`);
+    throw new Error(`Google Weather ${res.status}: ${upstreamSnippet(body)}`);
   }
 
   // Response may be top-level or wrapped in currentConditions
@@ -115,7 +117,6 @@ async function fetchGoogleWeather(
   });
 
   return {
-    provider: 'google-weather',
     location: { lat, lng },
     current: { condition: condType, description: desc, tempC, humidity, windKph },
     summary,
@@ -150,7 +151,7 @@ async function fetchOpenWeather(
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`OpenWeather ${res.status}: ${body.slice(0, 200)}`);
+    throw new Error(`OpenWeather ${res.status}: ${upstreamSnippet(body)}`);
   }
 
   const d = (await res.json()) as OpenWeatherCurrent;
@@ -173,7 +174,6 @@ async function fetchOpenWeather(
   });
 
   return {
-    provider: 'openweather',
     location: { lat, lng },
     current: { condition: condType, description: desc, tempC, humidity, windKph },
     summary,
@@ -263,6 +263,44 @@ async function fetchOpenWeatherForecastHours(
   }));
 }
 
+// ── Provider failover ───────────────────────────────────────────────────────
+type WeatherProvider = 'google-weather' | 'openweather';
+
+interface ProviderKeys {
+  googleKey: string | undefined;
+  openWeatherKey: string | undefined;
+}
+
+/**
+ * Google first when it is configured, then OpenWeather when *it* is configured.
+ *
+ * This used to be a provider choice, not a failover: with a Google key set, a
+ * Google outage was a 502 even when an OpenWeather key sat unused beside it.
+ * The fallback is logged, so a quietly failing primary shows up in the logs
+ * rather than only on the invoice of the secondary. Returns the provider that
+ * answered, so the response names its source from what happened, not a literal.
+ */
+async function withFailover<T>(
+  keys: ProviderKeys,
+  google: (key: string) => Promise<T>,
+  openWeather: (key: string) => Promise<T>,
+  log: Logger,
+  what: 'current' | 'forecast'
+): Promise<{ value: T; provider: WeatherProvider }> {
+  if (keys.googleKey) {
+    try {
+      return { value: await google(keys.googleKey), provider: 'google-weather' };
+    } catch (err) {
+      if (!keys.openWeatherKey) throw err;
+      log.warn('weather_google_failed_using_openweather', { what, error: serializeError(err) });
+    }
+  }
+  if (keys.openWeatherKey) {
+    return { value: await openWeather(keys.openWeatherKey), provider: 'openweather' };
+  }
+  throw new Error('No weather provider configured');
+}
+
 /**
  * Hazards ahead, and the span worth going.
  *
@@ -271,9 +309,7 @@ async function fetchOpenWeatherForecastHours(
  * `unknown` window rather than an empty one, so the UI says it does not know
  * instead of implying the forecast is clear.
  */
-interface ForecastRequest {
-  googleKey: string | undefined;
-  openWeatherKey: string | undefined;
+interface ForecastRequest extends ProviderKeys {
   lat: number;
   lng: number;
   requiredHours: number | null;
@@ -287,22 +323,32 @@ async function fetchForecast({
   lng,
   requiredHours,
   log,
-}: ForecastRequest): Promise<{ alerts: WeatherAlert[]; window: WeatherWindow }> {
+}: ForecastRequest): Promise<{
+  alerts: WeatherAlert[];
+  window: WeatherWindow;
+  forecastProvider: WeatherProvider | null;
+}> {
+  // Named separately from `provider`: Google can answer the current conditions
+  // and fail on the forecast, which then comes from OpenWeather.
   try {
-    const hours = googleKey
-      ? await fetchGoogleForecastHours(googleKey, lat, lng)
-      : openWeatherKey
-        ? await fetchOpenWeatherForecastHours(openWeatherKey, lat, lng)
-        : [];
+    const { value: hours, provider: forecastProvider } = await withFailover(
+      { googleKey, openWeatherKey },
+      (key) => fetchGoogleForecastHours(key, lat, lng),
+      (key) => fetchOpenWeatherForecastHours(key, lat, lng),
+      log,
+      'forecast'
+    );
     return {
       alerts: summarizeAlerts(hours),
       window: findWeatherWindow(hours, requiredHours ? { requiredHours } : {}),
+      forecastProvider,
     };
   } catch (err) {
     log.warn('weather_forecast_failed', { error: serializeError(err) });
     return {
       alerts: [],
       window: findWeatherWindow([]),
+      forecastProvider: null,
     };
   }
 }
@@ -321,8 +367,13 @@ export async function GET(request: NextRequest) {
   // to the location — see `weatherWindow.ts`. Absent, it falls back to a short outing.
   const requiredHours = toNumber(request.nextUrl.searchParams.get('hours'));
 
-  if (lat === null || lng === null) {
+  if (lat === null || lng === null || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
     return NextResponse.json({ error: 'Missing or invalid lat/lng' }, { status: 400 });
+  }
+  // A route longer than ten days is not a weather window question, and a
+  // negative or absurd value is a malformed request, not something to clamp.
+  if (requiredHours !== null && (requiredHours <= 0 || requiredHours > MAX_REQUIRED_HOURS)) {
+    return NextResponse.json({ error: 'Invalid hours' }, { status: 400 });
   }
 
   const googleKey = process.env.GOOGLE_WEATHER_API_KEY;
@@ -333,13 +384,19 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Prefer Google Weather API when its key is configured
-    const result = googleKey
-      ? await fetchGoogleWeather(googleKey, lat, lng, elevation)
-      : await fetchOpenWeather(openWeatherKey!, lat, lng, elevation);
+    const { value: result, provider } = await withFailover(
+      { googleKey, openWeatherKey },
+      (key) => fetchGoogleWeather(key, lat, lng, elevation),
+      (key) => fetchOpenWeather(key, lat, lng, elevation),
+      log,
+      'current'
+    );
 
-    const { alerts, window } = await fetchForecast({
-      googleKey,
+    // Once Google has failed this request, the forecast goes straight to
+    // OpenWeather: a second 8 s Google timeout would overrun the 15 s budget,
+    // and the forecast then comes from the provider the response names.
+    const { alerts, window, forecastProvider } = await fetchForecast({
+      googleKey: provider === 'google-weather' ? googleKey : undefined,
       openWeatherKey,
       lat,
       lng,
@@ -348,16 +405,23 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(
-      { ...result, alerts, window },
-      { headers: { 'Cache-Control': 'public, max-age=1800, stale-while-revalidate=300' } }
+      { provider, ...result, alerts, window, forecastProvider },
+      // s-maxage is what Vercel's CDN honours; max-age alone only ever cached
+      // in the one browser, so every visitor paid for two upstream calls.
+      {
+        headers: {
+          'Cache-Control': 'public, max-age=1800, s-maxage=1800, stale-while-revalidate=300',
+        },
+      }
     );
   } catch (error) {
+    // The error text carries a snippet of the upstream body. That belongs in
+    // the log, where it is redacted and kept with the request id, not in a
+    // response any caller can read.
+    log.error('weather_failed', error);
     return NextResponse.json(
-      {
-        error: 'Weather route failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
+      { error: 'Weather route failed', details: 'upstream_unavailable' },
+      { status: 502 }
     );
   }
 }

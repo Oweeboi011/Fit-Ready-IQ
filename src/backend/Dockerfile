@@ -1,36 +1,46 @@
-FROM python:3.11-slim
+# Two stages: Poetry and a compiler exist only to build the virtualenv, and
+# neither ships in the image that runs.
+#
+# The previous single stage pinned Poetry 1.7.1, which cannot read this lock
+# (written by Poetry 2.x, format 2.1) and predates `package-mode = false`, so
+# the image did not build at all. 3.11 matches CI and `python = "^3.11"`.
 
-# Set working directory
-WORKDIR /app
+FROM python:3.11-slim AS build
 
-# Install system dependencies for compilation
-RUN apt-get update && apt-get install -y \
-    gcc \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Poetry
-RUN pip install --no-cache-dir poetry==1.7.1
+RUN pip install --no-cache-dir "poetry>=2.1,<3"
 
-# Copy dependency files
-COPY pyproject.toml poetry.lock* ./
+WORKDIR /app
+COPY pyproject.toml poetry.lock ./
 
-# Install dependencies without dev dependencies for production
-RUN poetry config virtualenvs.create false \
+# The virtualenv goes inside /app so the runtime stage can copy it whole.
+RUN poetry config virtualenvs.in-project true \
     && poetry install --no-interaction --no-ansi --no-root --only main
 
-# Copy application code
-COPY . .
 
-# Create non-root user for security
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN useradd -m -u 1000 appuser
+
+COPY --from=build /app/.venv /app/.venv
+COPY --chown=appuser:appuser src ./src
+
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
 USER appuser
-
-# Expose port
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import httpx; httpx.get('http://localhost:8000/health')"
+# urlopen raises on any non-2xx, so a 500 fails the check. The old one called
+# httpx.get and ignored the status, which passed on every response, errors
+# included.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"
 
-# Run application
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

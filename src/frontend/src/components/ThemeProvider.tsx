@@ -39,6 +39,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = readStoredTheme();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- browser state is read after mount; reading it during render breaks hydration
     if (stored && stored !== DEFAULT_THEME) setThemeState(stored);
   }, []);
 

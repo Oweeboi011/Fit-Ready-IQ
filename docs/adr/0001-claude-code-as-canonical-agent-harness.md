@@ -1,3 +1,5 @@
 # Claude Code is the canonical agent harness
 
 The repo had two parallel, drifting agent harnesses: Claude Code (`.claude/CLAUDE.md`, `.claude/skills/`) and GitHub Copilot (`.github/agents/dev-agent.agent.md`, `.github/instructions/copilot-instructions.md`, `general-coding.instructions.md`), each restating the same architecture/convention rules independently. The Copilot files had already drifted (template contamination — Avanade branding, PostgreSQL/Azure references, a fictional `docs/adr/` mandate that this repo didn't follow until this ADR). We decided Claude Code is canonical, since it's what's actually driving work and what the prior IDP audit (`docs/idp-audit-2026-07-16.md`) kept current; the Copilot files are reduced to a thin pointer at `CLAUDE.md` rather than a second copy of the same rules.
+
+> Note 2026-10-06: the IDP audit and the Copilot pointer files are deleted. `src/frontend/AGENTS.md` (with `CLAUDE.md` → `@AGENTS.md`) is written by `next dev` and only points agents at Next's bundled docs; it is not a second guide.

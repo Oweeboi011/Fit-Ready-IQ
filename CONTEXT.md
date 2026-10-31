@@ -8,7 +8,7 @@ An outdoor fitness platform combining route discovery, Strava integration, GPX i
 
 **Trip**:
 A single outing by one person to one Route or Place on one date — planned beforehand, then either completed or abandoned. The central concept: readiness, weather, gear, the safety check-in and the eventual record all belong to a Trip.
-_Avoid_: Itinerary (the dormant backend entity and `itineraries` collection are the same concept under an older name and are being renamed), adventure, outing.
+_Avoid_: Itinerary (the older name; the backend entity was deleted as dead code, and the unused `itineraries` collection is renamed with the first Trip code), adventure, outing.
 
 **Route**:
 A way you travel, defined by its geometry — an ordered line of coordinates from which length and elevation gain are derived, never guessed. A Route is real regardless of who produced it: an import, an uploaded track, or one a user drew.

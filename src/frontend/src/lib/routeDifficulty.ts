@@ -77,14 +77,6 @@ export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
   unknown: 'Unrated',
 };
 
-/** One colour per band, used by the chips, cards, map pins and modal alike. */
-export const DIFFICULTY_COLORS: Record<Difficulty, string> = {
-  easy: '#22c55e',
-  moderate: '#f59e0b',
-  challenging: '#ef4444',
-  unknown: '#64748b',
-};
-
 export function isDifficulty(value: unknown): value is Difficulty {
   return value === 'easy' || value === 'moderate' || value === 'challenging' || value === 'unknown';
 }

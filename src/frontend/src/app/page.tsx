@@ -280,6 +280,12 @@ export default function LandingPage() {
             >
               Pricing
             </Link>
+            <Link
+              href="/privacy"
+              className="rounded transition-colors hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+            >
+              Privacy
+            </Link>
           </div>
         </div>
       </footer>

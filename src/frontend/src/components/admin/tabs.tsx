@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { CheckCircle, TriangleAlert } from 'lucide-react';
 
 import { authedFetch } from '@/lib/firebaseClient';
@@ -211,6 +212,12 @@ export function GovernanceTab({ data }: { data: AdminData }) {
 }
 
 export function CachingTab({ data, onRefresh }: { data: AdminData; onRefresh: () => void }) {
+  // Inline two-step confirmation rather than a second dialog: this tab already
+  // lives inside the admin modal, and stacked dialogs fight over focus and
+  // Escape. It replaces `window.confirm`, which blocks the tab and which some
+  // browsers suppress after a few prompts — silently answering "no".
+  const [confirmingPurge, setConfirmingPurge] = useState(false);
+  const [purgeError, setPurgeError] = useState<string | null>(null);
   const cache = data.cache;
   if (!cache) {
     return (
@@ -224,18 +231,20 @@ export function CachingTab({ data, onRefresh }: { data: AdminData; onRefresh: ()
   const freshShare = cache.total === 0 ? 0 : Math.round((cache.fresh / cache.total) * 100);
 
   async function purgeAll() {
-    if (
-      !confirm(
-        'Purge ALL cache entries? The next user in each region will trigger a full live fetch.'
-      )
-    ) {
-      return;
-    }
+    setConfirmingPurge(false);
+    setPurgeError(null);
     try {
-      await authedFetch('/api/admin/cache', { method: 'DELETE' });
+      const res = await authedFetch('/api/admin/cache?all=true', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'PURGE' }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       onRefresh();
     } catch (err) {
       console.error('Purge failed:', err);
+      // It used to fail with nothing on screen but an unchanged table.
+      setPurgeError('Purge failed — the cache was not changed.');
     }
   }
 
@@ -264,13 +273,46 @@ export function CachingTab({ data, onRefresh }: { data: AdminData; onRefresh: ()
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={purgeAll}
-        className={`${buttonGhost} ${buttonSize.sm} text-red-400 hover:bg-red-500/15 hover:text-red-300`}
-      >
-        Purge all cache entries
-      </button>
+      {confirmingPurge ? (
+        <div
+          role="group"
+          aria-label="Confirm purge"
+          className="rounded-xl border border-red-500/30 bg-red-500/10 p-3"
+        >
+          <p className="text-xs text-red-200">
+            Delete every cached region? The next visitor in each one triggers a full live fetch.
+          </p>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => void purgeAll()}
+              className={`${buttonGhost} ${buttonSize.sm} text-red-300 hover:bg-red-500/20 hover:text-red-200`}
+            >
+              Yes, purge all
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmingPurge(false)}
+              className={`${buttonGhost} ${buttonSize.sm}`}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirmingPurge(true)}
+          className={`${buttonGhost} ${buttonSize.sm} text-red-400 hover:bg-red-500/15 hover:text-red-300`}
+        >
+          Purge all cache entries
+        </button>
+      )}
+      {purgeError && (
+        <p role="alert" className="text-xs text-red-300">
+          {purgeError}
+        </p>
+      )}
     </div>
   );
 }
@@ -323,7 +365,7 @@ export function EfficiencyTab({ data }: { data: AdminData }) {
         <ul className="mt-2 space-y-1.5 text-[11px] leading-relaxed text-slate-400">
           <li>
             A cold region costs roughly 40 Places text searches, 4 nearby searches, plus Elevation
-            and Distance Matrix batches.
+            batches.
           </li>
           <li>
             Three cache tiers absorb repeats: sessionStorage per tab (30 min), Firestore shared

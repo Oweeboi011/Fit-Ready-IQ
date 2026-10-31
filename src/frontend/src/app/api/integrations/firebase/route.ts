@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { requireAdmin } from '@/lib/adminAuth';
 import { getFirebaseConnectionStatus, getFirestoreAdmin } from '@/lib/firebaseAdmin';
+import { createLogger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 
@@ -17,6 +18,7 @@ export const runtime = 'nodejs';
  * Use /api/health for uptime monitoring; that one is meant to be public.
  */
 export async function GET(request: Request) {
+  const log = createLogger('/api/integrations/firebase', request);
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
 
@@ -51,13 +53,16 @@ export async function GET(request: Request) {
       firestoreWrite: true,
     });
   } catch (error) {
+    // The raw Admin SDK message goes to the log, redacted and tied to the
+    // request id — an admin reading this response can look it up there.
+    log.error('firebase_probe_write_failed', error);
     return NextResponse.json(
       {
         connected: true,
         provider: 'firebase',
         gcpProjectId: status.projectId,
         firestoreWrite: false,
-        error: error instanceof Error ? error.message : 'Unknown Firestore error',
+        error: 'firestore_write_failed',
       },
       { status: 500 }
     );

@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   const auth = await requireUser(request);
   if (!auth.ok) return auth.response;
 
-  const limit = await rateLimit(request, STRAVA_CONNECTION_RATE_LIMIT);
+  const limit = await rateLimit(request, STRAVA_CONNECTION_RATE_LIMIT, auth.user);
   if (!limit.ok) return tooManyRequests(limit);
 
   const connection = await getStravaConnection(auth.user.uid);
@@ -51,7 +51,7 @@ export async function DELETE(request: Request) {
   const auth = await requireUser(request);
   if (!auth.ok) return auth.response;
 
-  const limit = await rateLimit(request, STRAVA_CONNECTION_RATE_LIMIT);
+  const limit = await rateLimit(request, STRAVA_CONNECTION_RATE_LIMIT, auth.user);
   if (!limit.ok) return tooManyRequests(limit);
 
   const log = createLogger('/api/strava/connection', request);

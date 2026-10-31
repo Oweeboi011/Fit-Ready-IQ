@@ -14,7 +14,8 @@ vi.mock('./firebaseAdmin', () => ({ getFirebaseAdminApp: vi.fn() }));
 // so a failed audit write cannot be mistaken for a failed authorisation check.
 vi.mock('./auditLog', () => ({ recordAudit: vi.fn().mockResolvedValue(undefined) }));
 
-import { requireAdmin, requireRole, satisfies } from './adminAuth';
+import { recordAudit } from './auditLog';
+import { currentRole, requireAdmin, requireRole, satisfies } from './adminAuth';
 
 const originalAllowlist = process.env.ADMIN_EMAILS;
 
@@ -26,6 +27,7 @@ function requestWithToken(token = 'any-token'): Request {
 
 beforeEach(() => {
   verifyIdToken.mockReset();
+  vi.mocked(recordAudit).mockClear();
   delete process.env.ADMIN_EMAILS;
 });
 
@@ -166,5 +168,52 @@ describe('requireAdmin', () => {
     const result = await requireAdmin(requestWithToken());
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.admin).toMatchObject({ uid: 'u1', role: 'admin' });
+  });
+});
+
+describe('currentRole', () => {
+  it('answers null when the request carries no valid token', async () => {
+    expect(await currentRole(new Request('https://fitreadyiq.test/x'))).toBeNull();
+    verifyIdToken.mockRejectedValue(new Error('forged'));
+    expect(await currentRole(requestWithToken())).toBeNull();
+  });
+
+  it('reports the role the gate would grant', async () => {
+    verifyIdToken.mockResolvedValue({
+      uid: 'u1',
+      email: 'v@x.com',
+      email_verified: true,
+      fri_role: 'viewer',
+    });
+    expect(await currentRole(requestWithToken())).toEqual({ uid: 'u1', role: 'viewer' });
+  });
+
+  it('writes no audit record for an ordinary user asking whether they are an admin', async () => {
+    // whoami asks this on every page load for every signed-in visitor. Auditing
+    // it made each page view a two-year record of the visitor's email and IP.
+    verifyIdToken.mockResolvedValue({ uid: 'u2', email: 'someone@x.com', email_verified: true });
+    expect(await currentRole(requestWithToken())).toEqual({ uid: 'u2', role: null });
+    expect(recordAudit).not.toHaveBeenCalled();
+  });
+
+  it('treats an unverified email as no role, as the gate does', async () => {
+    process.env.ADMIN_EMAILS = 'owner@fitreadyiq.com';
+    verifyIdToken.mockResolvedValue({
+      uid: 'u3',
+      email: 'owner@fitreadyiq.com',
+      email_verified: false,
+    });
+    expect(await currentRole(requestWithToken())).toEqual({ uid: 'u3', role: null });
+  });
+});
+
+describe('requireRole audit trail', () => {
+  it('still records a denial when a real admin endpoint is refused', async () => {
+    verifyIdToken.mockResolvedValue({ uid: 'u2', email: 'someone@x.com', email_verified: true });
+    await requireRole(requestWithToken(), 'viewer');
+    expect(recordAudit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ action: 'admin.access_denied', detail: { reason: 'no_role' } })
+    );
   });
 });

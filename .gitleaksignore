@@ -1,0 +1,21 @@
+# Reviewed 2026-09-28: every entry below is a documentation placeholder or a
+# public identifier, not a credential. Fingerprints pin the exact commit, file
+# and line, so a real secret added anywhere else still fails the scan.
+#
+# docs/API.md (24fae1e): curl examples with "Bearer YOUR_TOKEN" and truncated
+# "eyJhbG..." JWT samples.
+24fae1e3e46cb39a977bd0a650e3084f7963138c:docs/API.md:curl-auth-header:214
+24fae1e3e46cb39a977bd0a650e3084f7963138c:docs/API.md:curl-auth-header:262
+24fae1e3e46cb39a977bd0a650e3084f7963138c:docs/API.md:curl-auth-header:351
+24fae1e3e46cb39a977bd0a650e3084f7963138c:docs/API.md:curl-auth-header:451
+24fae1e3e46cb39a977bd0a650e3084f7963138c:docs/API.md:curl-auth-header:605
+24fae1e3e46cb39a977bd0a650e3084f7963138c:docs/API.md:curl-auth-header:875
+24fae1e3e46cb39a977bd0a650e3084f7963138c:docs/API.md:generic-api-key:127
+24fae1e3e46cb39a977bd0a650e3084f7963138c:docs/API.md:generic-api-key:153
+# docs/DEPLOYMENT.md (24fae1e): CI example values prefixed "test_".
+24fae1e3e46cb39a977bd0a650e3084f7963138c:docs/DEPLOYMENT.md:generic-api-key:467
+24fae1e3e46cb39a977bd0a650e3084f7963138c:docs/DEPLOYMENT.md:generic-api-key:468
+# infra/ (3c840e6, removed Azure scaffolding): the built-in Azure "Key Vault
+# Secrets User" role definition GUID, which is published by Microsoft.
+3c840e61be88826e14d3f07a04d0827c33a710e0:infra/main.json:generic-api-key:310
+3c840e61be88826e14d3f07a04d0827c33a710e0:infra/modules/keyVault.bicep:generic-api-key:35

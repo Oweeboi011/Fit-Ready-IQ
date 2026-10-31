@@ -31,6 +31,7 @@ interface HealthReport {
     weather: ServiceStatus;
     routing: ServiceStatus;
     strava: ServiceStatus;
+    rate_limiting: ServiceStatus;
   };
 }
 
@@ -79,9 +80,8 @@ function checkFirebaseAdmin(): ServiceStatus {
   // Reported in the same order firebaseAdmin.ts resolves them, so the message
   // names the credential the SDK will actually use rather than one that happens
   // to be present.
-  if (hasJson) return { ok: true, message: `Service account JSON (project: ${projectId})` };
-  if (hasKeyPair)
-    return { ok: true, message: `Client email + private key (project: ${projectId})` };
+  if (hasJson) return { ok: true, message: 'Service account JSON' };
+  if (hasKeyPair) return { ok: true, message: 'Client email + private key' };
 
   const adc = findAdcSource();
   if (adc) return { ok: true, message: `Application Default Credentials via ${adc}` };
@@ -189,6 +189,17 @@ function checkGemini(): ServiceStatus {
   return { ok: true, message: 'API key present' };
 }
 
+/**
+ * The limiter fails open without Firebase, and without `RATE_LIMIT_SALT` it
+ * stores plain hashes of client IPs — both invisible from the outside.
+ */
+function checkRateLimiting(): ServiceStatus {
+  if (!process.env.RATE_LIMIT_SALT) {
+    return { ok: false, message: 'RATE_LIMIT_SALT not set — bucket keys are unsalted hashes' };
+  }
+  return { ok: true, message: 'Salt present' };
+}
+
 export function GET() {
   const firebaseAdmin = checkFirebaseAdmin();
   const weather = checkWeather();
@@ -204,13 +215,13 @@ export function GET() {
   const fbProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   const firebase_client: ServiceStatus =
     fbProjectId && process.env.NEXT_PUBLIC_FIREBASE_API_KEY
-      ? { ok: true, message: `Project: ${fbProjectId}` }
+      ? { ok: true, message: 'Client config present' }
       : { ok: false, message: 'NEXT_PUBLIC_FIREBASE_* vars missing' };
 
   const stravaId = process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID;
   const strava: ServiceStatus =
     stravaId && process.env.STRAVA_CLIENT_SECRET
-      ? { ok: true, message: `Client ID: ${stravaId}` }
+      ? { ok: true, message: 'Client ID and secret present' }
       : { ok: false, message: 'NEXT_PUBLIC_STRAVA_CLIENT_ID or STRAVA_CLIENT_SECRET missing' };
 
   const services = {
@@ -221,6 +232,7 @@ export function GET() {
     weather,
     routing,
     strava,
+    rate_limiting: checkRateLimiting(),
   };
 
   const values = Object.values(services);

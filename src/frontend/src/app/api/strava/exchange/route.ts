@@ -8,6 +8,8 @@ import { STRAVA_EXCHANGE_RATE_LIMIT } from '@/lib/rateLimitRules';
 
 export const runtime = 'nodejs';
 
+const MAX_CODE_LENGTH = 256;
+
 /** Strava's token endpoint is normally sub-second; past this it is not coming. */
 const STRAVA_TIMEOUT_MS = 10_000;
 
@@ -37,7 +39,7 @@ export async function POST(request: NextRequest) {
   const auth = await requireUser(request);
   if (!auth.ok) return auth.response;
 
-  const limit = await rateLimit(request, STRAVA_EXCHANGE_RATE_LIMIT);
+  const limit = await rateLimit(request, STRAVA_EXCHANGE_RATE_LIMIT, auth.user);
   if (!limit.ok) return tooManyRequests(limit);
 
   const clientId = process.env.STRAVA_CLIENT_ID;
@@ -54,7 +56,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     code = body.code;
-    if (!code || typeof code !== 'string') throw new Error();
+    // Strava's codes are 40 hex characters; the bound only has to stop an
+    // arbitrarily large string being forwarded to Strava in our name.
+    if (!code || typeof code !== 'string' || code.length > MAX_CODE_LENGTH) throw new Error();
   } catch {
     return NextResponse.json({ error: 'Missing or invalid authorization code' }, { status: 400 });
   }
@@ -108,7 +112,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  log.info('strava_connected', { athlete_id: connection.athleteId });
+  // The Strava athlete id is a public profile identifier; an info line on
+  // every connect is not the place to collect them.
+  log.info('strava_connected');
 
   // Deliberately not the token payload. The browser gets what it needs to render
   // "connected as X" and nothing it could leak.

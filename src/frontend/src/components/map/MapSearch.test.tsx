@@ -41,7 +41,7 @@ function setup(overrides: Partial<typeof state> = {}, plannerOpen = false) {
   render(
     <MapSearch near={NEAR} onGoTo={onGoTo} onAddToPlan={onAddToPlan} plannerOpen={plannerOpen} />
   );
-  const input = screen.getByRole('combobox');
+  const input = screen.getByRole('textbox');
   fireEvent.focus(input);
   return { input, onGoTo, onAddToPlan };
 }
@@ -54,7 +54,7 @@ describe('MapSearch', () => {
     render(
       <MapSearch near={undefined} onGoTo={vi.fn()} onAddToPlan={vi.fn()} plannerOpen={false} />
     );
-    expect(screen.getByRole('combobox')).toBeDisabled();
+    expect(screen.getByRole('textbox')).toBeDisabled();
   });
 
   it('lists the results with their addresses', () => {
@@ -78,18 +78,18 @@ describe('MapSearch', () => {
 
   it('walks the list with the arrow keys', () => {
     const { input } = setup({ results: RESULTS });
-    const options = () => screen.getAllByRole('option');
-    expect(options()[0].getAttribute('aria-selected')).toBe('true');
+    const options = () => screen.getAllByRole('listitem');
+    expect(options()[0].getAttribute('aria-current')).toBe('true');
 
     fireEvent.keyDown(input, { key: 'ArrowDown' });
-    expect(options()[1].getAttribute('aria-selected')).toBe('true');
+    expect(options()[1].getAttribute('aria-current')).toBe('true');
 
     // Wraps rather than sticking at the end.
     fireEvent.keyDown(input, { key: 'ArrowDown' });
-    expect(options()[0].getAttribute('aria-selected')).toBe('true');
+    expect(options()[0].getAttribute('aria-current')).toBe('true');
 
     fireEvent.keyDown(input, { key: 'ArrowUp' });
-    expect(options()[1].getAttribute('aria-selected')).toBe('true');
+    expect(options()[1].getAttribute('aria-current')).toBe('true');
   });
 
   it('Enter adds to the plan while the planner is open', () => {
@@ -118,14 +118,14 @@ describe('MapSearch', () => {
 
   it('closes on Escape', () => {
     const { input } = setup({ results: RESULTS });
-    expect(screen.getAllByRole('option')).toHaveLength(2);
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
     fireEvent.keyDown(input, { key: 'Escape' });
-    expect(screen.queryAllByRole('option')).toHaveLength(0);
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0);
   });
 
   it('keeps the panel open after adding, so a route can be built from several places', () => {
     setup({ results: RESULTS }, true);
     fireEvent.click(screen.getByLabelText('Add Mount Pulag to your plan'));
-    expect(screen.getAllByRole('option').length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('listitem').length).toBeGreaterThan(0);
   });
 });

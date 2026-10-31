@@ -54,6 +54,8 @@ import { recordWeatherAlerts } from '@/lib/weatherAlertCache';
 import type { WeatherAlert } from '@/lib/weatherAlerts';
 import type { WeatherWindow } from '@/lib/weatherWindow';
 import { estimateAscentHours } from '@/lib/routeDuration';
+import { DIFFICULTY_LABELS } from '@/lib/routeDifficulty';
+import { mountainGain, summitOf } from '@/lib/mountainMetrics';
 import { WeatherAlertChips } from '@/components/WeatherAlertBadge';
 import { WeatherWindowPanel } from '@/components/WeatherWindowPanel';
 
@@ -92,6 +94,48 @@ const WEATHER_UNAVAILABLE: WeatherResult = {
   window: null,
 };
 
+/**
+ * Shown while the request is in flight. "Forecast unavailable" used to fill
+ * this gap too, so every place announced it had no forecast for a second
+ * before showing one — and a real failure looked identical to loading.
+ */
+const WEATHER_LOADING: WeatherResult = {
+  ...WEATHER_UNAVAILABLE,
+  best: 'Loading…',
+  avoid: 'Loading…',
+  risk: 'Fetching the forecast for this location.',
+};
+
+type WeatherStatus = 'idle' | 'loading' | 'ready' | 'failed';
+
+/**
+ * The kit list. Driven by altitude only where altitude is the actual reason
+ * (cold and exposure). It used to infer "technical sections" from altitude
+ * too, recommending a harness for any summit above 2,000 m and crampons above
+ * 2,500 m — a walk-up with a road to the top got climbing gear. Nothing we
+ * hold says whether a route is technical, so that line is gone.
+ */
+function gearFor(summitElevation: number | null | undefined): string[] {
+  const high = summitElevation != null && summitElevation > 2500;
+  return [
+    ...(high
+      ? [
+          'Trekking poles',
+          'Insulating + waterproof layers',
+          'Check current snow and ice conditions before you go',
+        ]
+      : ['Ankle-support trail shoes or boots', 'Lightweight rain jacket']),
+    '3–4L water capacity (hydration bladder + bottle)',
+    'Headlamp + spare batteries',
+    'First aid kit with blister care',
+    'Emergency bivy / space blanket',
+    'High-energy snacks (nuts, energy bars, dried fruit)',
+    'Sunscreen SPF 50+, buff/neck gaiter',
+    'Whistle, map or offline GPS',
+    'LNT waste bag — pack out all trash',
+  ];
+}
+
 interface DetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -114,7 +158,23 @@ export default function DetailsModal({
   const [runtimePhotos, setRuntimePhotos] = useState<string[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [photosFailed, setPhotosFailed] = useState(false);
+  const [photosAttempt, setPhotosAttempt] = useState(0);
   const [liveWeather, setLiveWeather] = useState<WeatherResult | null>(null);
+  const [weatherStatus, setWeatherStatus] = useState<WeatherStatus>('idle');
+  // Bumped by the retry button to re-run the weather effect.
+  const [weatherAttempt, setWeatherAttempt] = useState(0);
+  const weatherNotes =
+    liveWeather ?? (weatherStatus === 'loading' ? WEATHER_LOADING : WEATHER_UNAVAILABLE);
+  const weatherRetry =
+    weatherStatus === 'failed' ? (
+      <button
+        type="button"
+        onClick={() => setWeatherAttempt((n) => n + 1)}
+        className={`${buttonSecondary} ${buttonSize.sm} mt-2`}
+      >
+        Couldn&apos;t load the forecast — retry
+      </button>
+    ) : null;
 
   /**
    * The recorded track, when the selection is an activity that has one.
@@ -132,7 +192,9 @@ export default function DetailsModal({
   // Fetch live weather whenever the modal opens for a mountain or route
   useEffect(() => {
     if (!isOpen || !data || data.type === 'activity' || data.type === 'campsite') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets to idle when the input goes away, after the previous run has been cancelled
       setLiveWeather(null);
+      setWeatherStatus('idle');
       return;
     }
     const [lng, lat] = data.coordinates;
@@ -147,46 +209,67 @@ export default function DetailsModal({
     const cachedTs = weatherCacheTs.get(cacheKey) ?? 0;
     if (cached && Date.now() - cachedTs < WEATHER_TTL_MS) {
       setLiveWeather(cached);
+      setWeatherStatus('ready');
       return;
     }
 
+    // Selecting another place mid-request must not land this one's forecast
+    // on it — the modal is reused, so the old response would label the new peak.
+    let cancelled = false;
+    setLiveWeather(null);
+    setWeatherStatus('loading');
+
     // Scope the window to this route's length, not just its location — the same
     // Naismith estimate the modal already shows the user as an hour range.
-    const gain =
-      data.type === 'route' ? data.elevation_gain_m : (data.elevation_m ?? data.summit_elevation);
+    // For a peak that is jump-off to summit, never the summit's height above
+    // sea level — which asked a 2,500 m peak with a trailhead 300 m below the
+    // top for an eleven-hour weather window.
+    const gain = data.type === 'route' ? data.elevation_gain_m : mountainGain(data);
     const required = estimateAscentHours(gain)?.high ?? null;
 
     const url =
-      `/api/weather?lat=${lat}&lng=${lng}` +
+      // ~1 km rounding: finer than a forecast grid, coarse enough to share
+      // the CDN cache with anyone else looking at the same peak.
+      `/api/weather?lat=${lat.toFixed(2)}&lng=${lng.toFixed(2)}` +
       `${elevation != null ? `&elevation=${elevation}` : ''}` +
       `${required != null ? `&hours=${required}` : ''}`;
     fetch(url)
       .then((r) => (r.ok ? r.json() : null))
       .then((json) => {
-        if (json && json.summary && !json.error) {
-          const result: WeatherResult = {
-            best: json.summary.best,
-            avoid: json.summary.avoid,
-            temp: json.summary.temp,
-            risk: json.summary.risk,
-            live: true,
-            alerts: Array.isArray(json.alerts) ? json.alerts : [],
-            window: json.window ?? null,
-          };
-          weatherCache.set(cacheKey, result);
-          weatherCacheTs.set(cacheKey, Date.now());
-          setLiveWeather(result);
-          recordWeatherAlerts(lat, lng, result.alerts);
+        if (cancelled) return;
+        if (!json || !json.summary || json.error) {
+          setWeatherStatus('failed');
+          return;
         }
+        const result: WeatherResult = {
+          best: json.summary.best,
+          avoid: json.summary.avoid,
+          temp: json.summary.temp,
+          risk: json.summary.risk,
+          live: true,
+          alerts: Array.isArray(json.alerts) ? json.alerts : [],
+          window: json.window ?? null,
+        };
+        weatherCache.set(cacheKey, result);
+        weatherCacheTs.set(cacheKey, Date.now());
+        setLiveWeather(result);
+        setWeatherStatus('ready');
+        recordWeatherAlerts(lat, lng, result.alerts);
       })
       .catch(() => {
-        /* silently fall back to static notes */
+        // Said, not swallowed: the panel offers a retry.
+        if (!cancelled) setWeatherStatus('failed');
       });
-  }, [isOpen, data]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, data, weatherAttempt]);
 
   // Lazily fetch photos from Google Places when the modal opens
   useEffect(() => {
     if (!isOpen || !data) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets to idle when the input goes away, after the previous run has been cancelled
       setRuntimePhotos([]);
       return;
     }
@@ -206,10 +289,15 @@ export default function DetailsModal({
       return;
     }
 
+    // Cleared first and guarded after: the modal is reused, so a slow response
+    // for the previous place would otherwise show its photos on this one.
+    let cancelled = false;
+    setRuntimePhotos([]);
     setLoadingPhotos(true);
     setPhotosFailed(false);
     const service = new google.maps.places.PlacesService(document.createElement('div'));
     service.getDetails({ placeId, fields: ['photos'] }, (place, status) => {
+      if (cancelled) return;
       setLoadingPhotos(false);
       const { OK, ZERO_RESULTS } = google.maps.places.PlacesServiceStatus;
 
@@ -225,11 +313,17 @@ export default function DetailsModal({
       // A place genuinely without photos and a failed request used to look
       // identical — both fell through to "No photos available".
       if (status !== OK && status !== ZERO_RESULTS) {
-        console.error('Place photos request failed:', status);
         setPhotosFailed(true);
       }
     });
-  }, [isOpen, data]);
+
+    return () => {
+      cancelled = true;
+      // The cancelled callback will not clear it, and a cached next place
+      // never sets it — so a spinner would otherwise outlive its request.
+      setLoadingPhotos(false);
+    };
+  }, [isOpen, data, photosAttempt]);
 
   if (!isOpen || !data) return null;
 
@@ -261,8 +355,11 @@ export default function DetailsModal({
   const calculateElevationMetrics = (route: RouteDetails) => {
     const elevationGain = route.elevation_gain_m;
     const distance = route.distance_km;
+    // A grade needs a length to spread the climb over. Without one there is
+    // no grade — dividing relief by the old user-to-trailhead distance gave a
+    // gradient that changed with where the visitor happened to be.
     const averageGrade =
-      elevationGain == null
+      elevationGain == null || distance == null || distance <= 0
         ? null
         : parseFloat(((elevationGain / (distance * 1000)) * 100).toFixed(1));
 
@@ -372,10 +469,10 @@ export default function DetailsModal({
                   <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
                     <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                       <Route aria-hidden="true" className="h-3 w-3" />
-                      Distance
+                      Length
                     </p>
                     <p className="font-tabular mt-1.5 text-xl font-bold text-white">
-                      {data.distance_km.toFixed(1)} km
+                      {data.distance_km == null ? '—' : `${data.distance_km.toFixed(1)} km`}
                     </p>
                   </div>
                   <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
@@ -392,8 +489,8 @@ export default function DetailsModal({
                       <Gauge aria-hidden="true" className="h-3 w-3" />
                       Difficulty
                     </p>
-                    <p className="mt-1.5 text-xl font-bold capitalize text-white">
-                      {data.difficulty}
+                    <p className="mt-1.5 text-xl font-bold text-white">
+                      {DIFFICULTY_LABELS[data.difficulty]}
                     </p>
                   </div>
                   <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
@@ -421,6 +518,7 @@ export default function DetailsModal({
                   photos={resolvedPhotos}
                   loading={loadingPhotos}
                   failed={photosFailed}
+                  onRetry={() => setPhotosAttempt((n) => n + 1)}
                   placeName={data.name}
                 />
 
@@ -437,7 +535,9 @@ export default function DetailsModal({
                           {data.strava_segment.name}
                         </p>
                         <span className="rounded bg-ink/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                          {data.strava_segment.total_efforts || 0} efforts
+                          {data.strava_segment.total_efforts == null
+                            ? 'Efforts unknown'
+                            : `${data.strava_segment.total_efforts} efforts`}
                         </span>
                       </div>
                       <div className="mb-3 grid grid-cols-2 gap-2">
@@ -628,7 +728,9 @@ export default function DetailsModal({
                       <p className="text-xs text-slate-400">Based on distance and elevation gain</p>
                       <p className="mt-1 text-lg font-semibold text-white">
                         {(() => {
-                          if (data.elevation_gain_m == null) return 'Not available';
+                          if (data.elevation_gain_m == null || data.distance_km == null) {
+                            return 'Not available';
+                          }
                           const totalMinutes = Math.round(
                             data.distance_km * 3.5 + data.elevation_gain_m * 0.3
                           );
@@ -729,31 +831,7 @@ export default function DetailsModal({
                     const ascent = estimateAscentHours(elevGain);
                     const lo = ascent?.low ?? null;
                     const hi = ascent?.high ?? null;
-                    const isHighAlt = (summitElev ?? 0) > 2500;
-                    const isTechnical = (summitElev ?? 0) > 2000;
-
-                    const weatherNotes = liveWeather ?? WEATHER_UNAVAILABLE;
-
-                    const gearList = [
-                      ...(isHighAlt
-                        ? [
-                            'Trekking poles (mandatory)',
-                            'Crampon-compatible boots',
-                            'Fleece + waterproof outer layer',
-                          ]
-                        : ['Ankle-support trail shoes or boots', 'Lightweight rain jacket']),
-                      '3–4L water capacity (hydration bladder + bottle)',
-                      'Headlamp + spare batteries',
-                      'First aid kit with blister care',
-                      'Emergency bivy / space blanket',
-                      isTechnical
-                        ? 'Fixed rope gloves + harness (technical sections)'
-                        : 'Gaiters for muddy sections',
-                      'High-energy snacks (nuts, energy bars, dried fruit)',
-                      'Sunscreen SPF 50+, buff/neck gaiter',
-                      'Whistle, map or offline GPS',
-                      'LNT waste bag — pack out all trash',
-                    ];
+                    const gearList = gearFor(summitElev);
 
                     return (
                       <>
@@ -765,9 +843,11 @@ export default function DetailsModal({
                               Climb Time
                             </p>
                             <p className="font-tabular mt-1.5 text-xl font-bold text-white">
-                              {lo}–{hi}h
+                              {lo != null && hi != null ? `${lo}–${hi}h` : '—'}
                             </p>
-                            <p className="text-[11px] text-slate-400">Naismith&apos;s rule</p>
+                            <p className="text-[11px] text-slate-400">
+                              {lo != null ? "Naismith's rule" : 'ascent unknown'}
+                            </p>
                           </div>
                           <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3 text-center">
                             <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
@@ -779,7 +859,9 @@ export default function DetailsModal({
                                 ? 'Advanced'
                                 : data.difficulty === 'moderate'
                                   ? 'Intermediate'
-                                  : 'Beginner'}
+                                  : data.difficulty === 'easy'
+                                    ? 'Beginner'
+                                    : 'Not rated'}
                             </p>
                             <p className="text-[11px] text-slate-400">required level</p>
                           </div>
@@ -897,6 +979,7 @@ export default function DetailsModal({
                                 <p className="mt-2 rounded-md bg-ink/5 px-3 py-2 text-xs text-slate-300">
                                   RISK: {weatherNotes.risk}
                                 </p>
+                                {weatherRetry}
                                 <WeatherAlertChips alerts={weatherNotes.alerts} />
                                 <div className="mt-3">
                                   <WeatherWindowPanel window={weatherNotes.window} />
@@ -973,9 +1056,14 @@ export default function DetailsModal({
                     id={data.id}
                     name={data.name}
                     summary={
-                      data.elevation_gain_m == null
-                        ? `${data.distance_km.toFixed(1)} km`
-                        : `${data.distance_km.toFixed(1)} km · ${data.elevation_gain_m} m gain`
+                      // Only what is known, and relief called relief: it is
+                      // sampled near the trailhead, not climbed along the trail.
+                      [
+                        data.distance_km == null ? null : `${data.distance_km.toFixed(1)} km`,
+                        data.elevation_gain_m == null ? null : `${data.elevation_gain_m} m relief`,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ') || DIFFICULTY_LABELS[data.difficulty]
                     }
                   />
                 </div>
@@ -1014,7 +1102,7 @@ export default function DetailsModal({
                   Prominence
                 </p>
                 <p className="font-tabular mt-1.5 text-xl font-bold text-white">
-                  {data.prominence_m} m
+                  {data.prominence_m == null ? '—' : `${data.prominence_m} m`}
                 </p>
               </div>
               <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
@@ -1032,6 +1120,7 @@ export default function DetailsModal({
               photos={resolvedPhotos}
               loading={loadingPhotos}
               failed={photosFailed}
+              onRetry={() => setPhotosAttempt((n) => n + 1)}
               placeName={data.name}
             />
 
@@ -1046,7 +1135,9 @@ export default function DetailsModal({
                   <div className="mb-3 flex items-center justify-between">
                     <p className="text-sm font-semibold text-white">{data.strava_segment.name}</p>
                     <span className="rounded bg-ink/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                      {data.strava_segment.total_efforts || 0} efforts
+                      {data.strava_segment.total_efforts == null
+                        ? 'Efforts unknown'
+                        : `${data.strava_segment.total_efforts} efforts`}
                     </span>
                   </div>
                   <div className="mb-3 grid grid-cols-2 gap-2">
@@ -1115,7 +1206,9 @@ export default function DetailsModal({
                     <div className="flex-1">
                       <h4 className="mb-1 font-semibold text-white">Starting Point (Jumpoff)</h4>
                       <p className="text-sm text-slate-300">
-                        Begin your climb at {data.jumpoff_elevation || 'the base elevation'}m.
+                        {data.jumpoff_elevation == null
+                          ? 'Begin your climb at the trailhead.'
+                          : `Begin your climb at ${data.jumpoff_elevation} m.`}{' '}
                         Prepare proper gear and check weather conditions before starting.
                       </p>
                     </div>
@@ -1127,9 +1220,13 @@ export default function DetailsModal({
                     <div className="flex-1">
                       <h4 className="mb-1 font-semibold text-white">The Ascent</h4>
                       <p className="text-sm text-slate-300">
-                        {(data.summit_elevation ?? data.elevation_m)
-                          ? `Gain ${(data.summit_elevation ?? data.elevation_m!) - (data.jumpoff_elevation ?? 0)} m of elevation through varied terrain.`
-                          : 'Elevation for this peak is unavailable.'}{' '}
+                        {/* Gain needs both ends. Subtracting from an assumed start
+                            of 0 m reported the peak's height above sea level as
+                            the climb — thousands of metres for a hill with a car
+                            park near the top. */}
+                        {mountainGain(data) != null
+                          ? `Gain ${mountainGain(data)} m of elevation through varied terrain.`
+                          : 'How much you climb depends on where you start, which we do not know for this peak.'}{' '}
                         Pace yourself and stay hydrated.
                       </p>
                     </div>
@@ -1140,7 +1237,7 @@ export default function DetailsModal({
                     </div>
                     <div className="flex-1">
                       <h4 className="mb-1 font-semibold text-white">
-                        Summit ({data.summit_elevation || data.elevation_m}m)
+                        {summitOf(data) == null ? 'Summit' : `Summit (${summitOf(data)} m)`}
                       </h4>
                       <p className="text-sm text-slate-300">
                         Reach the peak and enjoy panoramic views. Take time to rest and capture the
@@ -1183,57 +1280,31 @@ export default function DetailsModal({
                       </div>
                     </div>
                     <p className="font-tabular text-base font-bold text-white">
-                      {data.summit_elevation || data.elevation_m}m
+                      {summitOf(data) == null ? '—' : `${summitOf(data)} m`}
                     </p>
                   </div>
-                  {data.jumpoff_elevation != null &&
-                    (data.summit_elevation ?? data.elevation_m) != null && (
-                      <div className="pt-1">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm text-slate-300">Total Elevation Gain</p>
-                          <p className="font-tabular text-base font-bold text-blue-400">
-                            +{(data.summit_elevation ?? data.elevation_m!) - data.jumpoff_elevation}
-                            m
-                          </p>
-                        </div>
+                  {mountainGain(data) != null && (
+                    <div className="pt-1">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-slate-300">Total Elevation Gain</p>
+                        <p className="font-tabular text-base font-bold text-blue-400">
+                          +{mountainGain(data)} m
+                        </p>
                       </div>
-                    )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
             {/* ── Pre-Climb Briefing ── */}
             {(() => {
-              const summit = data.summit_elevation ?? data.elevation_m;
-              const elevGain = summit == null ? null : summit - (data.jumpoff_elevation ?? 0);
-              const ascentHours = elevGain == null ? null : elevGain / 300;
-              const lo = ascentHours == null ? null : Math.max(1, Math.floor(ascentHours));
-              const hi = ascentHours == null ? null : Math.ceil(ascentHours * 1.3);
-              const isHighAlt = (data.elevation_m ?? 0) > 2500;
-              const isTechnical = (data.elevation_m ?? 0) > 2000;
-
-              const weatherNotes = liveWeather ?? WEATHER_UNAVAILABLE;
-
-              const gearList = [
-                ...(isHighAlt
-                  ? [
-                      'Trekking poles (mandatory)',
-                      'Crampon-compatible boots',
-                      'Fleece + waterproof outer layer',
-                    ]
-                  : ['Ankle-support trail shoes or boots', 'Lightweight rain jacket']),
-                '3–4L water capacity (hydration bladder + bottle)',
-                'Headlamp + spare batteries',
-                'First aid kit with blister care',
-                'Emergency bivy / space blanket',
-                isTechnical
-                  ? 'Fixed rope gloves + harness (technical sections)'
-                  : 'Gaiters for muddy sections',
-                'High-energy snacks (nuts, energy bars, dried fruit)',
-                'Sunscreen SPF 50+, buff/neck gaiter',
-                'Whistle, map or offline GPS',
-                'LNT waste bag — pack out all trash',
-              ];
+              // The same Naismith estimate the route view and the weather
+              // window use (lib/routeDuration.ts), so the three cannot disagree.
+              // This used to run its own `gain / 300` on a gain measured from
+              // sea level, and printed "–h" when there was nothing to divide.
+              const ascent = estimateAscentHours(mountainGain(data));
+              const gearList = gearFor(data.elevation_m);
 
               return (
                 <>
@@ -1245,9 +1316,11 @@ export default function DetailsModal({
                         Climb Time
                       </p>
                       <p className="font-tabular mt-1.5 text-xl font-bold text-white">
-                        {lo}–{hi}h
+                        {ascent ? `${ascent.low}–${ascent.high}h` : '—'}
                       </p>
-                      <p className="text-[11px] text-slate-400">ascent (Naismith)</p>
+                      <p className="text-[11px] text-slate-400">
+                        {ascent ? 'ascent (Naismith)' : 'start point unknown'}
+                      </p>
                     </div>
                     <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3 text-center">
                       <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
@@ -1373,6 +1446,7 @@ export default function DetailsModal({
                           <p className="mt-2 rounded-lg bg-slate-800/60 px-3 py-2 text-xs text-slate-400">
                             RISK: {weatherNotes.risk}
                           </p>
+                          {weatherRetry}
                           <WeatherAlertChips alerts={weatherNotes.alerts} />
                           <div className="mt-3">
                             <WeatherWindowPanel window={weatherNotes.window} />
@@ -1502,6 +1576,7 @@ export default function DetailsModal({
               photos={resolvedPhotos}
               loading={loadingPhotos}
               failed={photosFailed}
+              onRetry={() => setPhotosAttempt((n) => n + 1)}
               placeName={data.name}
             />
 

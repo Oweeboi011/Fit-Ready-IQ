@@ -47,10 +47,21 @@ export interface Readiness {
   factors: ReadinessFactor[];
   /** Set when the route itself is missing data we needed. */
   incomplete: boolean;
+  /**
+   * Why there is no score, when there is none. The two need opposite advice:
+   * with no training, connecting a device is the fix; with an unmeasured
+   * route, it changes nothing, and saying otherwise sends people in circles.
+   */
+  unknownReason?: 'no_training' | 'route_unmeasured';
 }
 
 export interface RouteDemand {
-  distanceKm: number;
+  /**
+   * Null when the route's length is unknown — true of every Google Places
+   * result, which is a pin with no trail geometry. Readiness is then unknown:
+   * there is no honest answer to "can I walk this far?" without a distance.
+   */
+  distanceKm: number | null;
   /** Null when the Elevation API had nothing — we then skip the ascent factor. */
   ascentM: number | null;
 }
@@ -81,6 +92,18 @@ const UNKNOWN: Readiness = {
   summary: 'Connect a device or import a GPX file to see whether you are ready for this.',
   factors: [],
   incomplete: true,
+  unknownReason: 'no_training',
+};
+
+const ROUTE_UNMEASURED: Readiness = {
+  level: 'unknown',
+  score: null,
+  label: 'Length unknown',
+  summary:
+    "This route's length hasn't been measured, so there is no honest way to score it against your training.",
+  factors: [],
+  incomplete: true,
+  unknownReason: 'route_unmeasured',
 };
 
 /**
@@ -99,8 +122,12 @@ export function computeReadiness(
     return Number.isFinite(t) && t >= since;
   });
 
+  // The route first: if it cannot be measured, no amount of training data
+  // will produce a score, so asking for training would be the wrong advice.
+  if (route.distanceKm == null || !Number.isFinite(route.distanceKm) || route.distanceKm <= 0) {
+    return ROUTE_UNMEASURED;
+  }
   if (recent.length === 0) return UNKNOWN;
-  if (!Number.isFinite(route.distanceKm) || route.distanceKm <= 0) return UNKNOWN;
 
   const longestKm = Math.max(...recent.map((a) => a.distance_km));
   const biggestAscentM = Math.max(...recent.map((a) => a.elevation_gain_m));

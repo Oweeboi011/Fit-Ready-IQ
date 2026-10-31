@@ -11,7 +11,9 @@ import {
 import { rateLimit, tooManyRequests } from '@/lib/rateLimit';
 import { ACCOUNT_DELETE_RATE_LIMIT } from '@/lib/rateLimitRules';
 import { requireUser } from '@/lib/serverAuth';
+import { revokeStravaGrant } from '@/lib/stravaTokens';
 import {
+  USER_ATTRIBUTED_DOCUMENTS,
   USER_KEYED_DOCUMENTS,
   USER_OWNED_COLLECTIONS,
   USER_OWNED_TREE_COLLECTIONS,
@@ -48,13 +50,89 @@ interface DeleteBody {
   confirm?: unknown;
 }
 
+type Firestore = ReturnType<typeof getFirestoreAdmin>;
+
+/**
+ * Deletes every document a query matches, in batches, and returns how many.
+ * Chunked: a batch takes at most 500 operations, and a heavy user can exceed
+ * that in activities alone.
+ */
+async function deleteMatching(db: Firestore, query: FirebaseFirestore.Query): Promise<number> {
+  const snap = await query.get();
+  for (let i = 0; i < snap.docs.length; i += DELETE_BATCH_SIZE) {
+    const batch = db.batch();
+    for (const doc of snap.docs.slice(i, i + DELETE_BATCH_SIZE)) batch.delete(doc.ref);
+    await batch.commit();
+  }
+  return snap.size;
+}
+
+/**
+ * Erases everything in Firestore that `userDataFootprint.ts` says is this
+ * user's. Records each step in `deleted` as it completes, so if one throws the
+ * caller still knows — and audits — how far it got.
+ */
+async function eraseFirestoreData(
+  db: Firestore,
+  uid: string,
+  deleted: Record<string, number>,
+  request: Request
+): Promise<void> {
+  // First, the Strava grant: withdrawn at Strava, then the tokens forgotten.
+  // Erasure must mean we can no longer reach their training history, not only
+  // that we stopped holding a copy. It goes first for a second reason — a sync
+  // already running writes only while the tokens exist (`whileStravaConnected`),
+  // so removing them before the tree is what stops it writing the tree back.
+  await revokeStravaGrant(uid, request);
+
+  // Documents keyed by uid outside the user tree — the Strava tokens again,
+  // idempotently, and anything added to the list later. Before the tree, for
+  // the same reason: a live credential is what lets data flow back in.
+  for (const name of USER_KEYED_DOCUMENTS) {
+    await db.collection(name).doc(uid).delete();
+    deleted[name] = 1;
+  }
+
+  // The user document and everything beneath it — profile, saved_places,
+  // strava_activities — in one walk. recursiveDelete is the only path that
+  // reaches subcollections; a plain document delete would leave every saved
+  // place and synced activity in place, addressable by uid, forever.
+  await db.recursiveDelete(db.collection('users').doc(uid));
+  deleted.user_tree = 1;
+
+  for (const name of USER_OWNED_COLLECTIONS) {
+    deleted[name] = await deleteMatching(db, db.collection(name).where('user_id', '==', uid));
+  }
+
+  for (const name of USER_OWNED_TREE_COLLECTIONS) {
+    const snap = await db.collection(name).where('user_id', '==', uid).get();
+    for (const doc of snap.docs) {
+      // Recursive, because the transcript lives in a `messages` subcollection
+      // that a document delete would orphan — and the transcript is the part
+      // that actually holds what the person said.
+      await db.recursiveDelete(doc.ref);
+    }
+    deleted[name] = snap.size;
+  }
+
+  // Shared documents stamped with this uid. Deleted rather than scrubbed of
+  // the stamp: they are a cache, and an unattributed cache entry is exactly
+  // the thing the stamp exists to prevent.
+  for (const { collection, field } of USER_ATTRIBUTED_DOCUMENTS) {
+    deleted[collection] = await deleteMatching(
+      db,
+      db.collection(collection).where(field, '==', uid)
+    );
+  }
+}
+
 export async function POST(request: Request) {
   const log = createLogger('/api/account/delete', request);
   const auth = await requireUser(request);
   if (!auth.ok) return auth.response;
   const { uid } = auth.user;
 
-  const limit = await rateLimit(request, ACCOUNT_DELETE_RATE_LIMIT);
+  const limit = await rateLimit(request, ACCOUNT_DELETE_RATE_LIMIT, auth.user);
   if (!limit.ok) return tooManyRequests(limit);
 
   // An explicit confirmation string, so that a stray POST — a retried request,
@@ -84,49 +162,7 @@ export async function POST(request: Request) {
   const deleted: Record<string, number> = {};
 
   try {
-    const db = getFirestoreAdmin();
-
-    // The user document and everything beneath it — profile, saved_places,
-    // strava_activities — in one walk. recursiveDelete is the only path that
-    // reaches subcollections; a plain document delete would leave every saved
-    // place and synced activity in place, addressable by uid, forever.
-    await db.recursiveDelete(db.collection('users').doc(uid));
-    deleted.user_tree = 1;
-
-    for (const name of USER_OWNED_COLLECTIONS) {
-      const snap = await db.collection(name).where('user_id', '==', uid).get();
-      let count = 0;
-      // Chunked: a batch takes at most 500 operations, and a heavy user can
-      // exceed that in activities alone.
-      for (let i = 0; i < snap.docs.length; i += DELETE_BATCH_SIZE) {
-        const batch = db.batch();
-        for (const doc of snap.docs.slice(i, i + DELETE_BATCH_SIZE)) {
-          batch.delete(doc.ref);
-          count++;
-        }
-        await batch.commit();
-      }
-      deleted[name] = count;
-    }
-
-    for (const name of USER_OWNED_TREE_COLLECTIONS) {
-      const snap = await db.collection(name).where('user_id', '==', uid).get();
-      for (const doc of snap.docs) {
-        // Recursive, because the transcript lives in a `messages` subcollection
-        // that a document delete would orphan — and the transcript is the part
-        // that actually holds what the person said.
-        await db.recursiveDelete(doc.ref);
-      }
-      deleted[name] = snap.size;
-    }
-
-    // Documents keyed by uid outside the user tree — currently the Strava OAuth
-    // tokens. A deleted account must not leave a live, non-expiring refresh
-    // token behind; that is the worst possible remnant of an erasure.
-    for (const name of USER_KEYED_DOCUMENTS) {
-      await db.collection(name).doc(uid).delete();
-      deleted[name] = 1;
-    }
+    await eraseFirestoreData(getFirestoreAdmin(), uid, deleted, request);
 
     // Last: the credential itself. Everything above is now unreachable.
     await getAuth(getFirebaseAdminApp()).deleteUser(uid);
@@ -145,7 +181,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, uid, deleted });
   } catch (err) {
-    log.error('account_delete_failed', err, { uid });
+    // No uid: logs are retained and searched far more widely than the audit
+    // record below, which holds it. The request_id joins the two.
+    log.error('account_delete_failed', err);
     // The partial counts go into the record: a half-finished erasure is the one
     // case where "what was removed before it failed" is the only useful fact.
     await recordAudit(request, {
@@ -157,7 +195,10 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(
       {
-        error: 'Deletion did not complete. Nothing further was removed; please try again.',
+        // Accurate about the partial state: steps before the failure are done
+        // and stay done, and the account is kept so the request can be retried.
+        error:
+          'Deletion did not complete. Some of your data was removed; your account was kept so you can try again.',
         partial: deleted,
       },
       { status: 500 }
