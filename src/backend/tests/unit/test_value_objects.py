@@ -5,6 +5,8 @@ a latitude of 200, or a FitnessScore that accepts 400, would let bad data travel
 all the way to the API response before anyone noticed.
 """
 
+import dataclasses
+
 import pytest
 
 from src.domain.value_objects import (
@@ -58,7 +60,7 @@ class TestCoordinates:
 
     def test_is_immutable(self):
         c = Coordinates(latitude=1.0, longitude=2.0)
-        with pytest.raises(Exception):
+        with pytest.raises(dataclasses.FrozenInstanceError):
             c.latitude = 5.0  # type: ignore[misc]
 
 

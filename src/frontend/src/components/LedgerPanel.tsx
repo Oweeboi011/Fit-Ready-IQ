@@ -136,5 +136,3 @@ export function LedgerPanel({ ledger }: { ledger: Ledger }) {
     </div>
   );
 }
-
-export default LedgerPanel;

@@ -119,13 +119,30 @@ export async function getIdToken(): Promise<string | null> {
   return user.getIdToken();
 }
 
+function withToken(init: RequestInit, token: string): RequestInit {
+  return { ...init, headers: { ...init.headers, Authorization: `Bearer ${token}` } };
+}
+
 /** `fetch` with the caller's ID token attached. Throws if nobody is signed in. */
 export async function authedFetch(input: string, init: RequestInit = {}): Promise<Response> {
   const token = await getIdToken();
   if (!token) throw new Error('Not signed in.');
+  return fetch(input, withToken(init, token));
+}
 
-  return fetch(input, {
-    ...init,
-    headers: { ...init.headers, Authorization: `Bearer ${token}` },
-  });
+/**
+ * `fetch` that identifies the caller when there is one and goes anonymously
+ * when there is not — for routes that serve both, such as `/api/chat`.
+ *
+ * Omitting the token on those routes is not harmless. The chat route stamps a
+ * transcript with the uid it can verify, and erasure finds transcripts by that
+ * uid; a signed-in user whose requests went out bare had every conversation
+ * filed as anonymous, which "delete my data" then could not reach.
+ */
+export async function optionallyAuthedFetch(
+  input: string,
+  init: RequestInit = {}
+): Promise<Response> {
+  const token = await getIdToken();
+  return fetch(input, token ? withToken(init, token) : init);
 }

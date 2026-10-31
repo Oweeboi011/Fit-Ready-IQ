@@ -1,15 +1,10 @@
 // Fetches mountains/routes/campsites near a point from the Google Places API,
-// enriched with real Elevation/Distance-Matrix data. Each fetcher is
+// enriched with real Elevation data. Each fetcher is
 // independent and reports its own failure — see usePlacesData.ts, which
 // treats a failed collection as "unknown", never as "empty".
 
 import type { Route, Mountain, Campsite } from '@/lib/placesTypes';
-import {
-  haversineKm,
-  fetchElevations,
-  fetchTravelDistances,
-  trailClassFromElevation,
-} from '@/lib/mapsGeometry';
+import { fetchElevations } from '@/lib/mapsGeometry';
 import { classifyDifficulty } from '@/lib/routeDifficulty';
 import {
   newPlacesService,
@@ -106,24 +101,32 @@ async function searchMountainPlaces(
     .slice(0, 60);
 }
 
+/**
+ * A peak as Google and the Elevation API describe it: a name, a point and a
+ * summit height. Nothing else is known, so nothing else is set.
+ *
+ * This used to fill three more fields by arithmetic on the summit height —
+ * prominence as 28% of it, the jump-off as 55%, and a Yosemite Decimal trail
+ * class banded by altitude — and render them as survey facts. None of those
+ * follows from elevation. Prominence is a property of the surrounding
+ * topography; a jump-off is wherever the trail starts; and YDS class grades how
+ * technical the terrain is, not how high it goes, so a 3,000 m walk-up read as
+ * "Class 4-5" technical climbing while a low exposed scramble read as a stroll.
+ * On a climbing class in particular, a wrong answer is worse than none.
+ */
 function buildMountainRecord(
   place: PlaceResult,
   index: number,
   elevation: number | null
 ): Mountain {
-  const prominence = elevation == null ? undefined : Math.round(elevation * 0.28);
-  const jumpoff = elevation == null ? undefined : Math.round(elevation * 0.55);
   return {
     id: `m${index + 1}`,
     name: place.name || 'Unknown Mountain',
     coordinates: [place.geometry!.location!.lng(), place.geometry!.location!.lat()],
     elevation_m: elevation,
-    prominence_m: prominence,
-    trail_class: elevation == null ? undefined : trailClassFromElevation(elevation),
     mountain_type: 'peak',
     place_id: place.place_id,
     photos: [],
-    jumpoff_elevation: jumpoff,
     summit_elevation: elevation ?? undefined,
   };
 }
@@ -254,29 +257,8 @@ function classifyRouteActivityType(name: string): string {
 interface RouteMetricsInput {
   place: PlaceResult;
   index: number;
-  userCoords: [number, number];
-  travelDistancesM: (number | null)[];
   routeBaseElevations: (number | null)[];
   terrainProbeElevations: (number | null)[];
-}
-
-function deriveRouteDistanceKm({
-  place,
-  index,
-  userCoords,
-  travelDistancesM,
-}: RouteMetricsInput): number {
-  const fallbackKm = Math.max(
-    1,
-    Math.round(
-      haversineKm(userCoords, [place.geometry!.location!.lng(), place.geometry!.location!.lat()]) *
-        1.15 *
-        10
-    ) / 10
-  );
-  return travelDistancesM[index]
-    ? Math.max(0.5, Math.round((travelDistancesM[index]! / 1000) * 10) / 10)
-    : fallbackKm;
 }
 
 /**
@@ -303,9 +285,23 @@ function deriveRouteRelief({
   return { jumpoff, localRelief };
 }
 
+/**
+ * A Google Places result is a pin, not a trail: there is no geometry, so there
+ * is no length. `distance_km` is null and difficulty is therefore unrated.
+ *
+ * It used to be the travel distance *from the user to the pin* (or the
+ * straight line × 1.15 when Distance Matrix had nothing), stored as the
+ * trail's length. The same trail was 3 km long to one visitor and 40 km to
+ * another; that number fed the NPS difficulty formula and the readiness
+ * bands, so "challenging" often meant "far from you"; and through the shared
+ * cache every visitor to a region saw lengths measured from wherever the
+ * first one had been standing. How far away a trail is remains available —
+ * the page derives `distance_from_user_km` per viewer — it is just no longer
+ * passed off as how long it is.
+ */
 function buildRouteRecord(input: RouteMetricsInput): Route {
   const { place, index } = input;
-  const distance = deriveRouteDistanceKm(input);
+  const distance = null;
   const { jumpoff, localRelief } = deriveRouteRelief(input);
 
   return {
@@ -340,7 +336,6 @@ export async function fetchRoutesNearby(
   }));
   const { values: routeBaseElevations, failed: routeBaseFailed } =
     await fetchElevations(routeLocations);
-  const travelDistancesM = await fetchTravelDistances(location, routeLocations);
 
   const terrainProbeLocations = routeLocations.flatMap((loc) => [
     loc,
@@ -356,8 +351,6 @@ export async function fetchRoutesNearby(
     buildRouteRecord({
       place,
       index,
-      userCoords,
-      travelDistancesM,
       routeBaseElevations,
       terrainProbeElevations,
     })

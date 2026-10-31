@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from ..entities import Activity, Itinerary, Route, TrainingProgram, User
+from ..entities import Activity, Route, User
 from ..value_objects import Coordinates
 
 
@@ -110,36 +110,6 @@ class IRouteRepository(IRepository):
         pass
 
 
-class ITrainingProgramRepository(IRepository):
-    """Repository interface for TrainingProgram entities."""
-
-    @abstractmethod
-    async def get_by_user(self, user_id: UUID) -> list[TrainingProgram]:
-        """Get all training programs for a user."""
-        pass
-
-    @abstractmethod
-    async def get_active_programs(self, user_id: UUID) -> list[TrainingProgram]:
-        """Get user's active/in-progress programs."""
-        pass
-
-
-class IItineraryRepository(IRepository):
-    """Repository interface for Itinerary entities."""
-
-    @abstractmethod
-    async def get_by_user(self, user_id: UUID) -> list[Itinerary]:
-        """Get all itineraries for a user."""
-        pass
-
-    @abstractmethod
-    async def get_upcoming(
-        self, user_id: UUID, from_date: datetime | None = None
-    ) -> list[Itinerary]:
-        """Get upcoming itineraries."""
-        pass
-
-
 class IFitnessPlatformClient(ABC):
     """Abstract interface for fitness platform API clients (Strava, Garmin, etc.)."""
 
@@ -213,29 +183,6 @@ class IRoutingClient(ABC):
         pass
 
 
-class IWeatherClient(ABC):
-    """Abstract interface for weather API clients."""
-
-    @abstractmethod
-    async def get_current_weather(self, coordinates: Coordinates) -> dict[str, Any]:
-        """Get current weather conditions."""
-        pass
-
-    @abstractmethod
-    async def get_forecast(
-        self, coordinates: Coordinates, date: datetime
-    ) -> dict[str, Any]:
-        """Get weather forecast for a specific date."""
-        pass
-
-    @abstractmethod
-    async def get_hourly_forecast(
-        self, coordinates: Coordinates, date: datetime
-    ) -> list[dict[str, Any]]:
-        """Get hourly forecast for a specific date."""
-        pass
-
-
 class IMapClient(ABC):
     """Abstract interface for map/geocoding clients."""
 
@@ -257,59 +204,6 @@ class IMapClient(ABC):
         poi_type: str | None = None,
     ) -> list[dict[str, Any]]:
         """Get points of interest near coordinates."""
-        pass
-
-
-class ICacheService(ABC):
-    """Abstract interface for caching service."""
-
-    @abstractmethod
-    async def get(self, key: str) -> Any | None:
-        """Retrieve value from cache."""
-        pass
-
-    @abstractmethod
-    async def set(self, key: str, value: Any, ttl_seconds: int | None = None) -> bool:
-        """Store value in cache with optional TTL."""
-        pass
-
-    @abstractmethod
-    async def delete(self, key: str) -> bool:
-        """Remove value from cache."""
-        pass
-
-    @abstractmethod
-    async def exists(self, key: str) -> bool:
-        """Check if key exists in cache."""
-        pass
-
-    @abstractmethod
-    async def clear_pattern(self, pattern: str) -> int:
-        """Clear all keys matching pattern."""
-        pass
-
-
-class IAuthService(ABC):
-    """Abstract interface for authentication service."""
-
-    @abstractmethod
-    def create_access_token(self, data: dict[str, Any]) -> str:
-        """Create JWT access token."""
-        pass
-
-    @abstractmethod
-    def decode_token(self, token: str) -> dict[str, Any]:
-        """Decode and validate JWT token."""
-        pass
-
-    @abstractmethod
-    async def hash_password(self, password: str) -> str:
-        """Hash password securely."""
-        pass
-
-    @abstractmethod
-    async def verify_password(self, plain: str, hashed: str) -> bool:
-        """Verify password against hash."""
         pass
 
 

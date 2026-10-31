@@ -10,7 +10,6 @@ os.environ.setdefault("FIREBASE_USE_EMULATOR", "true")
 os.environ.setdefault("FIREBASE_EMULATOR_HOST", "localhost")
 os.environ.setdefault("FIRESTORE_EMULATOR_HOST", "localhost:8080")
 os.environ.setdefault("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099")
-os.environ.setdefault("FIREBASE_STORAGE_EMULATOR_HOST", "localhost:9199")
 
 # No API-key stubs needed any more: the five required-but-unused settings they
 # existed to satisfy have been removed. `firebase_project_id` above is now the

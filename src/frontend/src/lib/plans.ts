@@ -1,9 +1,13 @@
 /**
  * Plan and entitlement definitions.
  *
- * This is the single source of truth for what each tier unlocks. The landing
- * page renders from it, and `hasEntitlement` gates features in the app, so a
- * tier change here propagates to both the marketing copy and the paywall.
+ * This is the single source of truth for what each tier unlocks, and the
+ * landing page renders from it.
+ *
+ * NOT YET ENFORCED: nothing calls `hasEntitlement` outside its tests, there is
+ * no billing, and no trial is recorded — every signed-in user has every
+ * feature. Copy here may promise *less* than users get (limits, the trial),
+ * never more. Wire the paywall before treating these as gates.
  *
  * Prices are placeholders — change them here, not in the landing page markup.
  */
@@ -63,7 +67,9 @@ export const PLANS: readonly Plan[] = [
     highlights: [
       'Everything in Explorer, unlimited saves',
       'Readiness score for every route, from your real training',
-      'Strava, Garmin, COROS and Apple Health sync',
+      // Only Strava syncs; the others are file imports, and "sync" promised
+      // an automatic link that does not exist.
+      'Strava sync, plus Garmin, COROS and Apple Health import',
       'AI coach that plans the weeks before your climb',
     ],
     entitlements: [
@@ -110,7 +116,7 @@ export const PLANS: readonly Plan[] = [
 ] as const;
 
 /** Where the plan a visitor clicked is remembered until billing exists. */
-export const SELECTED_PLAN_KEY = 'fri_selected_plan';
+const SELECTED_PLAN_KEY = 'fri_selected_plan';
 
 export function isPlanId(value: unknown): value is PlanId {
   return typeof value === 'string' && PLANS.some((p) => p.id === value);

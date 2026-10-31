@@ -9,6 +9,7 @@ from typing import Any
 
 import structlog
 from fitparse import FitFile
+
 from src.domain.interfaces import IFileParser
 
 logger = structlog.get_logger(__name__)
@@ -77,7 +78,7 @@ class CorosFitParser(IFileParser):
 
         except Exception as e:
             logger.error("coros_fit_parse_error", error=str(e))
-            raise ValueError(f"Failed to parse COROS FIT file: {str(e)}")
+            raise ValueError(f"Failed to parse COROS FIT file: {str(e)}") from e
 
     def supports_format(self, file_extension: str) -> bool:
         """Check if parser supports the file format."""

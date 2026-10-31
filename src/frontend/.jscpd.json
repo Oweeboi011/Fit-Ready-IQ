@@ -1,6 +1,6 @@
 {
-  "path": ["src"],
-  "format": ["typescript", "tsx"],
+  "path": ["src", "../backend/src"],
+  "format": ["typescript", "tsx", "python"],
   "ignore": [
     "**/node_modules/**",
     "**/.next/**",
@@ -8,7 +8,9 @@
     "**/coverage/**",
     "**/reports/**",
     "**/*.test.ts",
-    "**/*.test.tsx"
+    "**/*.test.tsx",
+    "**/.venv/**",
+    "**/__pycache__/**"
   ],
   "minLines": 12,
   "minTokens": 100,

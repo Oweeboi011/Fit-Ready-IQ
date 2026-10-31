@@ -39,7 +39,7 @@ export const MAP_LAYER_SWATCH: Record<MapLayer, string> = {
   advisories: 'bg-rose-500',
 };
 
-export const HIDDEN_LAYERS_KEY = 'fri_map_hidden_layers';
+const HIDDEN_LAYERS_KEY = 'fri_map_hidden_layers';
 
 export function readHiddenLayers(): MapLayer[] {
   if (typeof window === 'undefined') return [];

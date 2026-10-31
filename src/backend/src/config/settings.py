@@ -52,7 +52,8 @@ class Settings(BaseSettings):
     # Application
     app_name: str = "Fit-Ready-IQ"
     environment: str = "development"
-    api_host: str = "0.0.0.0"
+    # The container must listen on all interfaces to be reachable at all.
+    api_host: str = "0.0.0.0"  # noqa: S104
     api_port: int = 8000
     log_level: str = "INFO"
 
@@ -61,13 +62,11 @@ class Settings(BaseSettings):
     # Path to service account JSON key file (local dev) OR JSON string (production/env var)
     firebase_service_account_key_path: str | None = None
     firebase_service_account_key_json: str | None = None
-    firebase_storage_bucket: str | None = None  # e.g. "project-id.appspot.com"
     # Emulator settings for local development and testing
     firebase_use_emulator: bool = False
     firebase_emulator_host: str = "localhost"
     firebase_firestore_emulator_port: int = 8080
     firebase_auth_emulator_port: int = 9099
-    firebase_storage_emulator_port: int = 9199
 
     # Rate limiting — enforced by slowapi, wired in src/main.py.
     rate_limit_per_minute: int = 60
@@ -102,7 +101,7 @@ class Settings(BaseSettings):
         return v
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
     return Settings()  # type: ignore

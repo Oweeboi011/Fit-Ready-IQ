@@ -23,7 +23,7 @@ function activity(over: Partial<Activity> = {}): Activity {
 
 interface Candidate {
   id: string;
-  distanceKm: number;
+  distanceKm: number | null;
   ascentM: number | null;
 }
 
@@ -53,6 +53,19 @@ describe('recommendRoutes', () => {
     // Zero distance makes readiness `unknown`.
     const result = recommendRoutes(
       [{ id: 'bad', distanceKm: 0, ascentM: null }],
+      demandOf,
+      TRAINED,
+      { now: NOW }
+    );
+    expect(result.ready).toEqual([]);
+    expect(result.stretch).toEqual([]);
+  });
+
+  it('leaves a route of unknown length out of both bands', () => {
+    // Every Google Places route has no length. Placing one in "ready" would be
+    // a claim about whether you can walk a distance nobody has measured.
+    const result = recommendRoutes(
+      [{ id: 'pin', distanceKm: null, ascentM: 200 }],
       demandOf,
       TRAINED,
       { now: NOW }

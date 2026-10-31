@@ -37,7 +37,7 @@ export function toDetailsModalData(selectedDetails: SelectedDetails): DetailsDat
         name: selectedDetails.data.name,
         coordinates: selectedDetails.data.coordinates,
         elevation_m: selectedDetails.data.elevation_m,
-        prominence_m: selectedDetails.data.prominence_m || 0,
+        prominence_m: selectedDetails.data.prominence_m,
         mountain_type: selectedDetails.data.mountain_type || 'peak',
         jumpoff_elevation: selectedDetails.data.jumpoff_elevation,
         summit_elevation: selectedDetails.data.summit_elevation,

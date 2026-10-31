@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Bot, User, Loader2, Sparkles, Minimize2 } from 'lucide-react';
 
+import { optionallyAuthedFetch } from '@/lib/firebaseClient';
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -40,6 +42,9 @@ const HISTORY_TTL_MS = 24 * 60 * 60 * 1000;
  */
 const CHAT_TIMEOUT_MS = 30_000;
 
+/** Matches the server's context window (`MAX_HISTORY` in `api/chat/route.ts`). */
+const CHAT_CONTEXT_MESSAGES = 20;
+
 /** Input cap. Surfaced as a counter once it is close, rather than silently biting. */
 const MAX_INPUT = 500;
 
@@ -65,6 +70,7 @@ export default function ChatBot() {
       if (raw) {
         const saved = JSON.parse(raw) as { ts: number; messages: Message[] };
         if (Date.now() - saved.ts < HISTORY_TTL_MS && Array.isArray(saved.messages)) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- browser state is read after mount; reading it during render breaks hydration
           setMessages(saved.messages);
         }
       }
@@ -113,10 +119,14 @@ export default function ChatBot() {
     const timer = setTimeout(() => controller.abort(), CHAT_TIMEOUT_MS);
 
     try {
-      const res = await fetch('/api/chat', {
+      // Signed-in callers identify themselves so the transcript is filed under
+      // their uid — that is what lets account deletion and export find it.
+      const res = await optionallyAuthedFetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: next, sessionId }),
+        // The recent turns only: the server uses twenty at most, and for a
+        // session it holds it reads its own record rather than this copy.
+        body: JSON.stringify({ messages: next.slice(-CHAT_CONTEXT_MESSAGES), sessionId }),
         signal: controller.signal,
       });
 

@@ -84,6 +84,7 @@ export default function AdminModal({ isOpen, onClose }: AdminModalProps) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- starts a load; the state set is its loading flag or a synchronous cache hit
     if (isOpen) void load();
   }, [isOpen, load]);
 

@@ -36,9 +36,6 @@ const EXEMPT: Record<string, string> = {
   'admin/cache/route.ts': 'Behind requireRole; admins are few, named and audited.',
   'admin/strava-sync/route.ts': 'Behind requireRole; admins are few, named and audited.',
   'admin/users/route.ts': 'Behind requireRole; admins are few, named and audited.',
-  'admin/whoami/route.ts':
-    'Behind requireRole and called on every page load to decide whether to show ' +
-    'admin affordances. Metering it would break the UI for a legitimate user.',
   'integrations/firebase/route.ts': 'Behind requireRole; admins are few, named and audited.',
 };
 
@@ -73,6 +70,25 @@ describe('rate-limit coverage', () => {
       `${route} has no rate limit and no entry in EXEMPT. Add a rule to ` +
         `src/lib/rateLimitRules.ts and call rateLimit(), or record why it is exempt.`
     ).toBe(true);
+  });
+
+  it.each(routes)('%s passes its verified caller to every rateLimit call', (route) => {
+    // A route that has authenticated the caller must key the budget on them.
+    // Leaving the third argument off quietly falls back to the IP, which puts
+    // every user behind one NAT into a single bucket — and was, before the
+    // bearer string stopped counting, the thing that made the limit forgeable.
+    const source = readFileSync(path.join(API_ROOT, route), 'utf8');
+    if (!/requireUser\(|optionalUser\(|currentRole\(/.test(source)) return;
+
+    const calls = source.match(/rateLimit\([^)]*\)/g) ?? [];
+    for (const call of calls) {
+      const args = call.slice('rateLimit('.length, -1).split(',');
+      expect(
+        args.length,
+        `${route}: \`${call}\` authenticates the caller but budgets by IP. Pass the ` +
+          `verified user as the third argument.`
+      ).toBe(3);
+    }
   });
 
   it('has no stale exemptions left behind by deleted routes', () => {

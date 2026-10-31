@@ -34,7 +34,12 @@ interface MapNavDockProps {
   onSelectTabAuthRequired: () => void;
   hiddenLayers: MapLayer[];
   advisories: Advisory[];
-  advisorySource: { configured: boolean; status: 'idle' | 'loading' | 'error' };
+  advisorySource: {
+    configured: boolean;
+    status: 'idle' | 'loading' | 'error';
+    /** Asks the source again after a failure. */
+    retry?: () => void;
+  };
   layerCounts: Record<MapLayer, number>;
   onToggleLayer: (layer: MapLayer) => void;
   showWeatherRadar: boolean;

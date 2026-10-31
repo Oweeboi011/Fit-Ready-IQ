@@ -4,6 +4,7 @@ import { AlertOctagon, Ban, Info, LifeBuoy, Megaphone, TriangleAlert } from 'luc
 import type { LucideIcon } from 'lucide-react';
 
 import type { Advisory, AdvisoryKind } from '@/lib/advisories';
+import { buttonSecondary, buttonSize } from '@/lib/ui';
 
 const KIND_ICON: Record<AdvisoryKind, LucideIcon> = {
   closure: Ban,
@@ -46,11 +47,13 @@ export function AdvisoriesPanel({
   configured,
   status,
   onSelect,
+  onRetry,
 }: {
   advisories: Advisory[];
   configured: boolean;
   status: 'idle' | 'loading' | 'error';
   onSelect: (advisory: Advisory) => void;
+  onRetry?: () => void;
 }) {
   if (status === 'loading') {
     return (
@@ -77,9 +80,20 @@ export function AdvisoriesPanel({
 
   if (status === 'error') {
     return (
-      <p className="py-2 text-xs text-amber-200">
-        The advisory feed is unreachable. Treat this as unknown, not as all-clear.
-      </p>
+      <div className="py-2">
+        <p className="text-xs text-amber-200">
+          The advisory feed is unreachable. Treat this as unknown, not as all-clear.
+        </p>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className={`${buttonSecondary} ${buttonSize.sm} mt-2`}
+          >
+            Retry
+          </button>
+        )}
+      </div>
     );
   }
 

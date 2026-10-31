@@ -12,6 +12,7 @@ import { rateLimit, tooManyRequests } from '@/lib/rateLimit';
 import { ACCOUNT_EXPORT_RATE_LIMIT } from '@/lib/rateLimitRules';
 import { requireUser } from '@/lib/serverAuth';
 import {
+  ATTRIBUTED_NOT_EXPORTED,
   RETAINED_ON_DELETE,
   UNATTRIBUTED_LEGACY_DATA,
   USER_OWNED_COLLECTIONS,
@@ -123,7 +124,7 @@ export async function GET(request: Request) {
   if (!auth.ok) return auth.response;
   const { uid } = auth.user;
 
-  const limit = await rateLimit(request, ACCOUNT_EXPORT_RATE_LIMIT);
+  const limit = await rateLimit(request, ACCOUNT_EXPORT_RATE_LIMIT, auth.user);
   if (!limit.ok) return tooManyRequests(limit);
 
   if (!isFirebaseAdminConfigured()) {
@@ -155,6 +156,7 @@ export async function GET(request: Request) {
         // answered by what we hold *and* by what we do not.
         notes: {
           notIncluded: RETAINED_ON_DELETE,
+          attributedSharedData: ATTRIBUTED_NOT_EXPORTED,
           legacyChatTranscripts: UNATTRIBUTED_LEGACY_DATA,
         },
       },
@@ -168,7 +170,9 @@ export async function GET(request: Request) {
       }
     );
   } catch (err) {
-    log.error('account_export_failed', err, { uid });
+    // No uid — the request_id identifies the call; logs outlive and outnumber
+    // the people allowed to link an id to a person.
+    log.error('account_export_failed', err);
     await recordAudit(request, {
       action: 'account.export',
       actor: auth.user,

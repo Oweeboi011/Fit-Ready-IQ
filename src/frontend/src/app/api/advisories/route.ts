@@ -37,14 +37,31 @@ export async function GET(request: Request) {
   if (!limit.ok) return tooManyRequests(limit);
 
   // The scraped file wins: it is the one a deployment actually controls.
+  let scraped: string | null = null;
   try {
-    const scraped = await readFile(path.join(process.cwd(), 'data', 'advisories.json'), 'utf8');
-    return NextResponse.json(
-      { configured: true, advisories: cleanAdvisories(JSON.parse(scraped)) },
-      { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } }
-    );
-  } catch {
-    /* not scraped yet — fall through to the feed URL */
+    scraped = await readFile(path.join(process.cwd(), 'data', 'advisories.json'), 'utf8');
+  } catch (err) {
+    // Missing is normal — not scraped yet — and falls through to the feed.
+    // Anything else (permissions, a directory in its place) is a fault.
+    if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+      log.error('advisory_file_unreadable', err);
+      return sourceUnreadable();
+    }
+  }
+
+  if (scraped !== null) {
+    try {
+      return NextResponse.json(
+        { configured: true, advisories: cleanAdvisories(JSON.parse(scraped)) },
+        { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } }
+      );
+    } catch (err) {
+      // A corrupt file used to be swallowed as "not scraped yet", and with no
+      // feed configured the answer became `configured: false` — every closure
+      // silently gone. A source we have but cannot read is an error, and says so.
+      log.error('advisory_file_corrupt', err);
+      return sourceUnreadable();
+    }
   }
 
   const feedUrl = process.env.ADVISORY_FEED_URL;
@@ -57,13 +74,12 @@ export async function GET(request: Request) {
   }
 
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
+    // One signal across the headers *and* the body read: a feed that sends
+    // headers promptly and then stalls used to hang the route to its limit.
     const res = await fetch(feedUrl, {
-      signal: controller.signal,
+      signal: AbortSignal.timeout(8000),
       headers: { Accept: 'application/json' },
     });
-    clearTimeout(timer);
 
     if (!res.ok) throw new Error(`Feed responded ${res.status}`);
 
@@ -82,4 +98,11 @@ export async function GET(request: Request) {
       { status: 502 }
     );
   }
+}
+
+function sourceUnreadable() {
+  return NextResponse.json(
+    { configured: true, error: 'Advisory source unreadable', advisories: [] as Advisory[] },
+    { status: 502 }
+  );
 }

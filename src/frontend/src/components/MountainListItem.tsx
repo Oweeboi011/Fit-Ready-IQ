@@ -19,26 +19,33 @@ export default function MountainListItem({
   onToggleSave,
   onClick,
 }: MountainListItemProps) {
+  // Not a <button> around the whole card: the save control inside it made that
+  // a button nested in a button, which is invalid and which screen readers and
+  // keyboards handle unpredictably. The title is the button; its ::after
+  // stretches over the card so a click anywhere still opens the place, and the
+  // save control sits above it.
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="card-enter group w-full rounded-xl border border-ink/[0.07] bg-ink/5 px-3.5 py-3 text-left transition-all hover:border-slate-500/40 hover:bg-ink/[0.08] active:scale-[0.99]"
+    <div
+      data-place-card
+      className="card-enter group relative w-full rounded-xl border border-ink/[0.07] bg-ink/5 px-3.5 py-3 text-left transition-all hover:border-slate-500/40 hover:bg-ink/[0.08] active:scale-[0.99]"
       style={{ animationDelay: `${index * 30}ms` }}
     >
       <div className="flex items-start justify-between gap-2">
         <p className="line-clamp-1 text-[13px] font-semibold text-slate-100 group-hover:text-white">
-          {mountain.name}
+          <button
+            type="button"
+            onClick={onClick}
+            className="text-left after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-blue-400"
+          >
+            {mountain.name}
+          </button>
         </p>
         <div className="flex flex-shrink-0 items-center gap-1">
           {showSave && (
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleSave();
-              }}
-              className="-m-2 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded text-slate-500 transition-colors hover:text-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              onClick={onToggleSave}
+              className="relative z-10 -m-2 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded text-slate-500 transition-colors hover:text-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
               aria-label={isSaved ? 'Unsave peak' : 'Save peak'}
             >
               <Bookmark
@@ -74,6 +81,6 @@ export default function MountainListItem({
           </>
         ) : null}
       </div>
-    </button>
+    </div>
   );
 }

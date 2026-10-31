@@ -16,8 +16,19 @@ const doc = vi.fn(() => ({ set, delete: del, get }));
 const collection = vi.fn(() => ({ doc }));
 const isConfigured = vi.fn(() => true);
 
+// Transactions run against the same stubs, so a test can pose "what is stored
+// now" with `get` and read back what was written or deleted.
+const runTransaction = vi.fn(async (fn: (tx: unknown) => unknown) =>
+  fn({
+    get: () => get(),
+    set: (_ref: unknown, data: unknown, options?: unknown) =>
+      options === undefined ? set(data) : set(data, options),
+    delete: () => del(),
+  })
+);
+
 vi.mock('./firebaseAdmin', () => ({
-  getFirestoreAdmin: () => ({ collection }),
+  getFirestoreAdmin: () => ({ collection, runTransaction }),
   isFirebaseAdminConfigured: () => isConfigured(),
 }));
 vi.mock('./logger', () => ({
@@ -26,8 +37,10 @@ vi.mock('./logger', () => ({
 
 import {
   deleteStravaTokens,
+  forgetRejectedStravaAccess,
   getStravaConnection,
   getValidStravaAccessToken,
+  revokeStravaGrant,
   storeStravaTokens,
 } from './stravaTokens';
 
@@ -52,6 +65,7 @@ function stored(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   set.mockClear();
   del.mockClear();
+  runTransaction.mockClear();
   get.mockReset();
   collection.mockClear();
   isConfigured.mockReturnValue(true);
@@ -74,8 +88,37 @@ describe('where the tokens are kept', () => {
   });
 });
 
+/** Strava's answer when the refresh token itself is dead. */
+const REFRESH_TOKEN_INVALID = {
+  message: 'Bad Request',
+  errors: [{ resource: 'RefreshToken', field: 'refresh_token', code: 'invalid' }],
+};
+
+/** Strava's answer when *our* client id is wrong — nothing to do with the user. */
+const CLIENT_ID_INVALID = {
+  message: 'Bad Request',
+  errors: [{ resource: 'Application', field: 'client_id', code: 'invalid' }],
+};
+
 describe('storeStravaTokens', () => {
+  it('keeps the first connected_at when a user reconnects', async () => {
+    get.mockResolvedValue({
+      exists: true,
+      data: () => ({ connected_at: '2026-01-01T00:00:00.000Z' }),
+    });
+    const connection = await storeStravaTokens(UID, {
+      access_token: 'at',
+      refresh_token: 'rt',
+      expires_at: soon(),
+    });
+    expect(connection?.connectedAt).toBe('2026-01-01T00:00:00.000Z');
+    expect(set).toHaveBeenCalledWith(
+      expect.objectContaining({ connected_at: '2026-01-01T00:00:00.000Z' })
+    );
+  });
+
   it('stores a complete response and reports the athlete', async () => {
+    get.mockResolvedValue({ exists: false, data: () => undefined });
     const connection = await storeStravaTokens(UID, {
       access_token: 'at',
       refresh_token: 'rt',
@@ -94,6 +137,7 @@ describe('storeStravaTokens', () => {
   });
 
   it('tolerates an athlete with no name', async () => {
+    get.mockResolvedValue({ exists: false, data: () => undefined });
     const connection = await storeStravaTokens(UID, {
       access_token: 'at',
       refresh_token: 'rt',
@@ -177,10 +221,135 @@ describe('getValidStravaAccessToken', () => {
 
   it('deletes a revoked connection rather than retrying it for ever', async () => {
     stored({ expires_at: past() });
-    vi.mocked(fetch).mockResolvedValue({ ok: false, status: 400 } as Response);
+    vi.mocked(fetch).mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => REFRESH_TOKEN_INVALID,
+    } as Response);
 
     expect(await getValidStravaAccessToken(UID)).toBeNull();
     expect(del).toHaveBeenCalled();
+  });
+
+  it('keeps every connection when the rejection is about our client, not their token', async () => {
+    // One misconfigured deploy used to disconnect every user as their token
+    // came up for refresh.
+    stored({ expires_at: past() });
+    vi.mocked(fetch).mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => CLIENT_ID_INVALID,
+    } as Response);
+
+    expect(await getValidStravaAccessToken(UID)).toBeNull();
+    expect(del).not.toHaveBeenCalled();
+  });
+
+  it('keeps a connection another request rotated while this one was refreshing', async () => {
+    // First read: the old, expired token. By the time Strava refuses it, a
+    // concurrent request has stored a fresh pair.
+    get
+      .mockResolvedValueOnce({
+        exists: true,
+        data: () => ({ access_token: 'old-at', refresh_token: 'old-rt', expires_at: past() }),
+      })
+      .mockResolvedValueOnce({
+        exists: true,
+        data: () => ({ access_token: 'fresh-at', refresh_token: 'fresh-rt', expires_at: soon() }),
+      });
+    vi.mocked(fetch).mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => REFRESH_TOKEN_INVALID,
+    } as Response);
+
+    expect(await getValidStravaAccessToken(UID)).toBe('fresh-at');
+    expect(del).not.toHaveBeenCalled();
+  });
+
+  it('keeps a connection rotated between our refused refresh and the forget', async () => {
+    const old = { access_token: 'old-at', refresh_token: 'old-rt', expires_at: past() };
+    get
+      .mockResolvedValueOnce({ exists: true, data: () => old })
+      .mockResolvedValueOnce({ exists: true, data: () => old })
+      .mockResolvedValueOnce({
+        exists: true,
+        data: () => ({ access_token: 'fresh-at', refresh_token: 'fresh-rt', expires_at: soon() }),
+      });
+    vi.mocked(fetch).mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => REFRESH_TOKEN_INVALID,
+    } as Response);
+
+    expect(await getValidStravaAccessToken(UID)).toBe('fresh-at');
+    expect(del).not.toHaveBeenCalled();
+  });
+
+  it('does not resurrect a connection deleted while the refresh was in flight', async () => {
+    // Disconnect or account erasure lands between our read and our write. An
+    // unconditional write would bring the tokens back.
+    const old = { access_token: 'old-at', refresh_token: 'rt', expires_at: past() };
+    get
+      .mockResolvedValueOnce({ exists: true, data: () => old })
+      .mockResolvedValueOnce({ exists: true, data: () => old })
+      .mockResolvedValueOnce({ exists: false, data: () => undefined });
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ access_token: 'new-at', refresh_token: 'new-rt', expires_at: soon() }),
+    } as Response);
+
+    expect(await getValidStravaAccessToken(UID)).toBeNull();
+    expect(set).not.toHaveBeenCalledWith(
+      expect.objectContaining({ access_token: 'new-at' }),
+      expect.anything()
+    );
+  });
+
+  it('waits for a refresh already in progress instead of spending the token twice', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    try {
+      const leased = {
+        access_token: 'old-at',
+        refresh_token: 'rt',
+        expires_at: past(),
+        refresh_lease_until: Date.now() + 10_000,
+      };
+      get
+        .mockResolvedValueOnce({ exists: true, data: () => leased })
+        .mockResolvedValueOnce({ exists: true, data: () => leased })
+        .mockResolvedValueOnce({
+          exists: true,
+          data: () => ({ access_token: 'their-at', refresh_token: 'their-rt', expires_at: soon() }),
+        });
+
+      const pending = getValidStravaAccessToken(UID);
+      await vi.advanceTimersByTimeAsync(600);
+
+      expect(await pending).toBe('their-at');
+      expect(fetch).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('takes the lease before calling Strava, and releases it after', async () => {
+    stored({ expires_at: past() });
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ access_token: 'new-at', refresh_token: 'rt', expires_at: soon() }),
+    } as Response);
+
+    await getValidStravaAccessToken(UID);
+    expect(set).toHaveBeenNthCalledWith(
+      1,
+      { refresh_lease_until: expect.any(Number) },
+      { merge: true }
+    );
+    expect(set).toHaveBeenLastCalledWith(
+      expect.objectContaining({ access_token: 'new-at', refresh_lease_until: 0 }),
+      { merge: true }
+    );
   });
 
   it('keeps the connection when the failure is only a network one', async () => {
@@ -215,6 +384,42 @@ describe('getValidStravaAccessToken', () => {
   it('does nothing when Firestore is not configured', async () => {
     isConfigured.mockReturnValue(false);
     expect(await getValidStravaAccessToken(UID)).toBeNull();
+  });
+});
+
+describe('forgetRejectedStravaAccess', () => {
+  it('forgets the tokens when the refused access token is still the stored one', async () => {
+    stored({ access_token: 'refused' });
+    await forgetRejectedStravaAccess(UID, 'refused');
+    expect(del).toHaveBeenCalled();
+  });
+
+  it('leaves newer tokens alone', async () => {
+    stored({ access_token: 'newer' });
+    await forgetRejectedStravaAccess(UID, 'refused');
+    expect(del).not.toHaveBeenCalled();
+  });
+});
+
+describe('revokeStravaGrant', () => {
+  it('withdraws our access at Strava, then forgets the tokens', async () => {
+    stored();
+    vi.mocked(fetch).mockResolvedValue({ ok: true } as Response);
+
+    await revokeStravaGrant(UID);
+
+    expect(fetch).toHaveBeenCalledWith(
+      'https://www.strava.com/oauth/deauthorize',
+      expect.objectContaining({ method: 'POST', headers: { Authorization: 'Bearer at' } })
+    );
+    expect(del).toHaveBeenCalled();
+  });
+
+  it('still forgets the tokens when Strava cannot be reached', async () => {
+    stored();
+    vi.mocked(fetch).mockRejectedValue(new Error('ECONNRESET'));
+    await revokeStravaGrant(UID);
+    expect(del).toHaveBeenCalled();
   });
 });
 

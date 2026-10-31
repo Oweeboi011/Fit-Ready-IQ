@@ -5,11 +5,11 @@ This implementation provides a framework for when API access is granted.
 For now, it returns placeholder data and can be extended when access is available.
 """
 
-import structlog
 from types import TracebackType
-from typing import Any, Optional
+from typing import Any
 
 import httpx
+import structlog
 
 from src.domain.interfaces import IRoutingClient
 from src.domain.value_objects import Coordinates
@@ -26,7 +26,7 @@ class KomootClient(IRoutingClient):
 
     BASE_URL = "https://api.komoot.de/v007"
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         """Initialize Komoot client.
 
         Args:
@@ -66,19 +66,6 @@ class KomootClient(IRoutingClient):
                 radius_km=radius_km,
                 activity_type=activity_type,
             )
-
-            # Placeholder for future implementation:
-            # response = await self.client.get(
-            #     f"{self.BASE_URL}/tours",
-            #     params={
-            #         "lat": coordinates.latitude,
-            #         "lng": coordinates.longitude,
-            #         "radius": radius_km * 1000,  # Convert to meters
-            #         "sport": self._map_activity_type(activity_type),
-            #     },
-            #     headers={"Authorization": f"Bearer {self.api_key}"},
-            # )
-            # return response.json()
 
             return []
 

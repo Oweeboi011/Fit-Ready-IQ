@@ -18,19 +18,64 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == resource.data.user_id;
     }
 
-    // Helper: the caller owns the document as it will exist after the write.
-    function ownsIncoming() {
-      return isAuthenticated() && request.auth.uid == request.resource.data.user_id;
+    // Helpers for validating an incoming document's optional fields.
+    function optionalNumber(d, key) {
+      return !(key in d) || d[key] == null || d[key] is number;
     }
 
-    // Helper: an update that keeps the document with its current owner.
-    //
-    // Checking only `resource.data.user_id` (what these rules used to do) lets a
-    // user rewrite `user_id` to somebody else's uid, pushing a document they
-    // authored into a stranger's collection where that stranger cannot delete it.
-    // Ownership is set once, at create.
-    function updatesOwnDoc() {
-      return ownsExisting() && ownsIncoming();
+    function optionalString(d, key, maxLen) {
+      return !(key in d) || (d[key] is string && d[key].size() <= maxLen);
+    }
+
+    // One photo reference: a string of bounded length, when the list reaches
+    // index i. Rules have no loops, so the ten allowed indices are spelled out.
+    function photoOk(p, i) {
+      return p.size() <= i || (p[i] is string && p[i].size() <= 2048);
+    }
+
+    function photosOk(d) {
+      return !('photos' in d) || (
+        d.photos is list && d.photos.size() <= 10
+        && photoOk(d.photos, 0) && photoOk(d.photos, 1) && photoOk(d.photos, 2)
+        && photoOk(d.photos, 3) && photoOk(d.photos, 4) && photoOk(d.photos, 5)
+        && photoOk(d.photos, 6) && photoOk(d.photos, 7) && photoOk(d.photos, 8)
+        && photoOk(d.photos, 9)
+      );
+    }
+
+    // A bookmark exactly as useSavedPlaces.ts writes it (`toFirestoreFields`
+    // plus a server timestamp), and nothing else. This rule used to be
+    // `isOwner` alone, so the browser could store any fields of any size under
+    // any id — the product's cheapest route to unbounded storage cost.
+    function isValidSavedPlace(placeId) {
+      let d = request.resource.data;
+      return placeId.size() <= 128
+        && d.keys().hasAll(['type', 'name', 'coordinates', 'savedAt'])
+        && d.keys().hasOnly([
+             'type', 'name', 'coordinates', 'savedAt',
+             'elevation_m', 'prominence_m', 'difficulty', 'activity_type',
+             'distance_km', 'elevation_gain_m', 'mountain_type', 'rating',
+             'photos', 'place_id'
+           ])
+        && d.type in ['route', 'mountain', 'campsite']
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 200
+        && d.coordinates is list && d.coordinates.size() == 2
+        // [lng, lat] — GeoJSON order, as everywhere in this codebase.
+        && d.coordinates[0] is number && d.coordinates[1] is number
+        && d.coordinates[0] >= -180 && d.coordinates[0] <= 180
+        && d.coordinates[1] >= -90 && d.coordinates[1] <= 90
+        && d.savedAt == request.time
+        && optionalNumber(d, 'elevation_m')
+        && optionalNumber(d, 'prominence_m')
+        && optionalNumber(d, 'distance_km')
+        && optionalNumber(d, 'elevation_gain_m')
+        && optionalNumber(d, 'rating')
+        && (!('rating' in d) || d.rating == null || (d.rating >= 0 && d.rating <= 5))
+        && optionalString(d, 'difficulty', 40)
+        && optionalString(d, 'activity_type', 40)
+        && optionalString(d, 'mountain_type', 40)
+        && optionalString(d, 'place_id', 512)
+        && photosOk(d);
     }
 
     // Users collection
@@ -39,13 +84,20 @@ service cloud.firestore {
     // the user document alone. Every subcollection needs its own match block, or
     // it falls through to the default deny — which is what happened to
     // saved_places, silently breaking every bookmark in the product.
+    //
+    // The user document itself is written only by the server (Admin SDK) —
+    // the browser never writes it. Owner writes used to be allowed, which let a
+    // user forge the `strava_sync` manifest that /api/strava/sync keeps there
+    // and that the admin sync dashboard trusts.
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read: if isOwner(userId);
+      allow write: if false; // Admin SDK only
 
       // Bookmarked routes, peaks and campsites. Written directly by the browser
       // via useSavedPlaces.ts, so this is the rule that has to allow it.
       match /saved_places/{placeId} {
-        allow read, write: if isOwner(userId);
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidSavedPlace(placeId);
       }
 
       // Strava historical activities synced server-side via Admin SDK
@@ -56,11 +108,16 @@ service cloud.firestore {
       }
     }
 
+    // The next four collections are written only by the backend, through the
+    // Admin SDK, which bypasses these rules. No browser code writes them. They
+    // used to allow owner create/update of any fields at any size — storage
+    // anyone signed in could fill at our expense, for a feature with no client.
+    // Reopen a write path with a validator, like saved_places, when one needs it.
+
     // Activities collection — scoped to the owning user
     match /activities/{activityId} {
-      allow read, delete: if ownsExisting();
-      allow update: if updatesOwnDoc();
-      allow create: if ownsIncoming();
+      allow read: if ownsExisting();
+      allow write: if false; // Admin SDK only
     }
 
     // Routes collection — readable by all authenticated users, writable only by the backend
@@ -69,12 +126,18 @@ service cloud.firestore {
       allow write: if false; // backend service account only
     }
 
-    // Places cache — shared regional cache for Google Maps results
-    // Public read so unauthenticated users benefit from cached data
-    // Writes are restricted to the backend service account (via Admin SDK)
+    // Places cache — shared regional cache for Google Maps results.
+    //
+    // Closed to clients in both directions. Visitors reach it through
+    // /api/places/cache, which reads with the Admin SDK and is rate limited.
+    // Public read (what this used to be) let anyone page through the whole
+    // collection with the client SDK — unmetered, bypassing that limit, and
+    // exposing `written_by` uids alongside cached Google content.
+    //
+    // Entries carry `expiresAt`, deleted by the TTL policy declared in
+    // firestore.indexes.json.
     match /places_cache/{gridKey} {
-      allow read: if true;
-      allow write: if false; // backend Admin SDK only
+      allow read, write: if false; // Admin SDK only
     }
 
     // Rate-limit counters — written only by the Admin SDK from route handlers.
@@ -141,9 +204,8 @@ service cloud.firestore {
 
     // Training programs — scoped to the owning user
     match /training_programs/{programId} {
-      allow read, delete: if ownsExisting();
-      allow update: if updatesOwnDoc();
-      allow create: if ownsIncoming();
+      allow read: if ownsExisting();
+      allow write: if false; // Admin SDK only
     }
 
     // Training sessions — scoped to the owning user
@@ -152,16 +214,14 @@ service cloud.firestore {
     // evaluation, and an authenticated-only rule (what this was) let any signed-in
     // user read or write anyone else's sessions.
     match /training_sessions/{sessionId} {
-      allow read, delete: if ownsExisting();
-      allow update: if updatesOwnDoc();
-      allow create: if ownsIncoming();
+      allow read: if ownsExisting();
+      allow write: if false; // Admin SDK only
     }
 
     // Itineraries — scoped to the owning user
     match /itineraries/{itineraryId} {
-      allow read, delete: if ownsExisting();
-      allow update: if updatesOwnDoc();
-      allow create: if ownsIncoming();
+      allow read: if ownsExisting();
+      allow write: if false; // Admin SDK only
     }
   }
 }

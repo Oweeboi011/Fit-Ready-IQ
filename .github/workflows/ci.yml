@@ -6,6 +6,12 @@ on:
   push:
     branches: [main, develop]
 
+# Read-only by default. Without this the token gets the repository's default
+# grant, which on older repositories is read-write to everything — for jobs
+# that run PR code.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -23,13 +29,11 @@ jobs:
       NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: dummy.firebaseapp.com
       NEXT_PUBLIC_FIREBASE_PROJECT_ID: dummy-project
       NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:0000000000000000"
-      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
-      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: dummy-project.appspot.com
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22
           cache: npm
@@ -39,6 +43,9 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
 
       - name: Type check
         run: npm run type-check
@@ -50,6 +57,14 @@ jobs:
 
       - name: Duplication
         run: npm run lint:dup
+
+      # Unused files, exports and dependencies (knip.jsonc).
+      - name: Dead code
+        run: npm run lint:dead
+
+      # Broken relative links, empty Markdown, docs/ outside the taxonomy.
+      - name: Docs
+        run: npm run lint:docs
 
       - name: Unit tests
         run: npm run test:unit
@@ -66,12 +81,41 @@ jobs:
           GOOGLE_WEATHER_API_KEY: dummy
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: frontend-coverage
           path: src/frontend/coverage/
           retention-days: 7
+
+  # Security rules are the one layer the Admin SDK routes never pass through,
+  # so no other test can catch a mistake in them. Runs firestore.rules against
+  # the emulator (which needs Java). Add "Firestore Rules" to the required
+  # checks on main and develop once it has a green run.
+  firestore-rules:
+    name: Firestore Rules
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - run: npm ci
+
+      - name: Rules tests
+        run: npm run test:rules
 
   backend:
     name: Backend Quality
@@ -81,13 +125,13 @@ jobs:
         working-directory: src/backend
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.11"
 
-      - uses: abatilo/actions-poetry@v3
+      - uses: abatilo/actions-poetry@fd0e6716a0de25ef6ade151b8b53190b0376acfd # v3
 
       - run: poetry install
 
@@ -100,6 +144,13 @@ jobs:
       - name: mypy
         run: poetry run mypy src/
 
+      # Clean Architecture contracts in pyproject.toml [tool.importlinter].
+      - name: Architecture rules
+        run: poetry run lint-imports
+
+      - name: Dead code
+        run: poetry run vulture
+
       - name: Tests
         run: poetry run pytest --cov=src --cov-report=xml -q
         env:
@@ -107,7 +158,7 @@ jobs:
           TESTING: "true"
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: backend-coverage

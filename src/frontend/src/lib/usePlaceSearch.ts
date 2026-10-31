@@ -93,6 +93,7 @@ export function usePlaceSearch(
 
   useEffect(() => {
     if (!isSearchable(query) || !near) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets to idle when the input goes away, after the previous run has been cancelled
       setState(IDLE);
       return;
     }

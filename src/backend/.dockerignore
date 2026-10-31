@@ -1,0 +1,12 @@
+# The build context is this directory. Without this file `COPY` sent the local
+# virtualenv, coverage output and every cache into the image.
+.venv/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+tests/
+.env*

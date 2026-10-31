@@ -65,17 +65,54 @@ export async function GET(request: NextRequest) {
 }
 
 /**
+ * What a DELETE asks to purge: one named entry, or — asked for twice — all of
+ * them. Anything else is answered with the 400 to return.
+ */
+async function parsePurgeTarget(
+  request: NextRequest
+): Promise<{ gridKey: string | null } | NextResponse> {
+  const { searchParams } = new URL(request.url);
+  const gridKey = searchParams.get('gridKey');
+
+  if (gridKey !== null) {
+    return gridKey.trim()
+      ? { gridKey }
+      : NextResponse.json({ error: 'gridKey is empty.' }, { status: 400 });
+  }
+  if (searchParams.get('all') !== 'true') {
+    return NextResponse.json(
+      { error: 'Name an entry with ?gridKey=, or purge everything with ?all=true.' },
+      { status: 400 }
+    );
+  }
+  const body = (await request.json().catch(() => null)) as { confirm?: unknown } | null;
+  if (body?.confirm !== 'PURGE') {
+    return NextResponse.json(
+      { error: 'Send {"confirm":"PURGE"} to purge every cache entry.' },
+      { status: 400 }
+    );
+  }
+  return { gridKey: null };
+}
+
+/**
  * DELETE /api/admin/cache
- * Query param ?gridKey=<key> — deletes a single entry.
- * No query params — purges the entire collection.
+ * `?gridKey=<key>` — deletes a single entry.
+ * `?all=true` with body `{"confirm":"PURGE"}` — purges the entire collection.
+ *
+ * A full purge used to be what you got when `gridKey` was missing *or empty*,
+ * so a single-entry purge whose key came through blank — an unset variable, a
+ * row with no key — silently wiped every region instead. Everything-at-once is
+ * now something the caller has to ask for twice, and anything else is a 400.
  */
 export async function DELETE(request: NextRequest) {
   const log = createLogger('/api/admin/cache', request);
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
 
-  const { searchParams } = new URL(request.url);
-  const gridKey = searchParams.get('gridKey');
+  const target = await parsePurgeTarget(request);
+  if (target instanceof NextResponse) return target;
+  const gridKey = target.gridKey;
 
   try {
     const db = getFirestoreAdmin();

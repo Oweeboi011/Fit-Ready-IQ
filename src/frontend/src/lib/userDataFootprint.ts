@@ -51,9 +51,28 @@ export const USER_OWNED_COLLECTIONS = [
  */
 export const USER_OWNED_TREE_COLLECTIONS = ['chat_sessions'] as const;
 
-export type UserSubcollection = (typeof USER_SUBCOLLECTIONS)[number];
-export type UserOwnedCollection = (typeof USER_OWNED_COLLECTIONS)[number];
-export type UserOwnedTreeCollection = (typeof USER_OWNED_TREE_COLLECTIONS)[number];
+/**
+ * Shared documents that are not the user's content but are stamped with the uid
+ * of whoever wrote them.
+ *
+ * `places_cache` holds Google Places results for a grid cell, served to every
+ * visitor in it, with `written_by` naming the account that filled it so a
+ * poisoned region can be traced. That stamp is personal data about the writer,
+ * so erasure deletes the cells they wrote — it is a 24-hour cache that the next
+ * visitor refills, so removing a cell costs one set of live lookups. They are
+ * left out of the export: the content is Google's data about places, not
+ * anything the person provided, and the only thing about them in it is the uid
+ * the export is already addressed to.
+ */
+export const USER_ATTRIBUTED_DOCUMENTS = [
+  { collection: 'places_cache', field: 'written_by' },
+] as const;
+
+/** Stated in every export, alongside what is retained on deletion. */
+export const ATTRIBUTED_NOT_EXPORTED =
+  'places_cache cells you filled carry your uid as written_by. They hold shared ' +
+  'Google Places results rather than your data, so they are not exported; they ' +
+  'are deleted with your account.';
 
 /**
  * Collections that hold user-attributable data but are deliberately NOT erased,
@@ -68,11 +87,9 @@ export const RETAINED_ON_DELETE: Record<string, string> = {
     'a uid and counters, never the erased content. GDPR Art. 17(3)(b): retention ' +
     'for compliance with a legal obligation.',
   rate_limits:
-    'Keyed on a salted hash of a credential, not a uid — there is nothing to ' +
-    'match against an account. Self-expires within the hour via TTL.',
-  places_cache:
-    'Regional and shared, derived from Google Places rather than from the user. ' +
-    'Contains no user identifiers.',
+    'Keyed on a hash of the uid or client IP — an HMAC under RATE_LIMIT_SALT ' +
+    'when that is set, a plain SHA-256 when it is not — and holding only a ' +
+    'counter. Self-expires within two windows (two hours) via TTL.',
 };
 
 /**
@@ -82,8 +99,16 @@ export const RETAINED_ON_DELETE: Record<string, string> = {
  *
  * The 90-day TTL on `expiresAt` clears them regardless of identity, so the
  * backlog drains on its own; this note exists so nobody reads the gap as a
- * decision. Sessions written from now on are erasable by uid.
+ * decision.
+ *
+ * The stamp itself was ineffective until the 2026-09-26 audit: the chat widget
+ * never sent a token, so every session — signed in or not — was written with
+ * `user_id: null`. Signed-out conversations went on being stored that way
+ * until 2026-09-28, when the route stopped storing them at all: a transcript
+ * with no owner is one nobody can ask us to erase. Everything stored since is
+ * stamped with a uid.
  */
 export const UNATTRIBUTED_LEGACY_DATA =
-  'chat_sessions documents created before the user_id stamp cannot be matched ' +
-  'to an account. They expire via the 90-day TTL on expiresAt.';
+  'chat_sessions documents with user_id null — every conversation before 2026-09-26, and signed-out ones ' +
+  'until 2026-09-28 — cannot be matched to an account. None are written now; the rest expire via the ' +
+  '90-day TTL on expiresAt.';

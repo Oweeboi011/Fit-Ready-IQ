@@ -3,6 +3,8 @@
 import { Camera, ImageOff } from 'lucide-react';
 import Image from 'next/image';
 
+import { buttonSecondary, buttonSize } from '@/lib/ui';
+
 interface PhotoGalleryProps {
   photos: string[];
   loading: boolean;
@@ -10,6 +12,8 @@ interface PhotoGalleryProps {
   failed: boolean;
   /** Used for alt text. */
   placeName: string;
+  /** Offered when the request failed. */
+  onRetry?: () => void;
 }
 
 function Frame({ children }: { children: React.ReactNode }) {
@@ -28,7 +32,7 @@ function Frame({ children }: { children: React.ReactNode }) {
  * "No photos available" as a place that genuinely has none. Those are different
  * facts and now read differently.
  */
-export function PhotoGallery({ photos, loading, failed, placeName }: PhotoGalleryProps) {
+export function PhotoGallery({ photos, loading, failed, placeName, onRetry }: PhotoGalleryProps) {
   return (
     <div>
       <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-300">
@@ -66,7 +70,17 @@ export function PhotoGallery({ photos, loading, failed, placeName }: PhotoGaller
         <Frame>
           <ImageOff aria-hidden="true" className="mx-auto mb-2 h-6 w-6 text-amber-400/70" />
           <p className="text-sm text-slate-300">Photos couldn&apos;t be loaded</p>
-          <p className="mt-1 text-xs text-slate-500">Reopening this place usually works.</p>
+          {onRetry ? (
+            <button
+              type="button"
+              onClick={onRetry}
+              className={`${buttonSecondary} ${buttonSize.sm} mt-2`}
+            >
+              Retry
+            </button>
+          ) : (
+            <p className="mt-1 text-xs text-slate-500">Reopening this place usually works.</p>
+          )}
         </Frame>
       ) : (
         <Frame>

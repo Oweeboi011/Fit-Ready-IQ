@@ -29,6 +29,8 @@ export default function SidebarSearchBox({
       />
       {searchQuery && (
         <button
+          type="button"
+          aria-label="Clear search"
           onClick={() => onSearchQueryChange('')}
           className="absolute inset-y-0 right-2.5 my-auto flex items-center text-slate-500 hover:text-slate-300"
         >

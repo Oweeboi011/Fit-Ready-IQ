@@ -12,11 +12,31 @@ jobs:
   health-check:
     name: Production health check
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Check /api/health
+        # Through env rather than ${{ }} in the script, so the value is data to
+        # the shell and never part of the command text.
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
         run: |
-          if [ -z "${{ vars.PRODUCTION_URL }}" ]; then
-            echo "PRODUCTION_URL repo variable is not set — see Settings > Secrets and variables > Actions > Variables" >&2
+          if [ -z "$PRODUCTION_URL" ]; then
+            echo "::error::PRODUCTION_URL repo variable is not set — Settings > Secrets and variables > Actions > Variables"
             exit 1
           fi
-          curl --fail --silent --show-error "${{ vars.PRODUCTION_URL }}/api/health"
+
+          # Bounded and retried: without --max-time a hung server held the job
+          # to GitHub's six-hour limit, and one dropped packet paged as an outage.
+          body=$(curl --fail --silent --show-error --max-time 10 --retry 2 --retry-delay 5 \
+            "$PRODUCTION_URL/api/health")
+
+          # Unhealthy is already a 503 and failed above. Degraded answers 200 —
+          # the site is up but something is misconfigured — so it is surfaced
+          # as a warning on the run rather than a failure that would stay red
+          # until someone adds an optional key.
+          status=$(printf '%s' "$body" | jq -r '.status')
+          echo "Health: $status"
+          if [ "$status" = "degraded" ]; then
+            failing=$(printf '%s' "$body" | jq -r '.services | to_entries[] | select(.value.ok == false) | .key' | paste -sd, -)
+            echo "::warning::Production is degraded: $failing"
+          fi

@@ -18,7 +18,13 @@ import { createStravaOAuthState } from '@/lib/stravaAuth';
 interface ConnectDevicesModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onActivitiesLoaded: (activities: Activity[]) => void;
+  /**
+   * The complete stored activity list after an import or a disconnect — the
+   * new state, not an addition to merge. It used to be merged by the page,
+   * so a disconnect's shorter list was unioned straight back into the old one
+   * and removed nothing.
+   */
+  onActivitiesChanged: (activities: Activity[]) => void;
 }
 
 /**
@@ -44,7 +50,7 @@ interface Device {
 export default function ConnectDevicesModal({
   isOpen,
   onClose,
-  onActivitiesLoaded,
+  onActivitiesChanged,
 }: ConnectDevicesModalProps) {
   const [devices, setDevices] = useState<Device[]>([
     {
@@ -92,6 +98,8 @@ export default function ConnectDevicesModal({
   const [uploadingDevice, setUploadingDevice] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<{ [key: string]: File[] }>({});
   const [parseError, setParseError] = useState<{ [key: string]: string }>({});
+  // Kept apart from parse errors, whose wording is about fixing an export file.
+  const [disconnectError, setDisconnectError] = useState<Partial<Record<Device['id'], string>>>({});
   const [importSummary, setImportSummary] = useState<{ [key: string]: string }>({});
   const [importProgress, setImportProgress] = useState<{ [key: string]: number }>({});
   /** Lets a real <button> drive each hidden file input, so it has a tab stop. */
@@ -133,6 +141,7 @@ export default function ConnectDevicesModal({
         }
       }
       if (Object.keys(sourceCounts).length > 0) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- browser state is read after mount; reading it during render breaks hydration
         setDevices((prev) =>
           prev.map((d) => {
             const count = sourceCounts[d.id];
@@ -257,7 +266,7 @@ export default function ConnectDevicesModal({
     if (newActivities.length > 0) {
       const merged = mergeActivities(loadActivities(), newActivities);
       saveActivities(merged);
-      onActivitiesLoaded(merged);
+      onActivitiesChanged(merged);
       setDevices((prev) =>
         prev.map((d) =>
           d.id === deviceId
@@ -286,21 +295,31 @@ export default function ConnectDevicesModal({
     setUploadingDevice(null);
   };
 
-  const handleDisconnect = (deviceId: Device['id']) => {
+  const handleDisconnect = async (deviceId: Device['id']) => {
+    setDisconnectError((prev) => ({ ...prev, [deviceId]: undefined }));
     if (deviceId === 'strava') {
-      // Ask the server to forget the tokens. Fire-and-forget: the local state
-      // below is what the user sees, and a failed delete leaves a connection they
-      // can disconnect again — whereas blocking the UI on it would make the
-      // button feel broken when they are offline.
-      authedFetch('/api/strava/connection', { method: 'DELETE' }).catch(() => {
-        /* they are signed out or offline; nothing was stored for us to clear */
-      });
+      // The server holds the tokens, so this is the disconnect; the local list
+      // below is only its echo. It used to be fire-and-forget, which reported
+      // "disconnected" while we could still read the user's Strava history.
+      let ok = false;
+      try {
+        ok = (await authedFetch('/api/strava/connection', { method: 'DELETE' })).ok;
+      } catch {
+        ok = false;
+      }
+      if (!ok) {
+        setDisconnectError((prev) => ({
+          ...prev,
+          strava: "We couldn't disconnect Strava — we may still have access. Try again.",
+        }));
+        return;
+      }
     }
     const filtered = loadActivities().filter(
       (a) => a.source !== (deviceId === 'apple_health' ? 'apple_health' : deviceId)
     );
     saveActivities(filtered);
-    onActivitiesLoaded(filtered);
+    onActivitiesChanged(filtered);
     setDevices((prev) =>
       prev.map((d) =>
         d.id === deviceId ? { ...d, status: 'disconnected', activityCount: undefined } : d
@@ -514,7 +533,7 @@ export default function ConnectDevicesModal({
                     )}
                     <button
                       type="button"
-                      onClick={() => handleDisconnect(device.id)}
+                      onClick={() => void handleDisconnect(device.id)}
                       className={`${buttonGhost} ${buttonSize.sm} text-red-400 hover:bg-red-500/15 hover:text-red-300`}
                     >
                       Disconnect
@@ -578,6 +597,15 @@ export default function ConnectDevicesModal({
                 className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3"
               >
                 <p className="text-xs text-emerald-300">{importSummary[device.id]}</p>
+              </div>
+            )}
+
+            {disconnectError[device.id] && (
+              <div
+                role="alert"
+                className="mt-3 rounded-lg border border-red-500/20 bg-red-500/10 p-3"
+              >
+                <p className="text-xs text-red-300">{disconnectError[device.id]}</p>
               </div>
             )}
 

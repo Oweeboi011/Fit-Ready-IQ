@@ -3,7 +3,7 @@
 import { MapPin, Plus, Search, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import { buttonPrimary, buttonSize } from '@/lib/ui';
+import { buttonSecondary, buttonSize } from '@/lib/ui';
 import { usePlaceSearch, type PlaceSearchResult } from '@/lib/usePlaceSearch';
 
 /**
@@ -110,8 +110,10 @@ export default function MapSearch({ near, onGoTo, onAddToPlan, plannerOpen }: Ma
         />
         <input
           type="text"
-          role="combobox"
-          aria-expanded={showPanel}
+          // A plain search field, not an ARIA combobox: each result carries two
+          // actions (show it, add it), and a listbox option may not contain
+          // interactive children. The results are an ordinary list of buttons
+          // instead, reachable by Tab as well as the arrow keys below.
           aria-controls="map-search-results"
           aria-label="Search for a place to add to your plan"
           placeholder={near ? 'Search a peak, trail or town…' : 'Waiting for your location…'}
@@ -143,7 +145,7 @@ export default function MapSearch({ near, onGoTo, onAddToPlan, plannerOpen }: Ma
       {showPanel && (
         <ul
           id="map-search-results"
-          role="listbox"
+          aria-label="Search results"
           className="mt-1.5 max-h-72 overflow-y-auto rounded-xl border border-ink/10 bg-slate-950/95 py-1 shadow-xl backdrop-blur"
         >
           {loading && <li className="px-3 py-2 text-[11px] text-slate-500">Searching…</li>}
@@ -158,8 +160,8 @@ export default function MapSearch({ near, onGoTo, onAddToPlan, plannerOpen }: Ma
           {results.map((result, index) => (
             <li
               key={result.id}
-              role="option"
-              aria-selected={index === activeIndex}
+              // The row Enter acts on, as the arrow keys move it.
+              aria-current={index === activeIndex ? 'true' : undefined}
               className={`flex items-center gap-2 px-2 py-1.5 ${
                 index === activeIndex ? 'bg-ink/[0.06]' : ''
               }`}
@@ -183,13 +185,13 @@ export default function MapSearch({ near, onGoTo, onAddToPlan, plannerOpen }: Ma
                 </span>
               </button>
 
-              {/* The reason this box exists, so it gets the primary treatment —
-                  and there is only ever one visible at a time in this panel. */}
+              {/* Secondary, not primary: there is one per result, and the rule
+                  is one primary per viewport. */}
               <button
                 type="button"
                 onClick={() => add(result)}
                 aria-label={`Add ${result.name} to your plan`}
-                className={`${buttonPrimary} ${buttonSize.sm} flex-shrink-0`}
+                className={`${buttonSecondary} ${buttonSize.sm} flex-shrink-0`}
               >
                 <Plus aria-hidden="true" className="h-3.5 w-3.5" />
                 Add
