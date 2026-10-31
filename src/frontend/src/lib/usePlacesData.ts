@@ -263,6 +263,7 @@ export function usePlacesData({
     // L3: Live Google Maps API calls (expensive, only on full miss)
     const localCached = readLocalCache(locationKey);
     if (localCached) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- starts a load; the state set is its loading flag or a synchronous cache hit
       applyResult(localCached);
       return;
     }

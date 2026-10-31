@@ -192,6 +192,7 @@ export default function DetailsModal({
   // Fetch live weather whenever the modal opens for a mountain or route
   useEffect(() => {
     if (!isOpen || !data || data.type === 'activity' || data.type === 'campsite') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets to idle when the input goes away, after the previous run has been cancelled
       setLiveWeather(null);
       setWeatherStatus('idle');
       return;
@@ -268,6 +269,7 @@ export default function DetailsModal({
   // Lazily fetch photos from Google Places when the modal opens
   useEffect(() => {
     if (!isOpen || !data) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets to idle when the input goes away, after the previous run has been cancelled
       setRuntimePhotos([]);
       return;
     }

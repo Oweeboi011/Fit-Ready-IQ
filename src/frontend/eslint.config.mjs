@@ -74,13 +74,12 @@ const config = [
     // resolution against root-level config files such as .dependency-cruiser.cjs.
     files: ['src/**/*.{ts,tsx}'],
     rules: {
-      // New in the react-hooks v6 rules that ship with Next 16. It flags nine
-      // pre-existing effects across page.tsx, MapView, ChatBot, DetailsModal,
-      // ConnectDevicesModal and useSavedPlaces that set state synchronously.
-      // They are a render-performance concern, not a correctness bug, and
-      // unpicking them is a refactor in its own right — demoted to a warning
-      // so it stays visible without blocking the upgrade. Tracked separately.
-      'react-hooks/set-state-in-effect': 'warn',
+      // New in the react-hooks v6 rules that ship with Next 16. A synchronous
+      // setState in an effect costs an extra render. Where one is genuinely the
+      // right place — restoring browser storage after mount, resetting a hook
+      // to idle — it carries an inline disable that says why. A new site
+      // without a reason fails the build.
+      'react-hooks/set-state-in-effect': 'error',
     },
   },
 

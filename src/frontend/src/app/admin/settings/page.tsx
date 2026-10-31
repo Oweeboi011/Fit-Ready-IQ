@@ -110,6 +110,7 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get('tab');
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- window.location is only readable after mount; reading it during render breaks hydration
     if (requested && TABS.includes(requested as Tab)) setActiveTab(requested as Tab);
   }, []);
 
@@ -300,6 +301,7 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     if (gate !== 'allowed') return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- starts a load; the state set is its loading flag or a synchronous cache hit
     if (activeTab === 'users') loadUsers();
     if (activeTab === 'cache') loadCache();
     if (activeTab === 'observability') loadStravaSync();

@@ -141,6 +141,7 @@ export default function ConnectDevicesModal({
         }
       }
       if (Object.keys(sourceCounts).length > 0) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- browser state is read after mount; reading it during render breaks hydration
         setDevices((prev) =>
           prev.map((d) => {
             const count = sourceCounts[d.id];

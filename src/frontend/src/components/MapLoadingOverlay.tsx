@@ -1,7 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 interface MapLoadingOverlayProps {
   /** Whether work is still in flight. */
@@ -25,12 +25,15 @@ export default function MapLoadingOverlay({
   detail,
 }: MapLoadingOverlayProps) {
   const [isDismissed, setIsDismissed] = useState(false);
+  const [wasLoading, setWasLoading] = useState(isLoading);
 
   // A new load re-arms the overlay, so dismissing one slow fetch does not
-  // silence every later one.
-  useEffect(() => {
+  // silence every later one. Adjusted during render rather than in an effect,
+  // so the re-armed overlay shows on the same paint as the new load.
+  if (isLoading !== wasLoading) {
+    setWasLoading(isLoading);
     if (isLoading) setIsDismissed(false);
-  }, [isLoading]);
+  }
 
   if (!isLoading || isDismissed) return null;
 

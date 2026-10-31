@@ -36,6 +36,7 @@ function StravaCallbackInner() {
     const denied = searchParams.get('error');
 
     if (denied) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- the OAuth outcome comes from the callback URL, which is read once after mount
       setOutcome({
         state: 'failed',
         title: 'Strava connection cancelled',

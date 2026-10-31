@@ -137,6 +137,7 @@ export function useStravaSync(uid: string | null | undefined) {
     let cancelled = false;
 
     const stored = loadActivities();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- browser state is read after mount; reading it during render breaks hydration
     if (stored.length > 0) setActivities(stored);
 
     (async () => {

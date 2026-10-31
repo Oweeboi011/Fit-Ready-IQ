@@ -110,6 +110,7 @@ export function MapDirections({ map, origin, target, onClear }: MapDirectionsPro
 
     if (!target || !origin) {
       line.setPath([]);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets to idle when the input goes away, after the previous run has been cancelled
       setLeg(null);
       setStatus('idle');
       return;

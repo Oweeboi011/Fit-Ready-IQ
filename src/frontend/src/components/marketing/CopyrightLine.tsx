@@ -18,6 +18,7 @@ export function CopyrightLine() {
   const [currentYear, setCurrentYear] = useState(LAUNCH_YEAR);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the client clock is read after hydration so the server markup stays stable
     setCurrentYear(new Date().getFullYear());
   }, []);
 

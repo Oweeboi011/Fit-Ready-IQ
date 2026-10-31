@@ -245,6 +245,7 @@ export default function Home() {
 
   useEffect(() => {
     const stored = readHiddenLayers();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- browser state is read after mount; reading it during render breaks hydration
     if (stored.length > 0) setHiddenLayers(stored);
   }, []);
 
@@ -261,6 +262,7 @@ export default function Home() {
 
   useEffect(() => {
     try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- browser state is read after mount; reading it during render breaks hydration
       if (!localStorage.getItem(FIRST_RUN_HINT_KEY)) setShowFirstRunHint(true);
     } catch {
       /* can't remember it was seen, so don't show it at all */
@@ -303,6 +305,7 @@ export default function Home() {
   useEffect(() => {
     try {
       const rawFilters = localStorage.getItem(FILTERS_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- browser state is read after mount; reading it during render breaks hydration
       if (rawFilters) setFilters({ ...DEFAULT_FILTERS, ...JSON.parse(rawFilters) });
       const rawTab = localStorage.getItem(ACTIVE_TAB_KEY);
       if (rawTab && TAB_IDS.includes(rawTab as TabId)) setActiveTab(rawTab as TabId);
@@ -315,6 +318,7 @@ export default function Home() {
   // "Saved" only exists for signed-in users; a restored preference (or a sign-
   // out) must not leave the sidebar pointing at a tab with no tab button.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- corrects a restored tab once auth resolves; Saved has no tab button when signed out
     if (activeTab === 'saved' && !authUser) setActiveTab('routes');
   }, [activeTab, authUser]);
 
@@ -338,6 +342,7 @@ export default function Home() {
 
     // A shared link names a place; hold it until the data it refers to arrives.
     const shared = decodePlaceRef(params.get('place'));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- window.location is only readable after mount; reading it during render breaks hydration
     if (shared) setPendingPlaceRef(shared);
 
     const sharedTab = params.get('tab');
@@ -648,6 +653,7 @@ export default function Home() {
       // Still loading — keep waiting. Once loading is done and it is still
       // missing, the link is stale and the user should not be left hanging.
       if (!isLoading) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- a ?place= link is resolved only once its data has loaded, which an effect observes
         setPendingPlaceRef(null);
         setError(
           "That link points to a place we can't find near you. Showing what's here instead."

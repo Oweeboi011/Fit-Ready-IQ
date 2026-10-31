@@ -130,6 +130,7 @@ export function usePlannerRoute(
 
   useEffect(() => {
     if (!enabled || waypoints.length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets to idle when the input goes away, after the previous run has been cancelled
       setRoute(EMPTY);
       return;
     }

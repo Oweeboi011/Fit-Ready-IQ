@@ -70,6 +70,7 @@ export default function ChatBot() {
       if (raw) {
         const saved = JSON.parse(raw) as { ts: number; messages: Message[] };
         if (Date.now() - saved.ts < HISTORY_TTL_MS && Array.isArray(saved.messages)) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- browser state is read after mount; reading it during render breaks hydration
           setMessages(saved.messages);
         }
       }

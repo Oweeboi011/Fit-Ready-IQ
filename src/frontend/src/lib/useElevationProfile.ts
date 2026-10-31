@@ -68,6 +68,7 @@ export function useElevationProfile(
     latestKey.current = key;
 
     if (!enabled || !path || path.length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets to idle when the input goes away, after the previous run has been cancelled
       setState(IDLE);
       return;
     }

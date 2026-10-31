@@ -94,6 +94,7 @@ export function useSavedPlaces(uid: string | null) {
 
   useEffect(() => {
     if (!uid) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets to idle when the input goes away, after the previous run has been cancelled
       setSavedPlaces([]);
       return;
     }

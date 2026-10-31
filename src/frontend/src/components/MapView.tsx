@@ -507,6 +507,7 @@ export default function MapView({
 
   useEffect(() => {
     if (userLng == null || userLat == null) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the controlled map center follows the user only when the coordinates change, never on re-render
     setUserLocation([userLng, userLat]);
     setMapCenter({ lat: userLat, lng: userLng });
   }, [userLng, userLat]);
