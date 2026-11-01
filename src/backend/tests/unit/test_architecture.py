@@ -21,6 +21,6 @@ def test_import_contracts_hold() -> None:
     exit_code = lint_imports(
         config_filename=str(PYPROJECT), no_cache=True, no_logo=True
     )
-    assert (
-        exit_code == 0
-    ), "An import contract is broken; run `lint-imports` for details."
+    assert exit_code == 0, (
+        "An import contract is broken; run `lint-imports` for details."
+    )
