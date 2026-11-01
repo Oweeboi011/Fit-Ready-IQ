@@ -56,8 +56,7 @@ select = ["E", "F", "W", "I", "N", "B", "S", "C90", "UP", "SIM", "TID", "ERA", "
 # E501: ruff format owns line length; the leftovers are URLs and log strings.
 # TID252: relative imports inside a package are fine — layering is checked by
 # import-linter, which understands them.
-# UP038: isinstance(x, (A, B)) is faster than A | B, and ruff later dropped the rule.
-ignore = ["E501", "TID252", "UP038"]
+ignore = ["E501", "TID252"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 15
