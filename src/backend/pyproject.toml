@@ -9,7 +9,7 @@ package-mode = false
 [tool.poetry.dependencies]
 python = "^3.11"
 fastapi = "^0.135"
-uvicorn = {extras = ["standard"], version = "^0.27.0"}
+uvicorn = {extras = ["standard"], version = ">=0.27,<0.55"}
 pydantic = "^2.5.0"
 pydantic-settings = "^2.14.2"
 firebase-admin = "^7.5.0"
@@ -23,7 +23,7 @@ geopy = "^2.4.1"
 shapely = "^2.0.2"
 python-dotenv = "^1.0.0"
 structlog = "^24.1.0"
-sentry-sdk = {extras = ["fastapi"], version = "^1.39.0"}
+sentry-sdk = {extras = ["fastapi"], version = ">=1.39,<3.0"}
 gevent = "<26.8.0"
 
 [tool.poetry.group.dev.dependencies]
@@ -33,7 +33,7 @@ pytest-cov = "^7.1.0"
 pip-audit = "^2.7"
 ruff = "^0.6.0"
 locust = "^2.29.1"
-mypy = "^1.8.0"
+mypy = ">=1.8,<3.0"
 pytest-httpx = "^0.36.2"
 faker = "^22.0.0"
 import-linter = "^2.15"

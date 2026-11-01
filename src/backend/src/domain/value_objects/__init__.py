@@ -1,10 +1,10 @@
 """Value objects: Immutable objects defined by their attributes."""
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class DifficultyLevel(str, Enum):
+class DifficultyLevel(StrEnum):
     """Route difficulty classifications."""
 
     EASY = "easy"
@@ -13,7 +13,7 @@ class DifficultyLevel(str, Enum):
     EXPERT = "expert"
 
 
-class ReadinessStatus(str, Enum):
+class ReadinessStatus(StrEnum):
     """User readiness for a route."""
 
     READY = "ready"
