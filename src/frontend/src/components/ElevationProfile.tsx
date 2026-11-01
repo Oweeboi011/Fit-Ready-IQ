@@ -74,7 +74,7 @@ interface PlotProps {
   hovered: ElevationSample | null;
   onMove: (event: React.PointerEvent<SVGSVGElement>) => void;
   onLeave: () => void;
-  svgRef: React.RefObject<SVGSVGElement>;
+  svgRef: React.RefObject<SVGSVGElement | null>;
 }
 
 /** The plot itself. Split out to keep each piece within the size ceilings. */

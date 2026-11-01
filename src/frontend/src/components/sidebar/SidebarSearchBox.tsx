@@ -2,7 +2,7 @@ import type { RefObject } from 'react';
 import { Search, X } from 'lucide-react';
 
 interface SidebarSearchBoxProps {
-  searchInputRef: RefObject<HTMLInputElement>;
+  searchInputRef: RefObject<HTMLInputElement | null>;
   searchQuery: string;
   onSearchQueryChange: (query: string) => void;
 }
