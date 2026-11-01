@@ -20,7 +20,7 @@ interface PlacesSidebarProps {
   onDismissLocationNotice: () => void;
   locationSource: LocationSource | null;
   onRetryLocation: () => void;
-  searchInputRef: RefObject<HTMLInputElement>;
+  searchInputRef: RefObject<HTMLInputElement | null>;
   userLocation: UserLocation | null;
   hasPreciseLocation: boolean;
   isLocating: boolean;
