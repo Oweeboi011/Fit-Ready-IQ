@@ -31,6 +31,7 @@ import { decodePlaceRef, encodePlaceRef, type PlaceRef } from '@/lib/placeUrl';
 import { locationProblemMessage, useUserLocation } from '@/lib/useUserLocation';
 import type { Route as RouteData, Mountain as MountainData, Campsite } from '@/lib/placesTypes';
 import { toDetailsModalData, type SelectedDetails } from '@/lib/detailsModalMapper';
+import { fetchElevations } from '@/lib/mapsGeometry';
 import { useFirebaseAuth } from '@/lib/useFirebaseAuth';
 import { useStravaSync } from '@/lib/useStravaSync';
 import { usePlacesData, COLLECTION_LABELS } from '@/lib/usePlacesData';
@@ -197,16 +198,11 @@ export default function Home() {
     // Fill in the real height behind the drop, so the plan reports ascent and
     // the exported GPX carries <ele>. Without this the field was never set and
     // every export was flat.
-    if (typeof window === 'undefined' || !window.google?.maps) return;
-    const service = new google.maps.ElevationService();
-    service.getElevationForLocations(
-      { locations: [{ lat: coordinates[1], lng: coordinates[0] }] },
-      (results, status) => {
-        if (status !== google.maps.ElevationStatus.OK || !results?.[0]) return;
-        const elevation = Math.round(results[0].elevation);
-        setPlannerWaypoints((prev) => prev.map((w) => (w.id === id ? { ...w, elevation } : w)));
-      }
-    );
+    void fetchElevations([{ lat: coordinates[1], lng: coordinates[0] }]).then(({ values }) => {
+      const elevation = values[0];
+      if (elevation == null) return;
+      setPlannerWaypoints((prev) => prev.map((w) => (w.id === id ? { ...w, elevation } : w)));
+    });
   }, []);
 
   /**

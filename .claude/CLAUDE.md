@@ -101,6 +101,7 @@ The FastAPI backend is not called by the frontend in production; it is planned f
 | `/api/integrations/firebase` | Deep Firebase probe — actually writes to Firestore. Admin-gated; use `/api/health` for uptime monitoring. | 15 s |
 | `/api/directions` | Google Routes API proxy for the planner (12 s upstream timeout). Rate-limited to 120/hour per caller. | — |
 | `/api/advisories` | Scraped `data/advisories.json`, then `ADVISORY_FEED_URL`; never invents a closure | — |
+| `/api/elevation` | Ground elevation for up to 100 points, proxied to OpenTopoData (`ELEVATION_API_URL` overrides; no key). CDN-cached a month. A `null` stays a `null`; a 429 upstream is reported as `reason: "quota"`. Rate-limited to 150/hour per caller. | — |
 
 ### Firestore data model
 
@@ -278,19 +279,20 @@ changed meaning will otherwise feed every visitor to that region for 24 hours.
 ### Google APIs actually required
 
 Legacy Places is enough for discovery, but these are separate enablements and
-the app degrades honestly without them:
+the app degrades honestly without them. Elevation is no longer one of them — it
+moved to `/api/elevation` (OpenTopoData, free) as the first step of #86, which
+replaces the rest:
 
 | API | Powers | Without it |
 |---|---|---|
 | Maps JavaScript | The map | Error page with a retry |
 | Places (legacy) | Route/peak/campsite discovery | Empty lists with a retry |
-| Elevation | Relief, difficulty banding | "Relief unknown", difficulty "Unrated" |
 | Geocoding | The "near <place>" label | Falls back to whatever label the place carries |
 | Distance Matrix (legacy) | Walking distance to each result | Distance omitted |
 | **Routes** (not legacy Directions) | Directions, planner path snapping | Straight lines, labelled as such |
 
 **Two keys are required, of two different kinds.** The browser key is
-HTTP-referrer restricted and needs all five client-side APIs above plus
+HTTP-referrer restricted and needs the client-side APIs above plus
 Geocoding and Distance Matrix. `/api/directions` and `/api/weather` call Google
 *server-to-server*, which sends no referer, so a referrer-restricted key is
 rejected with "Requests from referer &lt;empty&gt; are blocked" — they need their
