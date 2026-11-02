@@ -16,9 +16,12 @@ export const runtime = 'nodejs';
  * at another OSRM host (a self-hosted one, once the public servers are not
  * enough); it must serve `/routed-{foot,bike,car}/route/v1/…` like FOSSGIS.
  *
- * Proxied rather than called from the browser so the CDN can cache a route
- * and so the upstream sees an identifying User-Agent, which its usage policy
- * asks for.
+ * Proxied rather than called from the browser so the upstream sees an
+ * identifying User-Agent, which its usage policy asks for.
+ *
+ * Not cached at the edge: this is a POST, and Vercel's CDN caches only GET and
+ * HEAD. The planner asks once per change to its waypoints, so the load on the
+ * public servers is one request per edit, not per render.
  */
 
 interface LatLng {
@@ -177,12 +180,10 @@ function refusal(status: number, ok: boolean, data: { code?: string } | null, lo
  */
 async function callOsrm(req: RouteRequest, log: Logger) {
   const base = process.env.ROUTING_API_URL || DEFAULT_URL;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
     const res = await fetch(osrmUrl(base, req), {
-      signal: controller.signal,
+      signal: AbortSignal.timeout(TIMEOUT_MS),
       headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
     });
     const data = (await res.json().catch(() => null)) as { code?: string } | null;
@@ -192,19 +193,14 @@ async function callOsrm(req: RouteRequest, log: Logger) {
     const result = toResult(data);
     if (!result) return failure('no_route', 'No route found', 404);
 
-    return NextResponse.json(result, {
-      // Paths change slowly; the same waypoints can share an answer for a day.
-      headers: { 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=86400' },
-    });
+    return NextResponse.json(result);
   } catch (err) {
-    const timedOut = err instanceof DOMException && err.name === 'AbortError';
+    const timedOut = err instanceof DOMException && err.name === 'TimeoutError';
     log.error('routing_request_failed', err);
     return failure(
       timedOut ? 'timeout' : 'upstream',
       timedOut ? 'Routing timed out' : 'Routing service unreachable',
       504
     );
-  } finally {
-    clearTimeout(timer);
   }
 }

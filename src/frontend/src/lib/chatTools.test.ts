@@ -6,6 +6,7 @@ import {
   placeFacts,
   runTool,
   savedPlaceFor,
+  weatherForModel,
   type ChatContext,
   type OpenPlace,
 } from './chatTools';
@@ -129,10 +130,32 @@ describe('runTool', () => {
   });
 
   it('checks weather at the open place, scoped to the outing', async () => {
-    const weather = vi.fn().mockResolvedValue({ condition: 'CLEAR' });
+    const weather = vi.fn().mockResolvedValue({ current: { condition: 'CLEAR' } });
     const out = await runTool('analyze_weather', { hours: 7.6 }, ctx(route), { weather });
     expect(weather).toHaveBeenCalledWith(46.11, 7.84, 8);
-    expect(out.response).toEqual({ at: 'Swiss Tour Monte Rosa', report: { condition: 'CLEAR' } });
+    expect(out.response).toEqual({
+      at: 'Swiss Tour Monte Rosa',
+      report: { current: { condition: 'CLEAR' }, summary: null, window: null, alerts: [] },
+    });
+  });
+
+  it('passes the model only the weather fields it needs', () => {
+    const alerts = Array.from({ length: 15 }, (_, i) => ({ summary: `alert ${i}` }));
+    const report = weatherForModel({
+      location: { lat: 46.1, lng: 7.8 },
+      provider: 'google-weather',
+      current: { tempC: 4 },
+      summary: 'Cold',
+      window: { status: 'clear' },
+      alerts,
+    });
+    expect(report).toEqual({
+      current: { tempC: 4 },
+      summary: 'Cold',
+      window: { status: 'clear' },
+      alerts: alerts.slice(0, 12),
+      alerts_total: 15,
+    });
   });
 
   it("falls back to the user's location, and ignores a silly duration", async () => {

@@ -1,9 +1,18 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { deleteCloudPlan, fetchCloudPlans, mergePlans, writeCloudPlan } from './planSync';
+import {
+  deleteCloudPlan,
+  fetchCloudPlans,
+  mergePlans,
+  writeCloudPlan,
+  writeCloudPlans,
+} from './planSync';
 import { deletePlan, loadPlans, replacePlans, savePlan, type SavedPlan } from './savedPlans';
+
+/** A sync interrupted by an edit merges again, at most this many times in all. */
+const MAX_SYNC_ATTEMPTS = 3;
 
 export type PlanSyncStatus = 'device' | 'syncing' | 'synced' | 'failed';
 
@@ -15,6 +24,13 @@ export type PlanSyncStatus = 'device' | 'syncing' | 'synced' | 'failed';
 export function usePlanSync(uid: string | null, isOpen: boolean) {
   const [plans, setPlans] = useState<SavedPlan[]>([]);
   const [status, setStatus] = useState<PlanSyncStatus>('device');
+  /**
+   * Counts saves and deletes. The merge reads the device, waits on the
+   * account, then writes the device back; an edit made during that wait would
+   * be overwritten by the older list. A sync that sees the count move merges
+   * again instead.
+   */
+  const edits = useRef(0);
 
   // Read after mount, never during render — storage reads during render make
   // the server and client disagree on first paint. Signed in, merge with the
@@ -32,11 +48,20 @@ export function usePlanSync(uid: string | null, isOpen: boolean) {
     setStatus('syncing');
     (async () => {
       try {
-        const { plans: merged, upload } = mergePlans(loadPlans(), await fetchCloudPlans(uid));
-        await Promise.all(upload.map((plan) => writeCloudPlan(uid, plan)));
-        if (cancelled) return;
-        setPlans(replacePlans(merged));
-        setStatus('synced');
+        for (let attempt = 0; attempt < MAX_SYNC_ATTEMPTS; attempt++) {
+          const seen = edits.current;
+          const { plans: merged, upload } = mergePlans(loadPlans(), await fetchCloudPlans(uid));
+          await writeCloudPlans(uid, upload);
+          if (cancelled) return;
+          if (edits.current === seen) {
+            setPlans(replacePlans(merged));
+            setStatus('synced');
+            return;
+          }
+        }
+        // Edited faster than the account answers; the device list stands and
+        // the next open merges it.
+        if (!cancelled) setStatus('failed');
       } catch (err) {
         console.error('Plan sync failed:', err);
         if (!cancelled) setStatus('failed');
@@ -49,6 +74,7 @@ export function usePlanSync(uid: string | null, isOpen: boolean) {
 
   const save = useCallback(
     async (plan: SavedPlan) => {
+      edits.current++;
       setPlans(savePlan({ ...plan, synced: false }));
       if (!uid) return;
       try {
@@ -65,6 +91,7 @@ export function usePlanSync(uid: string | null, isOpen: boolean) {
 
   const remove = useCallback(
     async (id: string) => {
+      edits.current++;
       setPlans(deletePlan(id));
       if (!uid) return;
       try {

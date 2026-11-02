@@ -87,6 +87,30 @@ export async function writeCloudPlan(uid: string, plan: SavedPlan): Promise<void
   });
 }
 
+/** Firestore's limit on writes in one batch. */
+const MAX_BATCH_WRITES = 500;
+
+/**
+ * Several plans in as few round trips as Firestore allows: one batch, which
+ * also commits all or nothing, so a failed sync never leaves half the device's
+ * plans in the account.
+ */
+export async function writeCloudPlans(uid: string, plans: SavedPlan[]): Promise<void> {
+  if (plans.length === 0) return;
+  const { firestore, ref } = await plansCollection(uid);
+  const db = ref.firestore;
+  for (let i = 0; i < plans.length; i += MAX_BATCH_WRITES) {
+    const batch = firestore.writeBatch(db);
+    for (const plan of plans.slice(i, i + MAX_BATCH_WRITES)) {
+      batch.set(firestore.doc(ref, plan.id), {
+        ...toDocument(plan),
+        updatedAt: firestore.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  }
+}
+
 export async function deleteCloudPlan(uid: string, id: string): Promise<void> {
   const { firestore, ref } = await plansCollection(uid);
   await firestore.deleteDoc(firestore.doc(ref, id));

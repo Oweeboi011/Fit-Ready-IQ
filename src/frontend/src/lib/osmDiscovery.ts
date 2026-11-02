@@ -27,6 +27,26 @@ export const MAX_CAMPSITES = 60;
 
 const EARTH_RADIUS_M = 6_378_137;
 
+/** Longer than any real trail or summit name; OSM has a few that are paragraphs. */
+const MAX_NAME_CHARS = 120;
+
+/**
+ * A name from OSM, fit to show: control characters removed, whitespace
+ * collapsed, length bounded. Names are the only free text discovery passes on —
+ * everything else is a number or a URL built here — so they are cleaned where
+ * they enter rather than by walking the whole response on the way out, which
+ * would also clip the URLs. Null when nothing printable is left.
+ */
+export function cleanName(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const name = raw
+    .replace(/[\u0000-\u001F\u007F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!name) return null;
+  return name.length > MAX_NAME_CHARS ? `${name.slice(0, MAX_NAME_CHARS - 1)}…` : name;
+}
+
 /** WGS84 → Web Mercator, the projection Waymarked Trails' API speaks. */
 export function toMercator(lng: number, lat: number): [number, number] {
   const x = (lng * Math.PI * EARTH_RADIUS_M) / 180;
@@ -126,7 +146,7 @@ export function wikidataId(tags: Record<string, string> | undefined): string | n
  * where it starts.
  */
 export function routeFromWaymarked(details: WaymarkedDetails, site: WaymarkedSite): Route | null {
-  const name = details.name?.trim() || details.tags?.name?.trim();
+  const name = cleanName(details.name) ?? cleanName(details.tags?.name);
   const bbox = details.bbox;
   if (!name || !bbox || bbox.length !== 4 || !bbox.every(Number.isFinite)) return null;
 
@@ -192,7 +212,7 @@ const OSM_TYPES: Record<string, string> = { N: 'node', W: 'way', R: 'relation' }
 function photonBase(feature: PhotonPlace) {
   const [lng, lat] = feature.geometry?.coordinates ?? [];
   const p = feature.properties ?? {};
-  const name = p.name?.trim();
+  const name = cleanName(p.name);
   const type = p.osm_type && OSM_TYPES[p.osm_type];
   if (!name || !type || !p.osm_id || typeof lat !== 'number' || typeof lng !== 'number') {
     return null;

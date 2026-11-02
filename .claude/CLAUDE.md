@@ -301,8 +301,8 @@ so a referrer-restricted key is rejected with "Requests from referer
 &lt;empty&gt; are blocked" — it needs a key with **no referrer restriction**.
 
 The free services are shared and volunteer-run, so each is proxied and cached
-at the edge (`/api/discover` a week per 0.1° cell, `/api/directions` a day,
-`/api/elevation` a month) and sends an identifying User-Agent. `ROUTING_API_URL`
+at the edge (`/api/discover` a week per 0.1° cell, `/api/elevation` a month;
+`/api/directions` is a POST, which the CDN does not cache) and sends an identifying User-Agent. `ROUTING_API_URL`
 and `ELEVATION_API_URL` point at self-hosted instances when the public ones are
 not enough.
 
