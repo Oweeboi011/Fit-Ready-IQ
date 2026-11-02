@@ -49,6 +49,15 @@ rebuilt from `chat_sessions/{id}/messages` and only the client's final turn is u
 could otherwise write the assistant's side of the conversation. For a new session, the client's
 last 20 messages are used (trimmed to start on a user turn).
 
+**Tools** (`lib/chatTools.ts`, #26). The model may call `analyze_open_place` (the open place's
+length, climb, difficulty and time estimate, with every unknown named), `analyze_weather` (the
+weather route, called with the caller's own headers, at the open place or the user's location)
+and `propose_save_open_place`. No tool writes anything: a save comes back as `proposal`
+(`{ action: "save_place", placeId, name }`) and the widget asks the user, who saves with their
+own sign-in. The optional `context` (`{ openPlace: { kind, place }, location: [lng, lat] }`) is
+rebuilt through the places-cache schema; a malformed place is dropped. A turn makes at most
+three model calls.
+
 **Persistence:** signed-in conversations only. The owner is written once, at create; a
 `sessionId` that is unknown, malformed or someone else's gets a fresh server-minted id instead.
 Signed-out conversations are not stored — there would be no owner to export or erase them for —
@@ -71,6 +80,7 @@ Authorization: Bearer <Firebase ID token>   (optional)
 | ----------- | ------------- | -------- | ----------------------------------------------------------------------------------- |
 | `sessionId` | string (UUID) | No       | A session this caller owns. Anything else is replaced by a new id.                  |
 | `messages`  | array         | Yes      | 1–200 messages; the **last must be `role: "user"`**. Each at most 8,000 characters. |
+| `context`   | object        | No       | The open place and the user's location, for tools. Untrusted; validated.            |
 
 **Responses:**
 
