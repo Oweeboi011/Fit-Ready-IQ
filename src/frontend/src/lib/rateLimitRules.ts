@@ -47,6 +47,17 @@ export const DIRECTIONS_RATE_LIMIT: RateLimitRule = {
 };
 
 /**
+ * Ground elevation, from a free public service with a daily quota shared by
+ * every visitor. A discovery pass costs a handful of calls and a planner edit
+ * one or two; the budget is there so one caller cannot spend everyone's day.
+ */
+export const ELEVATION_RATE_LIMIT: RateLimitRule = {
+  name: 'elevation',
+  limit: 150,
+  windowSeconds: 3600,
+};
+
+/**
  * The OAuth code exchange. Deliberately the tightest budget in the table: a
  * person connects Strava once, and a caller hammering this is either probing
  * for a code that works or burning our Strava client's quota to lock the real

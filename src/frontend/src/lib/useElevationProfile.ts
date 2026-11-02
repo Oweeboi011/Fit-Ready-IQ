@@ -73,13 +73,6 @@ export function useElevationProfile(
       return;
     }
 
-    // `google` is injected by the Maps SDK loader; without it there is nothing to
-    // ask. Silent rather than an error: the map itself already reports that.
-    if (typeof google === 'undefined' || !google.maps?.ElevationService) {
-      setState(IDLE);
-      return;
-    }
-
     setState({ samples: [], loading: true, error: null });
 
     const totalKm = pathLengthKm(path);
