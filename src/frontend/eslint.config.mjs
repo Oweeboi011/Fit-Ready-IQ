@@ -17,7 +17,6 @@ const LEGACY_OVERSIZED = [
   'src/app/app/page.tsx',
   'src/app/admin/settings/page.tsx', // 661
   'src/components/DetailsModal.tsx', // 2742
-  'src/components/MapView.tsx', // 834
   'src/components/ConnectDevicesModal.tsx', // 524
   'src/components/ProfileModal.tsx', // 472
   'src/components/ChatBot.tsx', // one 187-line component function

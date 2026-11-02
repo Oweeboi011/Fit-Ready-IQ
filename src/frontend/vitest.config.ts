@@ -44,6 +44,7 @@ export default defineConfig({
         'src/lib/weatherAlerts.ts',
         'src/lib/weatherAlertCache.ts',
         'src/lib/radarLayer.ts',
+        'src/lib/mapStyle.ts',
         'src/lib/stravaAuth.ts',
         'src/lib/useStravaSync.ts',
         'src/lib/personalStorage.ts',

@@ -10,7 +10,7 @@ test.describe('route planner', () => {
     });
 
     // Clicks are ignored until the map surface exists.
-    await expect(page.locator('.gm-style').first()).toBeVisible({ timeout: 25_000 });
+    await expect(page.locator('.maplibregl-canvas').first()).toBeVisible({ timeout: 25_000 });
     await page.getByRole('button', { name: /Planner/ }).click();
     await expect(page.getByRole('heading', { name: 'Planner' })).toBeVisible();
     await expect(page.getByText(/Tap anywhere on the map/i)).toBeVisible();
@@ -36,7 +36,7 @@ test.describe('route planner', () => {
     await expect(page.getByRole('toolbar', { name: 'Navigation dock' })).toBeVisible({
       timeout: 20_000,
     });
-    await expect(page.locator('.gm-style').first()).toBeVisible({ timeout: 25_000 });
+    await expect(page.locator('.maplibregl-canvas').first()).toBeVisible({ timeout: 25_000 });
     await page.getByRole('button', { name: /Planner/ }).click();
 
     await page.getByPlaceholder('Name this route').fill('Ridge loop');
@@ -66,7 +66,7 @@ test.describe('route planner', () => {
     await expect(page.getByRole('toolbar', { name: 'Navigation dock' })).toBeVisible({
       timeout: 20_000,
     });
-    await expect(page.locator('.gm-style').first()).toBeVisible({ timeout: 25_000 });
+    await expect(page.locator('.maplibregl-canvas').first()).toBeVisible({ timeout: 25_000 });
     await page.getByRole('button', { name: /Planner/ }).click();
 
     // Two clicks on empty map, well clear of the panel and the dock.

@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { fetchLatestRadarFrame, radarTileUrl, type RadarFrame } from './radarLayer';
+import { fetchLatestRadarFrame, radarTileTemplate, type RadarFrame } from './radarLayer';
 
-describe('radarTileUrl', () => {
+describe('radarTileTemplate', () => {
   it("builds RainViewer's documented tile URL shape", () => {
     const frame: RadarFrame = {
       host: 'https://tilecache.rainviewer.com',
       path: '/v2/radar/123',
       time: 123,
     };
-    expect(radarTileUrl(frame, 5, 6, 7)).toBe(
-      'https://tilecache.rainviewer.com/v2/radar/123/256/7/5/6/2/1_1.png'
+    expect(radarTileTemplate(frame)).toBe(
+      'https://tilecache.rainviewer.com/v2/radar/123/256/{z}/{x}/{y}/2/1_1.png'
     );
   });
 });
