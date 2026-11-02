@@ -685,11 +685,11 @@ export default function Home() {
   };
 
   return (
-    <main id="main" className="relative flex h-[100dvh] flex-col overflow-hidden bg-slate-950">
+    <main id="main" className="relative flex h-dvh flex-col overflow-hidden bg-slate-950">
       {/* One quiet light source behind the map chrome. A three-colour orb field
           reads as decoration for its own sake and dates the product instantly. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0">
-        <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-blue-600/10 blur-3xl" />
+        <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-blue-600/10 blur-3xl" />
       </div>
       {/* Header */}
       <AppHeader
@@ -740,7 +740,7 @@ export default function Home() {
             role="button"
             tabIndex={0}
             aria-label="Close menu"
-            className="fixed inset-0 z-20 bg-black/60 backdrop-blur-sm md:hidden"
+            className="fixed inset-0 z-20 bg-black/60 backdrop-blur-xs md:hidden"
             onClick={() => setSidebarOpen(false)}
             onKeyDown={(e) => {
               if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {

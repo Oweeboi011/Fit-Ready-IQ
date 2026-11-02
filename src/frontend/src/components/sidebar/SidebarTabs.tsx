@@ -83,7 +83,7 @@ interface SidebarTabsProps {
 // An equal-width grid then crushed each tab to ~69px in a 291px sidebar,
 // which is not enough for an icon, a label and a count, so the counts
 // clipped. Each tab now takes the width it needs and the strip scrolls.
-// `flex-shrink-0` matters: the sidebar is a flex column and would otherwise
+// `shrink-0` matters: the sidebar is a flex column and would otherwise
 // compress this row to a sliver.
 export default function SidebarTabs({
   isAuthed,
@@ -105,7 +105,7 @@ export default function SidebarTabs({
     <div
       role="tablist"
       aria-label="Browse places and activities"
-      className="sidebar-tabs flex flex-shrink-0 gap-0.5 overflow-x-auto rounded-xl border border-ink/[0.08] bg-ink/5 p-1"
+      className="sidebar-tabs border-ink/8 bg-ink/5 flex shrink-0 gap-0.5 overflow-x-auto rounded-xl border p-1"
     >
       {tabs.map((tab) => {
         const count = tabCount(tab.id, matches, {
@@ -126,17 +126,17 @@ export default function SidebarTabs({
             tabIndex={activeTab === tab.id ? 0 : -1}
             onClick={() => onSelectTab(tab.id)}
             onKeyDown={(e) => onTabKeyDown(e, tab.id)}
-            className={`flex min-h-11 flex-shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+            className={`flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold whitespace-nowrap transition-all focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-hidden ${
               activeTab === tab.id
                 ? tab.activeClass
-                : 'text-slate-400 hover:bg-ink/5 hover:text-slate-200'
+                : 'hover:bg-ink/5 text-slate-400 hover:text-slate-200'
             }`}
           >
-            <tab.Icon aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0" />
+            <tab.Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
             {tab.label}
             {count > 0 && (
               <span
-                className={`font-tabular rounded-full px-1.5 py-px text-[9px] font-bold leading-none ${
+                className={`font-tabular rounded-full px-1.5 py-px text-[9px] leading-none font-bold ${
                   activeTab === tab.id ? 'bg-ink/25 text-white' : 'bg-ink/10 text-slate-400'
                 }`}
               >

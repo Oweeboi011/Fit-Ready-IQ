@@ -41,7 +41,7 @@ const STATUS_META: Record<
   unknown: {
     label: 'Window unknown',
     tone: 'text-slate-400',
-    ring: 'border-ink/10 bg-ink/[0.03]',
+    ring: 'border-ink/10 bg-ink/3',
     Icon: CloudOff,
   },
 };
@@ -78,9 +78,9 @@ export function WeatherWindowPanel({ window }: { window: WeatherWindow | null })
   return (
     <section aria-label="Weather window" className={`rounded-xl border px-4 py-3 ${meta.ring}`}>
       <div className="flex items-start gap-3">
-        <meta.Icon aria-hidden="true" className={`mt-0.5 h-4 w-4 flex-shrink-0 ${meta.tone}`} />
+        <meta.Icon aria-hidden="true" className={`mt-0.5 h-4 w-4 shrink-0 ${meta.tone}`} />
         <div className="min-w-0 flex-1">
-          <p className={`text-[11px] font-semibold uppercase tracking-wider ${meta.tone}`}>
+          <p className={`text-[11px] font-semibold tracking-wider uppercase ${meta.tone}`}>
             {meta.label}
           </p>
 
@@ -93,7 +93,7 @@ export function WeatherWindowPanel({ window }: { window: WeatherWindow | null })
               {window.hazards.map((hazard) => (
                 <li
                   key={`${hazard.kind}-${hazard.at}`}
-                  className="rounded-full border border-ink/10 bg-ink/[0.04] px-2 py-0.5 text-[10px] text-slate-300"
+                  className="border-ink/10 bg-ink/4 rounded-full border px-2 py-0.5 text-[10px] text-slate-300"
                 >
                   {hazard.summary}
                 </li>

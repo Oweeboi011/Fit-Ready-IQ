@@ -67,9 +67,9 @@ export function AccountDataPanel({ onDeleted }: { onDeleted: () => void }) {
   }
 
   return (
-    <section className="rounded-xl border border-ink/[0.06] bg-slate-800/60 p-4">
+    <section className="border-ink/6 rounded-xl border bg-slate-800/60 p-4">
       <div className="flex items-baseline justify-between gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300">Your data</h3>
+        <h3 className="text-xs font-semibold tracking-wider text-slate-300 uppercase">Your data</h3>
         <Link href="/privacy" className="text-[11px] text-slate-400 hover:text-slate-200">
           What we keep, and why
         </Link>
@@ -116,7 +116,7 @@ export function AccountDataPanel({ onDeleted }: { onDeleted: () => void }) {
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
               autoComplete="off"
-              className="mt-1 block w-full rounded-md border border-ink/15 bg-slate-950/60 px-2 py-1.5 text-xs text-white outline-none focus:border-red-400/60"
+              className="border-ink/15 mt-1 block w-full rounded-md border bg-slate-950/60 px-2 py-1.5 text-xs text-white outline-hidden focus:border-red-400/60"
             />
           </label>
           <div className="mt-2 flex gap-2">

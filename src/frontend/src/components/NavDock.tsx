@@ -225,17 +225,17 @@ function DockButton({
       onClick={onClick}
       aria-pressed={expanded === undefined ? active : undefined}
       aria-expanded={expanded}
-      className={`relative flex min-h-11 flex-shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl px-3 py-1.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+      className={`relative flex min-h-11 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl px-3 py-1.5 transition-all focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-hidden ${
         active
           ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40'
-          : 'text-slate-400 hover:bg-ink/[0.08] hover:text-white'
+          : 'hover:bg-ink/8 text-slate-400 hover:text-white'
       }`}
     >
       <Icon aria-hidden="true" className="h-4 w-4" />
-      <span className="text-[10px] font-semibold leading-none">{label}</span>
+      <span className="text-[10px] leading-none font-semibold">{label}</span>
       {badge !== undefined && badge > 0 && (
         <span
-          className={`absolute -right-0.5 -top-0.5 min-w-4 rounded-full px-1 text-[9px] font-bold leading-4 ${
+          className={`absolute -top-0.5 -right-0.5 min-w-4 rounded-full px-1 text-[9px] leading-4 font-bold ${
             badgeTone === 'warning'
               ? 'bg-amber-500 text-slate-950'
               : active
@@ -337,7 +337,7 @@ export function NavDock(props: NavDockProps) {
       <div
         role="toolbar"
         aria-label="Navigation dock"
-        className="pointer-events-auto flex max-w-full items-center gap-0.5 overflow-x-auto rounded-2xl border border-ink/10 bg-slate-900/90 p-1.5 shadow-2xl shadow-black/50 backdrop-blur-xl"
+        className="border-ink/10 pointer-events-auto flex max-w-full items-center gap-0.5 overflow-x-auto rounded-2xl border bg-slate-900/90 p-1.5 shadow-2xl shadow-black/50 backdrop-blur-xl"
       >
         {CONTENT_TABS.map(({ id, label, Icon }) => (
           <DockButton
@@ -350,7 +350,7 @@ export function NavDock(props: NavDockProps) {
           />
         ))}
 
-        <div aria-hidden="true" className="mx-1 h-8 w-px flex-shrink-0 bg-ink/10" />
+        <div aria-hidden="true" className="bg-ink/10 mx-1 h-8 w-px shrink-0" />
 
         {ITEMS.map(({ id, label, Icon }) => (
           <DockButton

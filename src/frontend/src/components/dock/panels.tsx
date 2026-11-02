@@ -47,14 +47,14 @@ export function PanelShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mb-2 w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-ink/10 bg-slate-900/95 p-4 shadow-2xl shadow-black/60 backdrop-blur-xl">
+    <div className="border-ink/10 mb-2 w-[min(24rem,calc(100vw-2rem))] rounded-2xl border bg-slate-900/95 p-4 shadow-2xl shadow-black/60 backdrop-blur-xl">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-300">{title}</h2>
+        <h2 className="text-xs font-semibold tracking-wider text-slate-300 uppercase">{title}</h2>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close panel"
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-ink/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+          className="hover:bg-ink/10 flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:text-white focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-hidden"
         >
           <X aria-hidden="true" className="h-3.5 w-3.5" />
         </button>
@@ -66,7 +66,7 @@ export function PanelShell({
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-ink/[0.06] py-2 last:border-0">
+    <div className="border-ink/6 flex items-baseline justify-between gap-3 border-b py-2 last:border-0">
       <span className="text-xs text-slate-400">{label}</span>
       <span className="text-right text-xs font-semibold text-white">{value}</span>
     </div>
@@ -294,13 +294,13 @@ export function LayersPanel({
         type="button"
         onClick={onToggleWeatherRadar}
         aria-pressed={weatherRadarVisible}
-        className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-xs transition-colors hover:bg-ink/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+        className={`hover:bg-ink/10 flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-xs transition-colors focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-hidden ${
           weatherRadarVisible ? 'text-white' : 'text-slate-500'
         }`}
       >
         <span
           aria-hidden="true"
-          className={`h-2.5 w-2.5 flex-shrink-0 rounded-full bg-sky-400 ${
+          className={`h-2.5 w-2.5 shrink-0 rounded-full bg-sky-400 ${
             weatherRadarVisible ? '' : 'opacity-25'
           }`}
         />
@@ -309,12 +309,12 @@ export function LayersPanel({
           <span className="block text-[10px] text-slate-500">Live · via RainViewer</span>
         </span>
         {weatherRadarVisible ? (
-          <Eye aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 opacity-60" />
+          <Eye aria-hidden="true" className="h-3.5 w-3.5 shrink-0 opacity-60" />
         ) : (
-          <EyeOff aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 opacity-60" />
+          <EyeOff aria-hidden="true" className="h-3.5 w-3.5 shrink-0 opacity-60" />
         )}
       </button>
-      <div className="my-1 border-t border-ink/10" />
+      <div className="border-ink/10 my-1 border-t" />
       {MAP_LAYERS.map((layer) => {
         const visible = !hiddenLayers.includes(layer);
         const count = counts[layer];
@@ -324,24 +324,24 @@ export function LayersPanel({
             type="button"
             onClick={() => onToggle(layer)}
             aria-pressed={visible}
-            className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-xs transition-colors hover:bg-ink/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+            className={`hover:bg-ink/10 flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-xs transition-colors focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-hidden ${
               visible ? 'text-white' : 'text-slate-500'
             }`}
           >
             <span
               aria-hidden="true"
-              className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${MAP_LAYER_SWATCH[layer]} ${
+              className={`h-2.5 w-2.5 shrink-0 rounded-full ${MAP_LAYER_SWATCH[layer]} ${
                 visible ? '' : 'opacity-25'
               }`}
             />
             <span className="flex-1 truncate">{MAP_LAYER_LABELS[layer]}</span>
             {/* The count is what tells you whether a hidden layer is worth
                 turning back on. */}
-            <span className="font-tabular flex-shrink-0 text-[11px] text-slate-500">{count}</span>
+            <span className="font-tabular shrink-0 text-[11px] text-slate-500">{count}</span>
             {visible ? (
-              <Eye aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 opacity-60" />
+              <Eye aria-hidden="true" className="h-3.5 w-3.5 shrink-0 opacity-60" />
             ) : (
-              <EyeOff aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 opacity-60" />
+              <EyeOff aria-hidden="true" className="h-3.5 w-3.5 shrink-0 opacity-60" />
             )}
           </button>
         );

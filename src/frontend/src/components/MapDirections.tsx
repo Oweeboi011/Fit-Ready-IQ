@@ -41,7 +41,7 @@ function ModeToggle({ mode, onChange }: { mode: TravelMode; onChange: (m: Travel
     <div
       role="radiogroup"
       aria-label="Travel mode"
-      className="flex items-center gap-0.5 rounded-lg border border-ink/10 bg-ink/[0.03] p-0.5"
+      className="border-ink/10 bg-ink/3 flex items-center gap-0.5 rounded-lg border p-0.5"
     >
       {options.map(({ id, label, Icon }) => (
         <button
@@ -56,7 +56,7 @@ function ModeToggle({ mode, onChange }: { mode: TravelMode; onChange: (m: Travel
             e.preventDefault();
             onChange(mode === 'DRIVING' ? 'WALKING' : 'DRIVING');
           }}
-          className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+          className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-hidden ${
             mode === id ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -163,11 +163,11 @@ export function MapDirections({ map, origin, target, onClear, onPathChange }: Ma
     <div className="pointer-events-none absolute inset-x-0 top-6 z-30 flex justify-center px-4">
       <div
         role="status"
-        className="pointer-events-auto w-[min(26rem,100%)] rounded-2xl border border-ink/10 bg-slate-900/95 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl"
+        className="border-ink/10 pointer-events-auto w-[min(26rem,100%)] rounded-2xl border bg-slate-900/95 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
               Directions to
             </p>
             <p className="truncate text-sm font-semibold text-white">{target.name}</p>
@@ -176,7 +176,7 @@ export function MapDirections({ map, origin, target, onClear, onPathChange }: Ma
             type="button"
             onClick={onClear}
             aria-label="Clear directions"
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-ink/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+            className="hover:bg-ink/10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:text-white focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-hidden"
           >
             <X aria-hidden="true" className="h-3.5 w-3.5" />
           </button>
@@ -201,7 +201,7 @@ export function MapDirections({ map, origin, target, onClear, onPathChange }: Ma
             href={externalUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className={`${buttonGhost} ${buttonSize.sm} ml-auto flex-shrink-0`}
+            className={`${buttonGhost} ${buttonSize.sm} ml-auto shrink-0`}
           >
             Navigate
           </a>

@@ -115,20 +115,20 @@ export function AdvisoriesPanel({
               type="button"
               onClick={() => onSelect(advisory)}
               disabled={!advisory.coordinates}
-              className={`w-full rounded-lg border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${KIND_TONE[advisory.kind]} ${
+              className={`w-full rounded-lg border px-3 py-2 text-left transition-colors focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-hidden ${KIND_TONE[advisory.kind]} ${
                 advisory.coordinates ? 'hover:brightness-125' : 'cursor-default'
               }`}
             >
               <div className="flex items-center gap-1.5">
-                <Icon aria-hidden="true" className="h-3 w-3 flex-shrink-0" />
-                <span className="text-[9px] font-bold uppercase tracking-wider">
+                <Icon aria-hidden="true" className="h-3 w-3 shrink-0" />
+                <span className="text-[9px] font-bold tracking-wider uppercase">
                   {KIND_LABEL[advisory.kind]}
                 </span>
                 <span className="ml-auto text-[9px] opacity-70">
                   {relativeDate(advisory.publishedAt)}
                 </span>
               </div>
-              <p className="mt-1 text-[11px] font-semibold leading-snug">{advisory.title}</p>
+              <p className="mt-1 text-[11px] leading-snug font-semibold">{advisory.title}</p>
               {advisory.areaName && (
                 <p className="mt-0.5 text-[10px] opacity-70">{advisory.areaName}</p>
               )}

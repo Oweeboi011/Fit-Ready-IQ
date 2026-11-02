@@ -101,7 +101,7 @@ export default function MapSearch({ near, onGoTo, onAddToPlan, plannerOpen }: Ma
   return (
     <div
       ref={containerRef}
-      className="pointer-events-auto absolute left-3 top-3 z-20 w-[min(22rem,calc(100%-1.5rem))]"
+      className="pointer-events-auto absolute top-3 left-3 z-20 w-[min(22rem,calc(100%-1.5rem))]"
     >
       <div className="relative">
         <Search
@@ -125,7 +125,7 @@ export default function MapSearch({ near, onGoTo, onAddToPlan, plannerOpen }: Ma
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          className="w-full rounded-xl border border-ink/10 bg-slate-950/90 py-2.5 pl-9 pr-9 text-[13px] text-slate-200 placeholder-slate-500 shadow-lg outline-none backdrop-blur transition-all focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+          className="border-ink/10 w-full rounded-xl border bg-slate-950/90 py-2.5 pr-9 pl-9 text-[13px] text-slate-200 placeholder-slate-500 shadow-lg outline-hidden backdrop-blur-sm transition-all focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
         />
         {query && (
           <button
@@ -146,7 +146,7 @@ export default function MapSearch({ near, onGoTo, onAddToPlan, plannerOpen }: Ma
         <ul
           id="map-search-results"
           aria-label="Search results"
-          className="mt-1.5 max-h-72 overflow-y-auto rounded-xl border border-ink/10 bg-slate-950/95 py-1 shadow-xl backdrop-blur"
+          className="border-ink/10 mt-1.5 max-h-72 overflow-y-auto rounded-xl border bg-slate-950/95 py-1 shadow-xl backdrop-blur-sm"
         >
           {loading && <li className="px-3 py-2 text-[11px] text-slate-500">Searching…</li>}
 
@@ -163,7 +163,7 @@ export default function MapSearch({ near, onGoTo, onAddToPlan, plannerOpen }: Ma
               // The row Enter acts on, as the arrow keys move it.
               aria-current={index === activeIndex ? 'true' : undefined}
               className={`flex items-center gap-2 px-2 py-1.5 ${
-                index === activeIndex ? 'bg-ink/[0.06]' : ''
+                index === activeIndex ? 'bg-ink/6' : ''
               }`}
             >
               <button
@@ -172,7 +172,7 @@ export default function MapSearch({ near, onGoTo, onAddToPlan, plannerOpen }: Ma
                 onMouseEnter={() => setActiveIndex(index)}
                 className="flex min-w-0 flex-1 items-center gap-2 text-left"
               >
-                <MapPin aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
+                <MapPin aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-slate-500" />
                 <span className="min-w-0">
                   <span className="block truncate text-[12px] font-medium text-slate-200">
                     {result.name}
@@ -191,7 +191,7 @@ export default function MapSearch({ near, onGoTo, onAddToPlan, plannerOpen }: Ma
                 type="button"
                 onClick={() => add(result)}
                 aria-label={`Add ${result.name} to your plan`}
-                className={`${buttonSecondary} ${buttonSize.sm} flex-shrink-0`}
+                className={`${buttonSecondary} ${buttonSize.sm} shrink-0`}
               >
                 <Plus aria-hidden="true" className="h-3.5 w-3.5" />
                 Add

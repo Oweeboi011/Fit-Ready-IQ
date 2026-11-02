@@ -258,7 +258,7 @@ export default function ElevationProfile({
   return (
     <figure className={`m-0 ${className}`}>
       <figcaption className="mb-1 flex items-baseline justify-between gap-2">
-        <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+        <span className="text-[10px] font-medium tracking-wide text-slate-400 uppercase">
           Elevation
         </span>
         {/* Direct labels rather than a ticked y-axis: ascent and descent are the

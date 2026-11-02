@@ -32,10 +32,10 @@ function Stat({
   tone: string;
 }) {
   return (
-    <div className="rounded-xl border border-ink/[0.06] bg-slate-800/60 p-3">
+    <div className="border-ink/6 rounded-xl border bg-slate-800/60 p-3">
       <Icon aria-hidden="true" className={`mb-2 h-4 w-4 ${tone}`} />
       <p className="text-[10px] text-slate-400">{label}</p>
-      <p className="font-tabular mt-0.5 text-base font-bold leading-tight text-white">{value}</p>
+      <p className="font-tabular mt-0.5 text-base leading-tight font-bold text-white">{value}</p>
       {hint && <p className="mt-0.5 text-[10px] text-slate-500">{hint}</p>}
     </div>
   );
@@ -76,10 +76,10 @@ export function LedgerPanel({ ledger }: { ledger: Ledger }) {
 
   return (
     <div>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-300">
+      <h3 className="mb-3 text-xs font-semibold tracking-wider text-slate-300 uppercase">
         Your record
         {sinceYear && (
-          <span className="ml-2 font-normal normal-case text-slate-500">since {sinceYear}</span>
+          <span className="ml-2 font-normal text-slate-500 normal-case">since {sinceYear}</span>
         )}
       </h3>
 
@@ -112,8 +112,8 @@ export function LedgerPanel({ ledger }: { ledger: Ledger }) {
         />
       </div>
 
-      <div className="mt-3 rounded-xl border border-ink/[0.06] bg-slate-800/40 px-3 py-2">
-        <p className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-amber-300/90">
+      <div className="border-ink/6 mt-3 rounded-xl border bg-slate-800/40 px-3 py-2">
+        <p className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold tracking-wider text-amber-300/90 uppercase">
           <Trophy aria-hidden="true" className="h-3 w-3" />
           Personal bests
         </p>
