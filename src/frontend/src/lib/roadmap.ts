@@ -174,6 +174,12 @@ export const ROADMAP: RoadmapPhase[] = [
           'Routes are scored against the last eight weeks of training, gated by the limiting factor so the answer names what to train.',
       },
       {
+        title: 'An assistant that checks before it answers',
+        status: 'done',
+        detail:
+          'Ask about the place you have open and the assistant reads its real length, climb and forecast instead of guessing. It can offer to save the place; you press Save.',
+      },
+      {
         title: 'A weather window, not just conditions',
         status: 'done',
         detail:
