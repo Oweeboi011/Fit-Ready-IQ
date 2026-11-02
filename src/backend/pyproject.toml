@@ -22,7 +22,7 @@ fitparse = "^1.2.0"
 geopy = "^2.4.1"
 shapely = "^2.0.2"
 python-dotenv = "^1.0.0"
-structlog = "^24.1.0"
+structlog = ">=24.1,<27.0"
 sentry-sdk = {extras = ["fastapi"], version = ">=1.39,<3.0"}
 gevent = "<26.10.0"
 
