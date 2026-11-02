@@ -22,6 +22,7 @@ interface MapNavDockProps {
   onOpenConnectDevices: () => void;
   onOpenAdmin: () => void;
   onOpenRoadmap: () => void;
+  onOpenKomoot: () => void;
   showLegend: boolean;
   onToggleLegend: () => void;
   showNativeControls: boolean;
@@ -62,6 +63,7 @@ export default function MapNavDock({
   onOpenConnectDevices,
   onOpenAdmin,
   onOpenRoadmap,
+  onOpenKomoot,
   showLegend,
   onToggleLegend,
   showNativeControls,
@@ -97,6 +99,7 @@ export default function MapNavDock({
       onOpenConnectDevices={onOpenConnectDevices}
       onOpenAdmin={onOpenAdmin}
       onOpenRoadmap={onOpenRoadmap}
+      onOpenKomoot={onOpenKomoot}
       legendVisible={showLegend}
       onToggleLegend={onToggleLegend}
       nativeControlsVisible={showNativeControls}

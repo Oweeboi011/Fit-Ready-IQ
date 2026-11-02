@@ -31,6 +31,7 @@ import { decodePlaceRef, encodePlaceRef, type PlaceRef } from '@/lib/placeUrl';
 import { locationProblemMessage, useUserLocation } from '@/lib/useUserLocation';
 import type { Route as RouteData, Mountain as MountainData, Campsite } from '@/lib/placesTypes';
 import { toDetailsModalData, type SelectedDetails } from '@/lib/detailsModalMapper';
+import { fetchElevations } from '@/lib/mapsGeometry';
 import { useFirebaseAuth } from '@/lib/useFirebaseAuth';
 import { useStravaSync } from '@/lib/useStravaSync';
 import { usePlacesData, COLLECTION_LABELS } from '@/lib/usePlacesData';
@@ -52,6 +53,7 @@ const DetailsModal = dynamic(() => import('@/components/DetailsModal'), { ssr: f
 const ProfileModal = dynamic(() => import('@/components/ProfileModal'), { ssr: false });
 const AdminModal = dynamic(() => import('@/components/admin/AdminModal'), { ssr: false });
 const RoadmapModal = dynamic(() => import('@/components/RoadmapModal'), { ssr: false });
+const KomootRouteModal = dynamic(() => import('@/components/KomootRouteModal'), { ssr: false });
 /** Not gated on open state — it renders its own launcher button. */
 const ChatBot = dynamic(() => import('@/components/ChatBot'), { ssr: false });
 
@@ -167,6 +169,7 @@ export default function Home() {
   const [plannerOpen, setPlannerOpen] = useState(false);
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [roadmapOpen, setRoadmapOpen] = useState(false);
+  const [komootOpen, setKomootOpen] = useState(false);
   const [plannerWaypoints, setPlannerWaypoints] = useState<PlannerWaypoint[]>([]);
 
   /**
@@ -197,16 +200,11 @@ export default function Home() {
     // Fill in the real height behind the drop, so the plan reports ascent and
     // the exported GPX carries <ele>. Without this the field was never set and
     // every export was flat.
-    if (typeof window === 'undefined' || !window.google?.maps) return;
-    const service = new google.maps.ElevationService();
-    service.getElevationForLocations(
-      { locations: [{ lat: coordinates[1], lng: coordinates[0] }] },
-      (results, status) => {
-        if (status !== google.maps.ElevationStatus.OK || !results?.[0]) return;
-        const elevation = Math.round(results[0].elevation);
-        setPlannerWaypoints((prev) => prev.map((w) => (w.id === id ? { ...w, elevation } : w)));
-      }
-    );
+    void fetchElevations([{ lat: coordinates[1], lng: coordinates[0] }]).then(({ values }) => {
+      const elevation = values[0];
+      if (elevation == null) return;
+      setPlannerWaypoints((prev) => prev.map((w) => (w.id === id ? { ...w, elevation } : w)));
+    });
   }, []);
 
   /**
@@ -837,6 +835,7 @@ export default function Home() {
           onOpenConnectDevices={() => setIsDeviceModalOpen(true)}
           onOpenAdmin={() => setAdminModalOpen(true)}
           onOpenRoadmap={() => setRoadmapOpen(true)}
+          onOpenKomoot={() => setKomootOpen(true)}
           showLegend={showLegend}
           onToggleLegend={() => setShowLegend((v) => !v)}
           showNativeControls={showNativeControls}
@@ -905,6 +904,7 @@ export default function Home() {
       )}
 
       {roadmapOpen && <RoadmapModal isOpen={roadmapOpen} onClose={() => setRoadmapOpen(false)} />}
+      {komootOpen && <KomootRouteModal isOpen={komootOpen} onClose={() => setKomootOpen(false)} />}
 
       {selectedDetails !== null && (
         <DetailsModal

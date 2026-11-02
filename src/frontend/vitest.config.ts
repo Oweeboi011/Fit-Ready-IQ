@@ -50,6 +50,8 @@ export default defineConfig({
         'src/lib/placesCacheSchema.ts',
         'src/lib/advisories.ts',
         'src/lib/plans.ts',
+        'src/lib/komootTour.ts',
+        'src/lib/routeBriefing.ts',
 
         // Shared UI primitives: every dialog and gallery in the app is built on these.
         'src/components/Modal.tsx',
@@ -69,6 +71,8 @@ export default defineConfig({
         'src/app/api/health/route.ts',
         'src/app/api/places/cache/route.ts',
         'src/app/api/strava/sync/route.ts',
+        'src/app/api/elevation/route.ts',
+        'src/app/api/komoot/tour/route.ts',
         'src/app/api/weather/route.ts',
       ],
       thresholds: {

@@ -101,6 +101,8 @@ The FastAPI backend is not called by the frontend in production; it is planned f
 | `/api/integrations/firebase` | Deep Firebase probe — actually writes to Firestore. Admin-gated; use `/api/health` for uptime monitoring. | 15 s |
 | `/api/directions` | Google Routes API proxy for the planner (12 s upstream timeout). Rate-limited to 120/hour per caller. | — |
 | `/api/advisories` | Scraped `data/advisories.json`, then `ADVISORY_FEED_URL`; never invents a closure | — |
+| `/api/elevation` | Ground elevation for up to 100 points, proxied to OpenTopoData (`ELEVATION_API_URL` overrides; no key). CDN-cached a month. A `null` stays a `null`; a 429 upstream is reported as `reason: "quota"`. Rate-limited to 150/hour per caller. | — |
+| `/api/komoot/tour` | A Komoot tour from a pasted share link, read from Komoot's **undocumented** `api.komoot.de/v007/tours/{id}` (no public API exists, so it can break without notice). Public tours CDN-cached an hour; a link with a `share_token` is `private, no-store`. Every failure carries a `reason` (`invalid`, `smarttour`, `private`, `not_found`, `unreadable`, `upstream`). Rate-limited to 60/hour per caller. | — |
 
 ### Firestore data model
 
@@ -230,6 +232,9 @@ Firebase Admin SDK tries credentials in this order: `FIREBASE_SERVICE_ACCOUNT_KE
 - `src/lib/ledger.ts` — lifetime and year-to-date totals plus personal bests, the record that survives the month rollover `fitnessScore` resets on
 - `src/lib/readinessRecommender.ts` — bands scored routes into "ready" and "stretch". The ready band sorts by demand, not score: everything easy scores 100, so sorting by score surfaces the flattest walk
 - `src/lib/weatherWindow.ts` — the soonest span worth going, scoped to a route's duration. A `warning` hour is disqualifying, never discounted
+- `src/components/KomootRouteModal.tsx` — Komoot route viewer (dock → More): paste a tour link, get the route explained, the forecast window and a packing checklist
+- `src/lib/komootTour.ts` — Komoot link parsing and tour normalisation; untrusted JSON, unknowns stay `null`
+- `src/lib/routeBriefing.ts` — rule-based route summary and "what to prepare" checklist. No model: every line traces to a number on the route or the forecast, and an unknown surface is never read as firm ground
 - `src/lib/routeDuration.ts` — Naismith ascent estimate, shared by the details view and the weather window so the two cannot disagree
 - `src/lib/mapLayers.ts` — map layer vocabulary and persistence
 - `src/lib/gpxBuilder.ts` — planner → GPX (round-trips through `gpxParser`)
@@ -278,19 +283,20 @@ changed meaning will otherwise feed every visitor to that region for 24 hours.
 ### Google APIs actually required
 
 Legacy Places is enough for discovery, but these are separate enablements and
-the app degrades honestly without them:
+the app degrades honestly without them. Elevation is no longer one of them — it
+moved to `/api/elevation` (OpenTopoData, free) as the first step of #86, which
+replaces the rest:
 
 | API | Powers | Without it |
 |---|---|---|
 | Maps JavaScript | The map | Error page with a retry |
 | Places (legacy) | Route/peak/campsite discovery | Empty lists with a retry |
-| Elevation | Relief, difficulty banding | "Relief unknown", difficulty "Unrated" |
 | Geocoding | The "near <place>" label | Falls back to whatever label the place carries |
 | Distance Matrix (legacy) | Walking distance to each result | Distance omitted |
 | **Routes** (not legacy Directions) | Directions, planner path snapping | Straight lines, labelled as such |
 
 **Two keys are required, of two different kinds.** The browser key is
-HTTP-referrer restricted and needs all five client-side APIs above plus
+HTTP-referrer restricted and needs the client-side APIs above plus
 Geocoding and Distance Matrix. `/api/directions` and `/api/weather` call Google
 *server-to-server*, which sends no referer, so a referrer-restricted key is
 rejected with "Requests from referer &lt;empty&gt; are blocked" — they need their

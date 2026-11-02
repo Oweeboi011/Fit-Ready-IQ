@@ -47,6 +47,28 @@ export const DIRECTIONS_RATE_LIMIT: RateLimitRule = {
 };
 
 /**
+ * Ground elevation, from a free public service with a daily quota shared by
+ * every visitor. A discovery pass costs a handful of calls and a planner edit
+ * one or two; the budget is there so one caller cannot spend everyone's day.
+ */
+export const ELEVATION_RATE_LIMIT: RateLimitRule = {
+  name: 'elevation',
+  limit: 150,
+  windowSeconds: 3600,
+};
+
+/**
+ * Komoot tour lookups. Free, but on an undocumented endpoint we do not own: a
+ * caller looping through tour ids would get our server, not theirs, blocked.
+ * One lookup per pasted link; sixty is a long evening of planning.
+ */
+export const KOMOOT_RATE_LIMIT: RateLimitRule = {
+  name: 'komoot',
+  limit: 60,
+  windowSeconds: 3600,
+};
+
+/**
  * The OAuth code exchange. Deliberately the tightest budget in the table: a
  * person connects Strava once, and a caller hammering this is either probing
  * for a code that works or burning our Strava client's quota to lock the real
