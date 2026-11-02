@@ -8,3 +8,6 @@ next-env.d.ts
 coverage/
 playwright-report/
 test-results/
+
+# Copied from maplibre-gl on dev/build (scripts/copy-maplibre-worker.ts).
+public/maplibre-gl-worker.mjs

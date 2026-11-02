@@ -50,13 +50,13 @@ export async function fetchLatestRadarFrame(): Promise<RadarFrame | null> {
 }
 
 /**
- * Tile URL template for a Google Maps `ImageMapType`.
+ * Tile URL template for a MapLibre raster source; the map fills in `{z}/{x}/{y}`.
  *
  * Color scheme 2 is RainViewer's "universal blue" — readable on both the
  * light and terrain base maps this app uses. `1_1` smooths the radar and
  * shows snow separately, which are the two settings their docs recommend
  * for a general-audience map rather than a meteorologist's tool.
  */
-export function radarTileUrl(frame: RadarFrame, x: number, y: number, z: number): string {
-  return `${frame.host}${frame.path}/256/${z}/${x}/${y}/2/1_1.png`;
+export function radarTileTemplate(frame: RadarFrame): string {
+  return `${frame.host}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`;
 }

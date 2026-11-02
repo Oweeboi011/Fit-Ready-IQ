@@ -1,8 +1,10 @@
 'use client';
 
 import { Car, Footprints, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import type { Map as MapLibreMap } from 'maplibre-gl';
+import { useEffect, useState } from 'react';
 
+import { boundsOf } from '@/lib/mapStyle';
 import { decodePolyline } from '@/lib/polylineDecoder';
 import { buttonGhost, buttonSize } from '@/lib/ui';
 
@@ -15,10 +17,12 @@ export interface DirectionsTarget {
 export type TravelMode = 'DRIVING' | 'WALKING';
 
 interface MapDirectionsProps {
-  map: google.maps.Map | null;
+  map: MapLibreMap | null;
   origin: { lat: number; lng: number } | null;
   target: DirectionsTarget | null;
   onClear: () => void;
+  /** The routed line, `[lng, lat]`, for the map to draw; empty to clear it. */
+  onPathChange: (path: [number, number][]) => void;
 }
 
 interface Leg {
@@ -80,36 +84,14 @@ function ModeToggle({ mode, onChange }: { mode: TravelMode; onChange: (m: Travel
  * `DirectionsService` this used to call is the legacy Directions API, which
  * Google no longer enables on new projects.
  */
-export function MapDirections({ map, origin, target, onClear }: MapDirectionsProps) {
+export function MapDirections({ map, origin, target, onClear, onPathChange }: MapDirectionsProps) {
   const [mode, setMode] = useState<TravelMode>('DRIVING');
   const [leg, setLeg] = useState<Leg | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
-  const lineRef = useRef<google.maps.Polyline | null>(null);
-
-  // One polyline for the lifetime of the map, redrawn per destination.
-  useEffect(() => {
-    if (!map) return;
-    const line = new google.maps.Polyline({
-      map,
-      path: [],
-      strokeColor: '#3b82f6',
-      strokeWeight: 5,
-      strokeOpacity: 0.9,
-      zIndex: 500,
-    });
-    lineRef.current = line;
-    return () => {
-      line.setMap(null);
-      lineRef.current = null;
-    };
-  }, [map]);
 
   useEffect(() => {
-    const line = lineRef.current;
-    if (!line) return;
-
     if (!target || !origin) {
-      line.setPath([]);
+      onPathChange([]);
       // eslint-disable-next-line react-hooks/set-state-in-effect -- resets to idle when the input goes away, after the previous run has been cancelled
       setLeg(null);
       setStatus('idle');
@@ -137,7 +119,7 @@ export function MapDirections({ map, origin, target, onClear }: MapDirectionsPro
         (data: { polyline: string; distanceKm: number | null; durationSeconds: number | null }) => {
           if (cancelled) return;
           const path = decodePolyline(data.polyline);
-          line.setPath(path.map(([lng, lat]) => ({ lat, lng })));
+          onPathChange(path);
 
           // A missing figure reads as a dash; "0 min" to a summit is an answer
           // someone could plan around.
@@ -155,9 +137,8 @@ export function MapDirections({ map, origin, target, onClear }: MapDirectionsPro
           setStatus('idle');
 
           // Frame the route so it is not off-screen.
-          const bounds = new google.maps.LatLngBounds();
-          path.forEach(([lng, lat]) => bounds.extend({ lat, lng }));
-          map?.fitBounds(bounds, 80);
+          const bounds = boundsOf(path);
+          if (bounds) map?.fitBounds(bounds, { padding: 80 });
         }
       )
       .catch((err) => {
@@ -165,14 +146,14 @@ export function MapDirections({ map, origin, target, onClear }: MapDirectionsPro
         // ZERO_RESULTS is meaningful: there is often no drivable route to a
         // summit. Say so rather than showing an empty map.
         console.error('Directions failed:', err);
-        line.setPath([]);
+        onPathChange([]);
         setStatus('error');
       });
 
     return () => {
       cancelled = true;
     };
-  }, [map, origin, target, mode]);
+  }, [map, origin, target, mode, onPathChange]);
 
   if (!target) return null;
 

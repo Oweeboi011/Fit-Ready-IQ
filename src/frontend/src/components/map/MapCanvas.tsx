@@ -1,5 +1,6 @@
 import dynamic from 'next/dynamic';
-import { useMemo } from 'react';
+import type { Map as MapLibreMap } from 'maplibre-gl';
+import { useMemo, useState } from 'react';
 import { MapDirections, type DirectionsTarget } from '@/components/MapDirections';
 import { RoutePlanner } from '@/components/RoutePlanner';
 import type { PlannerRoute, PlannerTravelMode } from '@/lib/usePlannerRoute';
@@ -9,8 +10,10 @@ import type { MapLayer } from '@/lib/mapLayers';
 import type { Route as RouteData, Mountain as MountainData, Campsite } from '@/lib/placesTypes';
 import type { SavedPlace } from '@/lib/useSavedPlaces';
 import type { ActivityPolyline } from '@/lib/activityTypes';
+import { boundsOf } from '@/lib/mapStyle';
 
-// Dynamically import MapView to avoid SSR issues with the Google Maps SDK
+// MapLibre needs WebGL and `window`, so the map is client-only. Code-split too:
+// the renderer is the largest dependency on the page.
 const MapView = dynamic(() => import('@/components/MapView'), {
   ssr: false,
   loading: () => (
@@ -28,8 +31,8 @@ const MapView = dynamic(() => import('@/components/MapView'), {
 });
 
 interface MapCanvasProps {
-  mapInstance: google.maps.Map | null;
-  onMapReady: (map: google.maps.Map | null) => void;
+  mapInstance: MapLibreMap | null;
+  onMapReady: (map: MapLibreMap | null) => void;
   userLocation: { lat: number; lng: number } | null;
   directionsTarget: DirectionsTarget | null;
   onClearDirections: () => void;
@@ -56,8 +59,6 @@ interface MapCanvasProps {
   campsites: Campsite[];
   savedPlaces: SavedPlace[];
   hasPreciseLocation: boolean;
-  isLoaded: boolean;
-  loadError: Error | undefined;
   onRouteClick: (route: RouteData) => void;
   onMountainClick: (mountain: MountainData) => void;
   onCampsiteClick: (campsite: Campsite) => void;
@@ -94,8 +95,6 @@ export default function MapCanvas({
   campsites,
   savedPlaces,
   hasPreciseLocation,
-  isLoaded,
-  loadError,
   onRouteClick,
   onMountainClick,
   onCampsiteClick,
@@ -117,6 +116,7 @@ export default function MapCanvas({
     () => (lng == null || lat == null ? undefined : [lng, lat]),
     [lng, lat]
   );
+  const [directionsPath, setDirectionsPath] = useState<[number, number][]>([]);
 
   return (
     <>
@@ -125,6 +125,7 @@ export default function MapCanvas({
         origin={userLocation}
         target={directionsTarget}
         onClear={onClearDirections}
+        onPathChange={setDirectionsPath}
       />
 
       <RoutePlanner
@@ -140,18 +141,14 @@ export default function MapCanvas({
         onLoadPlan={(waypoints) => {
           onLoadPlan(waypoints);
           // Frame the loaded plan so it is not off-screen.
-          if (mapInstance && waypoints.length > 0) {
-            const bounds = new google.maps.LatLngBounds();
-            waypoints.forEach((w) =>
-              bounds.extend({ lat: w.coordinates[1], lng: w.coordinates[0] })
-            );
-            mapInstance.fitBounds(bounds, 80);
-          }
+          const bounds = boundsOf(waypoints.map((w) => w.coordinates));
+          if (mapInstance && bounds) mapInstance.fitBounds(bounds, { padding: 80, maxZoom: 15 });
         }}
       />
 
       <MapView
         onMapReady={onMapReady}
+        directionsPath={directionsPath}
         plannerWaypoints={plannerWaypoints}
         plannerPath={plannerRoute.path}
         plannerRouteStatus={plannerRoute.status}
@@ -172,8 +169,6 @@ export default function MapCanvas({
         savedPlaces={savedPlaces}
         userLocation={userLocationTuple}
         hasPreciseLocation={hasPreciseLocation}
-        isLoaded={isLoaded}
-        loadError={loadError}
         onRouteClick={onRouteClick}
         onMountainClick={onMountainClick}
         onCampsiteClick={onCampsiteClick}

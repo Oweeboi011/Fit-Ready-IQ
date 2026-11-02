@@ -3,6 +3,7 @@
 // Fit Ready IQ - Main Page
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useJsApiLoader } from '@react-google-maps/api';
+import type { Map as MapLibreMap } from 'maplibre-gl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import AppHeader from '@/components/AppHeader';
@@ -114,26 +115,11 @@ export default function Home() {
 
   const { isLoaded, loadError } = useJsApiLoader(googleMapsLoaderOptions);
 
-  /**
-   * A blank key is a configuration failure, and it has to be detected here
-   * rather than left to the SDK.
-   *
-   * `useJsApiLoader` only reports `loadError` when the *script* fails to fetch.
-   * With an empty key the script loads perfectly well, and Google then paints
-   * its own grey "This page can't load Google Maps correctly" watermark over
-   * our UI. `gm_authFailure` does not rescue us either: that fires for auth
-   * rejections such as `RefererNotAllowedMapError`, not for `NoApiKeys`, and it
-   * is registered in an effect that runs after the SDK has already given up.
-   *
-   * So the absence is checked directly, and the map surface renders its own
-   * error state — which already carries a retry and, on localhost, the exact
-   * setup checklist. Degrading honestly is the rule this codebase holds to; a
-   * third party's error overlay is not us degrading honestly.
-   */
-  const mapConfigError = useMemo(
-    () => (googleMapsApiKey ? undefined : new Error('NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is not set')),
-    [googleMapsApiKey]
-  );
+  // The Google script now serves discovery only (#86): the map itself is
+  // MapLibre on free tiles and renders with or without it. `useJsApiLoader`
+  // reports `loadError` only when the script fails to fetch — a blank key loads
+  // fine and then fails every call — so the absence is checked directly.
+  const discoveryUnavailable = Boolean(loadError) || !googleMapsApiKey;
 
   const {
     routes,
@@ -147,6 +133,7 @@ export default function Home() {
     retryPlacesFetch,
   } = usePlacesData({
     isLoaded,
+    discoveryUnavailable,
     userLocation,
     locationStatus,
     locationSource,
@@ -162,7 +149,7 @@ export default function Home() {
   // Directions render on our own map; "Get Directions" no longer hands the
   // user to another product mid-task.
   const [directionsTarget, setDirectionsTarget] = useState<DirectionsTarget | null>(null);
-  const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
+  const [mapInstance, setMapInstance] = useState<MapLibreMap | null>(null);
 
   // Route planner. Waypoints live here so the map can draw them and the panel
   // can list them without either owning the other.
@@ -184,8 +171,7 @@ export default function Home() {
     (coordinates: [number, number]) => {
       const map = mapInstance;
       if (!map) return;
-      map.panTo({ lat: coordinates[1], lng: coordinates[0] });
-      if ((map.getZoom() ?? 0) < 12) map.setZoom(13);
+      map.easeTo({ center: coordinates, zoom: map.getZoom() < 12 ? 13 : undefined });
     },
     [mapInstance]
   );
@@ -880,10 +866,6 @@ export default function Home() {
           onGoToPlace={goToPlace}
           onAddSearchedPlace={addSearchedPlace}
           hasPreciseLocation={hasPreciseLocation}
-          isLoaded={isLoaded}
-          // A missing key is reported as a load failure, because to the person
-          // looking at the screen that is exactly what it is.
-          loadError={loadError ?? mapConfigError}
           filteredRoutes={filteredRoutes}
           mountains={mountains}
           campsites={campsites}

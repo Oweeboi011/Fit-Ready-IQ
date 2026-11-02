@@ -324,3 +324,25 @@
 .dock-safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* MapLibre's controls. Its stylesheet loads after this one, so each rule is
+   scoped under `.maplibregl-map` to win on specificity rather than order.
+
+   Zoom, compass and fullscreen sit on the right edge, vertically centred: the
+   top-right corner belongs to the hint toast and the bottom-right to the chat
+   button. */
+.maplibregl-map .maplibregl-ctrl-top-right {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* The OpenStreetMap credit is a licence condition, so it must stay visible:
+   lifted clear of the floating dock, which spans the full width on a phone. */
+.maplibregl-map .maplibregl-ctrl-bottom-left {
+  bottom: 4.5rem;
+}
+@media (max-width: 639px) {
+  .maplibregl-map .maplibregl-ctrl-bottom-left {
+    bottom: 5.5rem;
+  }
+}

@@ -61,13 +61,16 @@ const CSP_RESOURCE_POLICY = [
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com https://maps.gstatic.com",
   // Tailwind is compiled, but both Next and the Maps SDK inject style tags.
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  // Map tiles, Places photos, Google avatars, and the rainviewer radar overlay.
-  "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://*.ggpht.com https://lh3.googleusercontent.com https://images.unsplash.com https://tilecache.rainviewer.com",
-  // Our own API routes, Firebase Auth/Firestore, Maps, and the radar index.
-  "connect-src 'self' https://*.googleapis.com https://maps.gstatic.com https://api.rainviewer.com https://tilecache.rainviewer.com",
+  // Places photos, Google avatars, the radar overlay, and map tiles.
+  "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://*.ggpht.com https://lh3.googleusercontent.com https://images.unsplash.com https://tilecache.rainviewer.com https://tiles.openfreemap.org https://s3.amazonaws.com",
+  // Our own API routes, Firebase Auth/Firestore, Places, the radar, and the
+  // map: MapLibre fetches its style, vector tiles, glyphs, sprites and the
+  // terrain tiles (AWS open data) rather than loading them as images.
+  "connect-src 'self' https://*.googleapis.com https://maps.gstatic.com https://api.rainviewer.com https://tilecache.rainviewer.com https://tiles.openfreemap.org https://s3.amazonaws.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   // Firebase Auth sign-in popups for Google and Apple.
   "frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://appleid.apple.com",
+  // MapLibre decodes tiles in workers it starts from blob URLs.
   "worker-src 'self' blob:",
   ...CSP_BASELINE,
 ];

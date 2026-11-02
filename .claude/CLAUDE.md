@@ -206,7 +206,9 @@ Firebase Admin SDK tries credentials in this order: `FIREBASE_SERVICE_ACCOUNT_KE
 - `src/lib/auditLog.ts` — append-only audit trail for privileged and irreversible actions
 - `src/lib/userDataFootprint.ts` — the single list of where user data lives; export and erasure both walk it
 - `src/lib/useAdminGate.ts` — client hook that asks the server whether the user is an admin
-- `src/components/MapView.tsx` — Google Maps with custom markers, polylines, OverlayView popups
+- `src/components/MapView.tsx` — the map: MapLibre on OpenFreeMap vector tiles with hillshading, no key. Markers, lines and camera live in `src/components/map/` (`MapMarkers`, `MapLines`, `useMapCamera`)
+- `src/lib/mapStyle.ts` — base style, terrain source and the bounds maths, pure so it tests without WebGL
+- `scripts/copy-maplibre-worker.ts` — runs before `dev` and `build`; MapLibre's worker must be served from `public/` because bundling breaks the path it looks for. The copy is gitignored
 - `src/components/NavDock.tsx` + `src/components/dock/` — the floating dock over the map: content tabs, weather, terrain, advisories, alerts, layers, quick links
 - `src/components/Modal.tsx` — the one dialog shell (role, Escape, focus trap, focus restore, scroll lock). Every modal uses it
 - `src/components/RoutePlanner.tsx` — waypoint planner with save/load and GPX export
@@ -285,11 +287,13 @@ changed meaning will otherwise feed every visitor to that region for 24 hours.
 Legacy Places is enough for discovery, but these are separate enablements and
 the app degrades honestly without them. Elevation is no longer one of them — it
 moved to `/api/elevation` (OpenTopoData, free) as the first step of #86, which
-replaces the rest:
+replaces the rest. Nor is the map: it is MapLibre on OpenFreeMap tiles, and
+renders with no Google key at all. The Maps JavaScript script still loads, but
+only to carry Places, Geocoding and Distance Matrix until discovery moves too:
 
 | API | Powers | Without it |
 |---|---|---|
-| Maps JavaScript | The map | Error page with a retry |
+| Maps JavaScript | Loads the three client-side services below | "Place discovery could not start" with the map still up |
 | Places (legacy) | Route/peak/campsite discovery | Empty lists with a retry |
 | Geocoding | The "near <place>" label | Falls back to whatever label the place carries |
 | Distance Matrix (legacy) | Walking distance to each result | Distance omitted |
