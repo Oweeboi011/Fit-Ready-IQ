@@ -30,6 +30,7 @@ import { isPlanId, rememberSelectedPlan } from '@/lib/plans';
 import { decodePlaceRef, encodePlaceRef, type PlaceRef } from '@/lib/placeUrl';
 import { locationProblemMessage, useUserLocation } from '@/lib/useUserLocation';
 import type { Route as RouteData, Mountain as MountainData, Campsite } from '@/lib/placesTypes';
+import type { OpenPlace } from '@/lib/chatTools';
 import { toDetailsModalData, type SelectedDetails } from '@/lib/detailsModalMapper';
 import { fetchElevations } from '@/lib/mapsGeometry';
 import { useFirebaseAuth } from '@/lib/useFirebaseAuth';
@@ -373,6 +374,20 @@ export default function Home() {
    * feedback at all beyond a fill state that is easy to miss, and an accidental
    * unsave was silent and unrecoverable.
    */
+  // What the assistant's tools may read: the place open in the details view.
+  // An activity is the user's own record, not a place, so it is not offered.
+  const chatOpenPlace = useMemo<OpenPlace | null>(
+    () =>
+      selectedDetails && selectedDetails.type !== 'activity'
+        ? ({ kind: selectedDetails.type, place: selectedDetails.data } as OpenPlace)
+        : null,
+    [selectedDetails]
+  );
+  const saveFromChat = useCallback(
+    (place: Parameters<typeof setSaved>[0]) => setSaved(place, true),
+    [setSaved]
+  );
+
   const handleToggleSave = useCallback(
     async (place: Parameters<typeof toggleSave>[0]) => {
       const wasSaved = isSaved(place.id);
@@ -868,7 +883,12 @@ export default function Home() {
           data={toDetailsModalData(selectedDetails)}
         />
       )}
-      <ChatBot />
+      <ChatBot
+        openPlace={chatOpenPlace}
+        location={userLocation ? [userLocation.lng, userLocation.lat] : null}
+        canSave={Boolean(authUser)}
+        onSave={saveFromChat}
+      />
     </main>
   );
 }
