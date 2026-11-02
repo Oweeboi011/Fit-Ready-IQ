@@ -5,14 +5,15 @@
  * Written because four separate env mistakes got shipped in one afternoon, each
  * of which looked fine on inspection:
  *
- *   1. `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` present but empty — the map failed and
- *      the file looked complete.
- *   2. the browser key pasted into `GOOGLE_ROUTES_API_KEY`, which is rejected
- *      server-side for carrying a referrer restriction.
- *   3. the server key pasted over `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` — an
- *      unrestricted key compiled into the browser bundle, which is a spending
- *      liability rather than a broken feature.
+ *   1. a required key present but empty — the feature failed and the file
+ *      looked complete.
+ *   2. a browser Maps key pasted into a server-side Google variable, which is
+ *      rejected server-side for carrying a referrer restriction.
+ *   3. a server key given a `NEXT_PUBLIC_` name — compiled into the browser
+ *      bundle, a spending liability rather than a broken feature.
  *   4. an edit that never saved, so a "done" change was still the old value.
+ *
+ * The browser Maps key itself is gone (#86): nothing in the app reads it.
  *
  * None of those are visible by reading the file, and three of them produce a
  * runtime failure whose message points somewhere else entirely. They are all
@@ -39,7 +40,6 @@ const ENV_EXAMPLE = path.join(REPO_ROOT, '.env.example');
  * `.env.example` is optional by design and degrades honestly.
  */
 const REQUIRED = [
-  'NEXT_PUBLIC_GOOGLE_MAPS_API_KEY',
   'NEXT_PUBLIC_FIREBASE_API_KEY',
   'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
   'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
@@ -53,14 +53,13 @@ const REQUIRED = [
 ];
 
 /**
- * Server-side variables that must NOT hold the browser key.
- *
- * `/api/directions` and `/api/weather` call Google server-to-server, which sends
- * no referer, so a referrer-restricted key is rejected with "Requests from
- * referer <empty> are blocked" — and the public key should be referrer
- * restricted. Sharing one key means one of the two uses is always broken.
+ * Variables the app no longer reads, with what replaced them. Left in a
+ * `.env.local` they look like configuration that matters and is not.
  */
-const SERVER_SIDE_GOOGLE_KEYS = ['GOOGLE_ROUTES_API_KEY', 'GOOGLE_WEATHER_API_KEY'];
+const RETIRED: Record<string, string> = {
+  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: 'the map, search and discovery are OpenStreetMap now (#86)',
+  GOOGLE_ROUTES_API_KEY: 'routing is OSRM now; ROUTING_API_URL overrides the public server',
+};
 
 /** Names that must never be exposed to the browser, however they are prefixed. */
 const SECRET_SHAPED = /SECRET|PRIVATE|PASSWORD|SERVICE_ACCOUNT|CREDENTIAL/;
@@ -115,18 +114,9 @@ for (const name of local.keys()) {
   }
 }
 
-// 5. The browser key reused server-side, or vice versa.
-const browserKey = local.get('NEXT_PUBLIC_GOOGLE_MAPS_API_KEY');
-if (browserKey) {
-  for (const name of SERVER_SIDE_GOOGLE_KEYS) {
-    if (local.get(name) && local.get(name) === browserKey) {
-      problems.push(
-        `${name} is the same key as NEXT_PUBLIC_GOOGLE_MAPS_API_KEY. ` +
-          `These must differ: the browser key is HTTP-referrer restricted and is ` +
-          `rejected server-side; an unrestricted key must never reach the browser.`
-      );
-    }
-  }
+// 5. Leftovers from providers the app no longer uses.
+for (const [name, replacement] of Object.entries(RETIRED)) {
+  if (local.get(name)) warnings.push(`${name} is no longer read — ${replacement}. Remove it.`);
 }
 
 // 6. CORS_ORIGINS in the comma form, which takes the backend down at startup.

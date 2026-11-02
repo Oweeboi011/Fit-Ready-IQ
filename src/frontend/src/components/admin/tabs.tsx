@@ -12,7 +12,7 @@ import type { AdminData } from './types';
 const SERVICE_ROWS: { key: string; label: string }[] = [
   { key: 'firebase_client', label: 'Firebase Auth' },
   { key: 'firebase_admin', label: 'Firebase Admin' },
-  { key: 'maps', label: 'Google Maps' },
+  { key: 'routing', label: 'Routing' },
   { key: 'gemini', label: 'Gemini' },
   { key: 'weather', label: 'Weather' },
   { key: 'strava', label: 'Strava' },

@@ -42,7 +42,7 @@ export type PlannerTravelMode = 'walk' | 'bike';
  */
 export type RouteMode = 'walking' | 'cycling';
 
-/** Routes API travel mode for each planner mode. */
+/** `/api/directions` travel mode for each planner mode. */
 const API_MODE: Record<PlannerTravelMode, 'WALK' | 'BICYCLE'> = {
   walk: 'WALK',
   bike: 'BICYCLE',
@@ -88,22 +88,12 @@ function messageFor(
   travelMode: PlannerTravelMode,
   serverMessage?: string
 ): string {
-  // The server saw Google's actual response, so when it has something specific
-  // to say, say that. The generic copy below is the fallback for reasons the
-  // route did not elaborate on.
-  //
-  // This mattered concretely: a browser-restricted key used server-side is
-  // rejected with "Requests from referer <empty> are blocked", and the generic
-  // 'rejected' copy sent people to check billing and API enablement — all three
-  // of which were already correct. The fix was a second key.
-  if (serverMessage) return serverMessage;
-
+  // Known reasons get copy that says what to do; anything else falls back to
+  // what the server saw, which is more specific than a generic apology.
   const vehicle = travelMode === 'bike' ? 'cycling' : 'walking';
   switch (reason) {
-    case 'not_configured':
-      return 'Routing is not set up, so this route cannot be measured. Add a Google Maps or Routes API key.';
-    case 'rejected':
-      return 'Google refused the routing key. Check that the key is valid and that the Routes API and billing are enabled on its project.';
+    case 'busy':
+      return 'The routing service is busy. Try again in a minute.';
     case 'no_route':
       return `No ${vehicle} route between these points. Try moving a waypoint onto a mapped path.`;
     case 'timeout':
@@ -111,7 +101,7 @@ function messageFor(
     case 'upstream':
       return 'The routing service did not respond. Try again in a moment.';
     default:
-      return 'Could not work out a route between these points.';
+      return serverMessage ?? 'Could not work out a route between these points.';
   }
 }
 
@@ -163,7 +153,7 @@ export function usePlannerRoute(
       .then(async (res) => {
         if (!res.ok) {
           // The body carries the real cause; the status cannot distinguish
-          // "no key set" from "Google refused this key".
+          // "no path here" from "the router is busy".
           const body = await res.json().catch(() => ({}) as { reason?: string; error?: string });
           const err = new Error(`Routing responded ${res.status}`) as Error & {
             reason?: string;

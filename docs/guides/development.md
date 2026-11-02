@@ -58,21 +58,20 @@ Conventions:
 
 ## Troubleshooting
 
-| Symptom                                                                  | Cause → fix                                                                                                                                         |
-| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `No module named uvicorn`                                                | Run it through `poetry run`; the dependencies live in the Poetry venv                                                                               |
-| `poetry` not recognised (Windows)                                        | Add `%APPDATA%\Python\Python312\Scripts` to `PATH`, or use `python -m poetry`                                                                       |
-| `poetry lock` fails with `CERTIFICATE_VERIFY_FAILED`                     | A TLS-inspecting proxy. Export the Windows root store to a PEM and set `REQUESTS_CA_BUNDLE` for the command                                         |
-| Backend dies on `ValidationError` at start                               | `FIREBASE_PROJECT_ID` unset, or `CORS_ORIGINS` not a JSON array                                                                                     |
-| `NEXT_PUBLIC_*` undefined in the browser                                 | The root `.env.local` must load before compilation. `next.config.js` does this; restart `npm run dev` after editing it                              |
-| Map blank with `RefererNotAllowedMapError` / `ApiNotActivatedMapError`   | Add `localhost:4790` to the browser key's referrers, or enable the API ([Google APIs table](../../.claude/CLAUDE.md#google-apis-actually-required)) |
-| Directions or weather: "Requests from referer &lt;empty&gt; are blocked" | Those calls are server-to-server. Set `GOOGLE_ROUTES_API_KEY` / `GOOGLE_WEATHER_API_KEY` to keys with **no** referrer restriction                   |
-| E2E fails with `BillingNotEnabledMapError`                               | Billing is off on the CI key's GCP project                                                                                                          |
-| Chat 503                                                                 | `GEMINI_API_KEY` unset. A 502 means Gemini refused or hit quota                                                                                     |
-| Sign-in popup closes, `auth/unauthorized-domain`                         | Add the domain under Firebase Auth → Authorized domains                                                                                             |
-| `auth/operation-not-allowed`                                             | Enable the provider under Firebase Auth → Sign-in method                                                                                            |
-| Saved places do nothing                                                  | Signed out, or the deployed rules lack the `saved_places` `match` block (rules do not cascade)                                                      |
-| Strava connect loops                                                     | The callback domain in Strava app settings must match. `NEXT_PUBLIC_STRAVA_CLIENT_ID` and `STRAVA_CLIENT_ID` must both be set                       |
-| Strava routes 409                                                        | Not connected, or Strava revoked the grant. Reconnect                                                                                               |
-| Pre-commit "no src/backend/.venv — skipping ruff"                        | Run `poetry install` in `src/backend` (in-project venv). CI runs ruff regardless                                                                    |
-| A stale build or types error after pulling                               | Delete `src/frontend/.next` and rebuild                                                                                                             |
+| Symptom                                                    | Cause → fix                                                                                                                   |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `No module named uvicorn`                                  | Run it through `poetry run`; the dependencies live in the Poetry venv                                                         |
+| `poetry` not recognised (Windows)                          | Add `%APPDATA%\Python\Python312\Scripts` to `PATH`, or use `python -m poetry`                                                 |
+| `poetry lock` fails with `CERTIFICATE_VERIFY_FAILED`       | A TLS-inspecting proxy. Export the Windows root store to a PEM and set `REQUESTS_CA_BUNDLE` for the command                   |
+| Backend dies on `ValidationError` at start                 | `FIREBASE_PROJECT_ID` unset, or `CORS_ORIGINS` not a JSON array                                                               |
+| `NEXT_PUBLIC_*` undefined in the browser                   | The root `.env.local` must load before compilation. `next.config.js` does this; restart `npm run dev` after editing it        |
+| Weather: "Requests from referer &lt;empty&gt; are blocked" | The call is server-to-server. Set `GOOGLE_WEATHER_API_KEY` to a key with **no** referrer restriction                          |
+| Planner says "The routing service is busy"                 | FOSSGIS's public OSRM refused for load. Wait, or set `ROUTING_API_URL` to a self-hosted OSRM                                  |
+| Chat 503                                                   | `GEMINI_API_KEY` unset. A 502 means Gemini refused or hit quota                                                               |
+| Sign-in popup closes, `auth/unauthorized-domain`           | Add the domain under Firebase Auth → Authorized domains                                                                       |
+| `auth/operation-not-allowed`                               | Enable the provider under Firebase Auth → Sign-in method                                                                      |
+| Saved places do nothing                                    | Signed out, or the deployed rules lack the `saved_places` `match` block (rules do not cascade)                                |
+| Strava connect loops                                       | The callback domain in Strava app settings must match. `NEXT_PUBLIC_STRAVA_CLIENT_ID` and `STRAVA_CLIENT_ID` must both be set |
+| Strava routes 409                                          | Not connected, or Strava revoked the grant. Reconnect                                                                         |
+| Pre-commit "no src/backend/.venv — skipping ruff"          | Run `poetry install` in `src/backend` (in-project venv). CI runs ruff regardless                                              |
+| A stale build or types error after pulling                 | Delete `src/frontend/.next` and rebuild                                                                                       |
