@@ -58,6 +58,17 @@ export const ELEVATION_RATE_LIMIT: RateLimitRule = {
 };
 
 /**
+ * Place discovery, proxied to OpenStreetMap's volunteer-run services. The CDN
+ * answers almost every call; a miss fans out to ~60 upstream requests, so the
+ * ceiling is a person panning across a region, not a script walking the grid.
+ */
+export const DISCOVER_RATE_LIMIT: RateLimitRule = {
+  name: 'discover',
+  limit: 60,
+  windowSeconds: 3600,
+};
+
+/**
  * Komoot tour lookups. Free, but on an undocumented endpoint we do not own: a
  * caller looping through tour ids would get our server, not theirs, blocked.
  * One lookup per pasted link; sixty is a long evening of planning.

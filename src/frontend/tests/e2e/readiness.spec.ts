@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test.use({ permissions: ['geolocation'], geolocation: { latitude: 14.5995, longitude: 120.9842 } });
 
@@ -21,38 +21,29 @@ async function seedTraining(page: import('@playwright/test').Page) {
   });
 }
 
-/** Opens the first discovered route in the sidebar. */
-async function openFirstRoute(page: import('@playwright/test').Page) {
+/** Opens a discovered route from the sidebar by name. */
+async function openRoute(page: import('@playwright/test').Page, name: string) {
   // A card is a container whose title is the button (see RouteListItem).
-  const first = page
-    .locator('aside [data-place-card]')
-    .filter({ hasText: /Length/ })
-    .first();
-  await expect(first).toBeVisible({ timeout: 30_000 });
-  await first.getByRole('button').first().click();
+  const card = page.locator('aside [data-place-card]').filter({ hasText: name }).first();
+  await expect(card).toBeVisible({ timeout: 30_000 });
+  await card.getByRole('button').first().click();
   return page.getByRole('dialog');
 }
 
 /**
- * A discovered route is a Google Places pin with no trail geometry, so its
- * length is unknown — and readiness, which compares a route's length to your
- * training, has nothing to compare. These pin down that the product says so,
- * rather than scoring against a length it invented (which is what it used to
- * do: the "length" was the distance from the viewer to the pin).
+ * Readiness compares a route's length and climb with your training. A route
+ * from Waymarked Trails has a measured length; a climbing area has none. The
+ * product must score the first and say plainly that it cannot score the
+ * second, rather than score against a length it invented (which it once did:
+ * the "length" was the distance from the viewer to the pin).
  */
 test.describe('readiness score', () => {
-  test('says a discovered route is unmeasured rather than scoring it', async ({ page }) => {
-    await page.goto('/app');
-    const dialog = await openFirstRoute(page);
-
-    await expect(dialog.getByRole('heading', { name: 'Your readiness' })).toBeVisible();
-    await expect(dialog.getByText(/length hasn't been measured/i)).toBeVisible();
-  });
-
-  test('does not invent a score, or ask for training, when training exists', async ({ page }) => {
+  test('says a place with no measured length is unmeasured rather than scoring it', async ({
+    page,
+  }) => {
     await seedTraining(page);
     await page.goto('/app');
-    const dialog = await openFirstRoute(page);
+    const dialog = await openRoute(page, 'Montalban Crag');
 
     await expect(dialog.getByRole('heading', { name: 'Your readiness' })).toBeVisible();
     await expect(dialog.getByText(/length hasn't been measured/i)).toBeVisible();
@@ -60,5 +51,14 @@ test.describe('readiness score', () => {
     // must not suggest it.
     await expect(dialog.getByRole('button', { name: 'Connect your training' })).toHaveCount(0);
     await expect(dialog.getByRole('img', { name: /^Readiness \d+ out of 100/ })).toHaveCount(0);
+  });
+
+  test('scores a measured route against the training it has', async ({ page }) => {
+    await seedTraining(page);
+    await page.goto('/app');
+    const dialog = await openRoute(page, 'Marikina Ridge Trail');
+
+    await expect(dialog.getByRole('heading', { name: 'Your readiness' })).toBeVisible();
+    await expect(dialog.getByRole('img', { name: /^Readiness \d+ out of 100/ })).toBeVisible();
   });
 });

@@ -133,6 +133,12 @@ export const ROADMAP: RoadmapPhase[] = [
           'Plan on foot or by bike; the line and the distance come from the router for that mode. Where no route exists the planner says so rather than drawing a straight line.',
       },
       {
+        title: 'Free map and place data',
+        status: 'done',
+        detail:
+          'The map is MapLibre on OpenFreeMap tiles, and routes, peaks and campsites come from OpenStreetMap. Routes now carry their measured length instead of none.',
+      },
+      {
         title: 'Plans synced to an account',
         status: 'pending',
         detail: 'Plans are device-local, so they do not follow you to a phone.',
@@ -230,31 +236,27 @@ export const CONSIDERATIONS: RoadmapNote[] = [
 
 export const CHALLENGES: RoadmapNote[] = [
   {
-    title: 'Trail data is not in Google',
-    body: 'Directions knows roads and mapped paths. Real trails often are not in it, which caps how good routing and distance can be without a dedicated trail dataset.',
+    title: 'Few routes are tagged with their climb',
+    body: 'OpenStreetMap gives every route a measured length, but only some carry an ascent tag, and difficulty needs both. Most routes therefore read "Unrated" until the climb is measured from terrain along the route.',
   },
   {
-    title: 'Places search ignores radius',
-    body: 'textSearch treats radius as a bias, so results arrive from other continents. We filter client-side at 80 km, which costs calls we cannot avoid making.',
+    title: 'Free services are shared',
+    body: 'Waymarked Trails, Photon and OpenTopoData are run for everyone. Discovery is cached at the edge for a week per 0.1° cell so each region costs them one visit, not one per visitor.',
   },
   {
     title: 'Advisories have no standard',
     body: 'Every authority publishes differently. The scraper is declarative per source, so each new region is configuration plus verification, not code.',
   },
   {
-    title: 'Cost scales with cold regions',
-    body: 'A new area costs roughly forty Places queries plus elevation batches. Cache hit rate is the main lever, and it is only as good as the traffic distribution.',
+    title: 'Cold regions are slow, not costly',
+    body: 'A new area takes a few seconds of upstream lookups the first time anyone opens it, and is then served from the edge. Nothing in discovery is billed per call any more.',
   },
 ];
 
 export const RECOMMENDATIONS: RoadmapNote[] = [
   {
-    title: 'Enable the Routes and Elevation APIs',
-    body: 'Both return REQUEST_DENIED on the current project. That is why relief reads "unknown", difficulty reads "Unrated", and planned routes fall back to straight lines. The code is in place; these are console toggles.',
-  },
-  {
-    title: 'Add a trail data source',
-    body: 'OpenStreetMap trail geometry would fix routing, distance and elevation profiles in one move. The planner now refuses to guess when the router cannot join two points, so on unmapped trails it correctly shows nothing — trail data is what would let it show something true instead.',
+    title: 'Measure the climb along each route',
+    body: 'Routes now arrive with a measured length. Sampling terrain along their mapped geometry would give the climb as well, and with it a difficulty and readiness score for every route rather than the few tagged with one.',
   },
   {
     title: 'Instrument before optimising',

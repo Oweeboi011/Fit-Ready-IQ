@@ -44,7 +44,7 @@ export default function MapSearch({ near, onGoTo, onAddToPlan, plannerOpen }: Ma
   const [highlight, setHighlight] = useState({ forQuery: '', index: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { results, loading, empty } = usePlaceSearch(query, near);
+  const { results, loading, empty, failed } = usePlaceSearch(query, near);
 
   // Collapse when the user clicks the map behind the panel, which is the usual
   // way of saying "never mind" — Escape is handled on the input for the keyboard.
@@ -96,7 +96,7 @@ export default function MapSearch({ near, onGoTo, onAddToPlan, plannerOpen }: Ma
     }
   }
 
-  const showPanel = open && (loading || empty || results.length > 0);
+  const showPanel = open && (loading || empty || failed || results.length > 0);
 
   return (
     <div
@@ -154,6 +154,12 @@ export default function MapSearch({ near, onGoTo, onAddToPlan, plannerOpen }: Ma
           {empty && !loading && (
             <li className="px-3 py-2 text-[11px] text-slate-500">
               Nothing found for “{query.trim()}”. Try a different spelling, or a nearby town.
+            </li>
+          )}
+
+          {failed && !loading && (
+            <li role="alert" className="px-3 py-2 text-[11px] text-amber-200">
+              Search is unavailable right now. Keep typing to try again.
             </li>
           )}
 

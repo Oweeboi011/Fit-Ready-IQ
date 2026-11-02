@@ -138,6 +138,14 @@ Public, and checks only that credentials are **present**; it makes no live calls
 `rate_limiting`. Status is `healthy` (0 failing), `degraded` (1–2, HTTP 200) or `unhealthy`
 (3+, HTTP 503). It names no project or client id. `uptime.yml` polls it.
 
+### GET /api/discover
+
+`?lat=&lng=`, rounded to the 0.1° cell. Public and rate-limited. Routes come from Waymarked
+Trails with their measured length; peaks and campsites from Photon, with summit heights from
+OpenTopoData; route photos from Wikidata. Returns `{ routes, mountains, campsites, failed }`,
+where `failed` names any collection whose source did not answer. A complete answer is cached at
+the edge for a week; one with a failure is `no-store`. Parsing is in `lib/osmDiscovery.ts`.
+
 ### /api/places/cache
 
 - `GET ?lat=&lng=`: public. Returns the cell's routes, mountains and campsites if fresh (24 h),

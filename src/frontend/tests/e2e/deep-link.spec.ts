@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test.use({ permissions: ['geolocation'], geolocation: { latitude: 14.5995, longitude: 120.9842 } });
 
@@ -33,6 +33,9 @@ test.describe('deep links and URL state', () => {
     await expect(firstRoute).toBeVisible({ timeout: 45_000 });
     await firstRoute.getByRole('button').first().click();
     await expect(page).toHaveURL(/place=/);
+    // The details modal is loaded on demand, so the URL can update before the
+    // dialog exists; an Escape pressed into that gap closes nothing.
+    await expect(page.getByRole('dialog')).toBeVisible();
 
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);

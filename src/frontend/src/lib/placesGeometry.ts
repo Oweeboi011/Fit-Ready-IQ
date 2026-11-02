@@ -11,7 +11,7 @@ import { haversineDistanceKm } from '@/lib/gpxParser';
  */
 const SEARCH_RADIUS_KM = 80;
 
-/** Drop anything the Places API returned that is not actually near the user. */
+/** Drop anything discovery returned that is not actually near the user. */
 export function withinSearchRadius<T extends { coordinates: [number, number] }>(
   items: T[],
   from: { lat: number; lng: number } | null

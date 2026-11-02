@@ -11,7 +11,7 @@ import type { Campsite, Mountain, Route } from './placesTypes';
  * fake difficulty, megabyte strings — in front of strangers.
  *
  * Every parser here builds a fresh object from the fields the app actually
- * writes (see `placesFetchers.ts`) and drops everything else. A known field
+ * writes (see `osmDiscovery.ts`) and drops everything else. A known field
  * with a value outside its range fails the item, and one failed item fails the
  * write: an honest client never produces one, so it is a bug or an attempt, and
  * either way it should not reach the shared cache.
@@ -40,8 +40,11 @@ import type { Campsite, Mountain, Route } from './placesTypes';
  * v3 — route `distance_km` is null (it was the distance from whoever filled
  *      the cache, not the trail's length); mountains no longer carry the
  *      prominence, jump-off and trail class that were derived from altitude.
+ * v4 — places come from OpenStreetMap, not Google: `distance_km` is the
+ *      route's measured length and `elevation_gain_m` its tagged ascent (it
+ *      was relief near a pin), ids and `place_id` are OSM identities.
  */
-export const PLACES_CACHE_VERSION = 3;
+export const PLACES_CACHE_VERSION = 4;
 
 export const MAX_ITEMS_PER_KIND = 200;
 
@@ -157,8 +160,8 @@ export function parseRoute(value: unknown): Parsed<Route> {
   const base = parseBase(value);
   if (!base) return null;
 
-  // Nullable: a trail's length is unknown whenever there is no trail geometry,
-  // which for a Google Places result is always. See placesFetchers.ts.
+  // Nullable: a trail's length is unknown whenever there is no trail geometry.
+  // See osmDiscovery.ts.
   const distance = nullableNumber(value.distance_km, 0, MAX_ROUTE_KM);
   const gain = nullableNumber(value.elevation_gain_m, 0, MAX_ELEVATION_M);
   if (distance === false || gain === false) return null;

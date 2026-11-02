@@ -8,6 +8,9 @@
     "src/app/api/integrations/firebase/route.ts": {
       "maxDuration": 15
     },
+    "src/app/api/discover/route.ts": {
+      "maxDuration": 45
+    },
     "src/app/api/places/cache/route.ts": {
       "maxDuration": 15
     },

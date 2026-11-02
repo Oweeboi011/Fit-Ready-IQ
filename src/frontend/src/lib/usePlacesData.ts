@@ -4,11 +4,6 @@ import type { Route as RouteData, Mountain as MountainData, Campsite } from '@/l
 import { PLACES_CACHE_VERSION } from '@/lib/placesCacheSchema';
 import { withinSearchRadius } from '@/lib/placesGeometry';
 import { normaliseDifficulty } from '@/lib/routeDifficulty';
-import {
-  fetchMountainsNearby,
-  fetchRoutesNearby,
-  fetchCampsitesNearby,
-} from '@/lib/placesFetchers';
 import type { UserLocation, LocationSource, LocationStatus } from '@/lib/useUserLocation';
 
 export type CollectionName = 'routes' | 'mountains' | 'campsites';
@@ -96,19 +91,7 @@ async function resolveAddress(userCoords: [number, number], fallback: string): P
   }
 
   try {
-    const geocoder = new google.maps.Geocoder();
-    const geocoded = await new Promise<string | null>((resolve) => {
-      geocoder.geocode(
-        { location: { lat: userCoords[1], lng: userCoords[0] } },
-        (results, status) => {
-          resolve(
-            status === google.maps.GeocoderStatus.OK && results && results[0]
-              ? results[0].formatted_address
-              : null
-          );
-        }
-      );
-    });
+    const geocoded = await reverseGeocode(userCoords);
     if (!geocoded) return fallback;
     try {
       sessionStorage.setItem(geoKey, JSON.stringify({ ts: Date.now(), address: geocoded }));
@@ -120,6 +103,52 @@ async function resolveAddress(userCoords: [number, number], fallback: string): P
     console.warn('Reverse geocoding unavailable.', err);
     return fallback;
   }
+}
+
+/**
+ * The nearest settlement and its region, from Nominatim.
+ *
+ * Nominatim's usage policy allows one request a second and asks that results
+ * be cached; the 0.1° session cache above means one call per area per day.
+ * The full `display_name` is a street address, which is more than a label for
+ * "routes near …" needs and more than a screenshot should carry.
+ */
+async function reverseGeocode([lng, lat]: [number, number]): Promise<string | null> {
+  const res = await fetch(
+    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=12&lat=${lat}&lon=${lng}`,
+    { headers: { Accept: 'application/json' } }
+  );
+  if (!res.ok) throw new Error(`Nominatim HTTP ${res.status}`);
+  const data = (await res.json()) as { address?: Record<string, string> };
+  const a = data.address ?? {};
+  const place = a.village ?? a.town ?? a.city ?? a.municipality ?? a.county;
+  const region = a.state ?? a.country;
+  return [place, region].filter(Boolean).join(', ') || null;
+}
+
+interface DiscoverResponse {
+  routes: RouteData[];
+  mountains: MountainData[];
+  campsites: Campsite[];
+  failed: CollectionName[];
+}
+
+/**
+ * The live tier: OpenStreetMap through `/api/discover`, which holds each 0.1°
+ * cell at the CDN for a week. Sent rounded to that cell so every visitor in it
+ * asks the same URL and shares the one cached answer.
+ */
+async function fetchDiscovery([lng, lat]: [number, number]): Promise<DiscoverResponse> {
+  const cell = (v: number) => (Math.round(v * 10) / 10).toFixed(1);
+  const res = await fetch(`/api/discover?lat=${cell(lat)}&lng=${cell(lng)}`);
+  if (!res.ok) throw new Error(`Discovery HTTP ${res.status}`);
+  const data = (await res.json()) as Partial<DiscoverResponse>;
+  return {
+    routes: data.routes ?? [],
+    mountains: data.mountains ?? [],
+    campsites: data.campsites ?? [],
+    failed: data.failed ?? [],
+  };
 }
 
 async function fetchFirestoreCache(
@@ -186,13 +215,6 @@ function writeFirestoreCache(
 }
 
 interface UsePlacesDataParams {
-  isLoaded: boolean;
-  /**
-   * The Places script failed to load, or there is no key to load it with.
-   * Discovery then never starts, so it must say so rather than spin: the map
-   * no longer depends on Google and stays up around the failure.
-   */
-  discoveryUnavailable?: boolean;
   userLocation: UserLocation | null;
   locationStatus: LocationStatus;
   locationSource: LocationSource | null;
@@ -200,14 +222,10 @@ interface UsePlacesDataParams {
 }
 
 // Loads routes/mountains/campsites near the user via a 3-tier cache
-// (localStorage → Firestore /api/places/cache → live Google
-// Places/Elevation/Distance-Matrix calls via placesFetchers.ts), scoped to a
-// search radius since Google's `location`+`radius` is a bias, not a filter.
-// Location comes from the already-extracted useUserLocation() hook rather
-// than being owned here.
+// (localStorage → Firestore /api/places/cache → OpenStreetMap through
+// /api/discover), scoped to a search radius. Location comes from the
+// already-extracted useUserLocation() hook rather than being owned here.
 export function usePlacesData({
-  isLoaded,
-  discoveryUnavailable = false,
   userLocation,
   locationStatus,
   locationSource,
@@ -219,7 +237,6 @@ export function usePlacesData({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [failedCollections, setFailedCollections] = useState<CollectionName[]>([]);
-  const [elevationUnavailable, setElevationUnavailable] = useState(false);
   const [placesAttempt, setPlacesAttempt] = useState(0);
 
   // Coarse key for the pipeline below. Rounding to 0.1° means a GPS fix that
@@ -254,8 +271,6 @@ export function usePlacesData({
   };
 
   useEffect(() => {
-    if (!isLoaded) return;
-    if (typeof window === 'undefined' || !window.google) return;
     // Wait for useUserLocation to settle so we search where the user actually
     // is, and only re-search when they have meaningfully moved.
     if (locationStatus !== 'ready' || !userLocation || !locationKey) return;
@@ -267,7 +282,7 @@ export function usePlacesData({
     // --- 3-tier cache strategy ---
     // L1: localStorage (24-h TTL, instant, this device, this location only)
     // L2: Firestore via /api/places/cache (24-h TTL, shared across users in same region)
-    // L3: Live Google Maps API calls (expensive, only on full miss)
+    // L3: /api/discover — OpenStreetMap, itself cached at the CDN for a week
     const localCached = readLocalCache(locationKey);
     if (localCached) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- starts a load; the state set is its loading flag or a synchronous cache hit
@@ -280,7 +295,6 @@ export function usePlacesData({
         setIsLoading(true);
         setError(null);
         setFailedCollections([]);
-        setElevationUnavailable(false);
 
         // Location is already resolved by useUserLocation — this pipeline no
         // longer prompts for it a second time.
@@ -301,57 +315,25 @@ export function usePlacesData({
           return;
         }
 
-        // Each collection is fetched independently, in sequence (each fans
-        // out ~30 concurrent Places sub-queries on its own — running all
-        // three collections at once would triple that peak request rate and
-        // risk OVER_QUERY_LIMIT). Each can fail on its own; collect the
-        // casualties rather than silently substituting an empty list. A
-        // fetcher now throws on a hard failure (network error, unexpected
-        // exception) instead of swallowing it, so each gets its own
-        // try/catch here — distinct from `elevationFailed`, which means the
-        // collection loaded but the Elevation API specifically degraded.
-        const failed: CollectionName[] = [];
-        let elevationFailed = false;
-
-        let mountainsData: MountainData[] = [];
-        try {
-          const mountainsResult = await fetchMountainsNearby(userCoords);
-          mountainsData = mountainsResult.data;
-          elevationFailed = elevationFailed || mountainsResult.elevationFailed;
-        } catch (err) {
-          console.error('Mountains fetch error:', err);
-          failed.push('mountains');
-        }
-
-        let routesData: RouteData[] = [];
-        try {
-          const routesResult = await fetchRoutesNearby(userCoords);
-          routesData = routesResult.data;
-          elevationFailed = elevationFailed || routesResult.elevationFailed;
-        } catch (err) {
-          console.error('Routes fetch error:', err);
-          failed.push('routes');
-        }
-
-        let campsitesData: Campsite[] = [];
-        try {
-          const campsitesResult = await fetchCampsitesNearby(userCoords);
-          campsitesData = campsitesResult.data;
-        } catch (err) {
-          console.error('Campsite fetch error:', err);
-          failed.push('campsites');
-        }
+        // Each collection succeeds or fails on its own server-side, and says
+        // which in `failed`, rather than an empty list standing in for a
+        // collection that never came back.
+        const discovered = await fetchDiscovery(userCoords);
+        const failed = discovered.failed;
+        const {
+          routes: routesData,
+          mountains: mountainsData,
+          campsites: campsitesData,
+        } = discovered;
 
         if (superseded()) return;
 
         // An empty tab after a failed fetch is indistinguishable from "nothing
         // here" unless we say which collections did not come back.
         setFailedCollections(failed);
-        setElevationUnavailable(elevationFailed);
 
-        // Drop results Google returned from the other side of the world before
-        // they reach the UI *or* the caches — otherwise every later visitor to
-        // this grid cell inherits them.
+        // Belt and braces: the server searches a bounded area, but nothing
+        // outside the radius should reach the UI *or* the caches.
         const routes = withinSearchRadius(routesData, resolvedLocation);
         const mountains = withinSearchRadius(mountainsData, resolvedLocation);
         const campsites = withinSearchRadius(campsitesData, resolvedLocation);
@@ -361,13 +343,17 @@ export function usePlacesData({
         setCampsites(campsites);
         setIsLoading(false);
 
-        // Write live results to both caches so future visitors skip the API calls
-        writeLocalCache(locationKey, { routes, mountains, campsites, location: resolvedLocation });
-        writeFirestoreCache(userCoords, {
-          routes,
-          mountains,
-          campsites,
-        });
+        // A partial result is shown but not cached: caching it would hold the
+        // gap for a day after the upstream recovered.
+        if (failed.length === 0) {
+          writeLocalCache(locationKey, {
+            routes,
+            mountains,
+            campsites,
+            location: resolvedLocation,
+          });
+          writeFirestoreCache(userCoords, { routes, mountains, campsites });
+        }
       } catch (err) {
         if (superseded()) return;
         console.error('Places pipeline failed:', err);
@@ -378,7 +364,7 @@ export function usePlacesData({
 
     run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, locationStatus, locationKey, placesAttempt]);
+  }, [locationStatus, locationKey, placesAttempt]);
 
   // Drop the local cache and re-run the pipeline. Without clearing it
   // the retry would replay the same failed-and-cached result.
@@ -398,15 +384,10 @@ export function usePlacesData({
     routes,
     mountains,
     campsites,
-    isLoading: isLoading && !discoveryUnavailable,
-    error:
-      error ??
-      (discoveryUnavailable
-        ? 'Place discovery could not start. Reload the page to try again.'
-        : null),
+    isLoading,
+    error,
     setError,
     failedCollections,
-    elevationUnavailable,
     retryPlacesFetch,
   };
 }

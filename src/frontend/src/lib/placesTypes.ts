@@ -1,4 +1,4 @@
-// Shared domain types for routes, mountains, and campsites surfaced from Google Places.
+// Shared domain types for routes, mountains, and campsites discovered from OpenStreetMap.
 
 import type { Difficulty } from '@/lib/routeDifficulty';
 
@@ -7,14 +7,15 @@ export interface Route {
   name: string;
   coordinates: [number, number];
   /**
-   * Length of the trail itself. `null` whenever there is no trail geometry to
-   * measure — which, for a Google Places result, is always. Never a distance
-   * from the user: that is `distance_from_user_km`, computed per viewer.
+   * Length of the trail itself, measured from its mapped OSM geometry. `null`
+   * when there is no geometry — a climbing area, or a route Waymarked Trails
+   * could not measure. Never a distance from the user: that is
+   * `distance_from_user_km`, computed per viewer.
    */
   distance_km: number | null;
   /**
-   * Relief within ~900 m of the trailhead, not gain along the trail. `null`
-   * when the Elevation API could not tell us. Never invent a value.
+   * Total climb along the route, from the relation's own `ascent` tag. `null`
+   * when the route has none, which is most of them. Never invent a value.
    */
   elevation_gain_m: number | null;
   difficulty: Difficulty;
