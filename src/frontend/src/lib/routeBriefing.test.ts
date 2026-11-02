@@ -127,6 +127,20 @@ describe('buildBriefing', () => {
     expect(item(town, 'footwear')?.label).toBe('Comfortable walking shoes');
   });
 
+  it("recognises Komoot's descriptive alpine path key", () => {
+    const alpinePath = route([2000, 2400], {
+      wayTypes: [
+        { type: 'wt#mountain_hiking_path', label: 'Mountain hiking path', share: 0.7 },
+        { type: 'wt#alpine_hiking_path', label: 'Alpine path', share: 0.3 },
+      ],
+    });
+    expect(item(alpinePath, 'footwear')?.why).toMatch(/^30% is alpine path or harder/);
+    const mountainOnly = route([2000, 2400], {
+      wayTypes: [{ type: 'wt#mountain_hiking_path', label: 'Mountain hiking path', share: 1 }],
+    });
+    expect(item(mountainOnly, 'footwear')?.label).toBe('Trail shoes or boots');
+  });
+
   it('does not read a missing surface as firm ground', () => {
     const recorded = route([2000, 2600], { surfaces: [] });
     expect(item(recorded, 'footwear')).toMatchObject({

@@ -72,6 +72,11 @@ const OFF_GRID_NOTABLE = 0.05;
 
 const BIKE_SPORTS = /bike|bicycle|mtb|cycling/i;
 
+// Komoot's live keys are descriptive (`wt#alpine_hiking_path`); the graded
+// `hike_dN` form appears on older tours. Mountain hiking paths (T2/T3) are not
+// in here: rough, but not scrambling.
+const ALPINE_WAYS = /hike_d[4-6]|alpine|via_ferrata|scramble|climbing/;
+
 const ROUGH_SURFACES = /nature|ground|unpaved|gravel|alpine|rock|sand|snow/;
 const FIRM_SURFACES = /asphalt|paved|concrete|paving|cobbles|compacted/;
 
@@ -315,7 +320,7 @@ const bikeRule: Rule = ({ isBike }) =>
 
 const footwearRule: Rule = ({ isBike, route }) => {
   if (isBike) return null;
-  const alpine = shareOf(route.wayTypes, /hike_d[4-6]|via_ferrata/);
+  const alpine = shareOf(route.wayTypes, ALPINE_WAYS);
   if (alpine > 0) {
     return {
       id: 'footwear',
