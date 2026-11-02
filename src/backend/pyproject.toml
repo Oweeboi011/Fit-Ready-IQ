@@ -8,7 +8,7 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.11"
-fastapi = "^0.135"
+fastapi = ">=0.135,<0.163"
 uvicorn = {extras = ["standard"], version = ">=0.27,<0.55"}
 pydantic = "^2.5.0"
 pydantic-settings = "^2.14.2"
@@ -31,11 +31,11 @@ pytest = "^9.0.0"
 pytest-asyncio = "^1.0.0"
 pytest-cov = "^7.1.0"
 pip-audit = "^2.7"
-ruff = "^0.6.0"
+ruff = ">=0.6,<0.18"
 locust = "^2.29.1"
 mypy = ">=1.8,<3.0"
 pytest-httpx = "^0.36.2"
-faker = "^22.0.0"
+faker = ">=22,<41"
 import-linter = "^2.15"
 vulture = "^2.16"
 
@@ -56,8 +56,7 @@ select = ["E", "F", "W", "I", "N", "B", "S", "C90", "UP", "SIM", "TID", "ERA", "
 # E501: ruff format owns line length; the leftovers are URLs and log strings.
 # TID252: relative imports inside a package are fine — layering is checked by
 # import-linter, which understands them.
-# UP038: isinstance(x, (A, B)) is faster than A | B, and ruff later dropped the rule.
-ignore = ["E501", "TID252", "UP038"]
+ignore = ["E501", "TID252"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 15

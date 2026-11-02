@@ -58,6 +58,17 @@ export const ELEVATION_RATE_LIMIT: RateLimitRule = {
 };
 
 /**
+ * Komoot tour lookups. Free, but on an undocumented endpoint we do not own: a
+ * caller looping through tour ids would get our server, not theirs, blocked.
+ * One lookup per pasted link; sixty is a long evening of planning.
+ */
+export const KOMOOT_RATE_LIMIT: RateLimitRule = {
+  name: 'komoot',
+  limit: 60,
+  windowSeconds: 3600,
+};
+
+/**
  * The OAuth code exchange. Deliberately the tightest budget in the table: a
  * person connects Strava once, and a caller hammering this is either probing
  * for a code that works or burning our Strava client's quota to lock the real

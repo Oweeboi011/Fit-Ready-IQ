@@ -36,6 +36,7 @@ interface MapAreaProps {
   onOpenConnectDevices: () => void;
   onOpenAdmin: () => void;
   onOpenRoadmap: () => void;
+  onOpenKomoot: () => void;
   showLegend: boolean;
   onToggleLegend: () => void;
   showNativeControls: boolean;
@@ -131,6 +132,7 @@ export default function MapArea(props: MapAreaProps) {
         onOpenConnectDevices={props.onOpenConnectDevices}
         onOpenAdmin={props.onOpenAdmin}
         onOpenRoadmap={props.onOpenRoadmap}
+        onOpenKomoot={props.onOpenKomoot}
         showLegend={props.showLegend}
         onToggleLegend={props.onToggleLegend}
         showNativeControls={props.showNativeControls}

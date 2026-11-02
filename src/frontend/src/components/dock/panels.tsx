@@ -188,6 +188,7 @@ export function LinksPanel({
   onToggleNativePoi,
   onOpenAdmin,
   onOpenRoadmap,
+  onOpenKomoot,
 }: {
   isAdmin: boolean;
   legendVisible: boolean;
@@ -200,6 +201,7 @@ export function LinksPanel({
   onToggleNativePoi: () => void;
   onOpenAdmin: () => void;
   onOpenRoadmap: () => void;
+  onOpenKomoot: () => void;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -209,6 +211,13 @@ export function LinksPanel({
         className={`${buttonSecondary} ${buttonSize.sm} justify-start`}
       >
         Connect devices
+      </button>
+      <button
+        type="button"
+        onClick={onOpenKomoot}
+        className={`${buttonGhost} ${buttonSize.sm} justify-start`}
+      >
+        Komoot route viewer
       </button>
       <button
         type="button"

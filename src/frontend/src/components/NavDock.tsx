@@ -83,6 +83,7 @@ interface NavDockProps {
   onToggleNativePoi: () => void;
   onOpenAdmin: () => void;
   onOpenRoadmap: () => void;
+  onOpenKomoot: () => void;
   onLocate: () => void;
 }
 
@@ -162,6 +163,10 @@ function DockPanelBody({
           onOpenRoadmap={() => {
             close();
             props.onOpenRoadmap();
+          }}
+          onOpenKomoot={() => {
+            close();
+            props.onOpenKomoot();
           }}
         />
       );
