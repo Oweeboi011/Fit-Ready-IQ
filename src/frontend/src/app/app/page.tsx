@@ -53,6 +53,7 @@ const DetailsModal = dynamic(() => import('@/components/DetailsModal'), { ssr: f
 const ProfileModal = dynamic(() => import('@/components/ProfileModal'), { ssr: false });
 const AdminModal = dynamic(() => import('@/components/admin/AdminModal'), { ssr: false });
 const RoadmapModal = dynamic(() => import('@/components/RoadmapModal'), { ssr: false });
+const KomootRouteModal = dynamic(() => import('@/components/KomootRouteModal'), { ssr: false });
 /** Not gated on open state — it renders its own launcher button. */
 const ChatBot = dynamic(() => import('@/components/ChatBot'), { ssr: false });
 
@@ -168,6 +169,7 @@ export default function Home() {
   const [plannerOpen, setPlannerOpen] = useState(false);
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [roadmapOpen, setRoadmapOpen] = useState(false);
+  const [komootOpen, setKomootOpen] = useState(false);
   const [plannerWaypoints, setPlannerWaypoints] = useState<PlannerWaypoint[]>([]);
 
   /**
@@ -833,6 +835,7 @@ export default function Home() {
           onOpenConnectDevices={() => setIsDeviceModalOpen(true)}
           onOpenAdmin={() => setAdminModalOpen(true)}
           onOpenRoadmap={() => setRoadmapOpen(true)}
+          onOpenKomoot={() => setKomootOpen(true)}
           showLegend={showLegend}
           onToggleLegend={() => setShowLegend((v) => !v)}
           showNativeControls={showNativeControls}
@@ -901,6 +904,7 @@ export default function Home() {
       )}
 
       {roadmapOpen && <RoadmapModal isOpen={roadmapOpen} onClose={() => setRoadmapOpen(false)} />}
+      {komootOpen && <KomootRouteModal isOpen={komootOpen} onClose={() => setKomootOpen(false)} />}
 
       {selectedDetails !== null && (
         <DetailsModal
