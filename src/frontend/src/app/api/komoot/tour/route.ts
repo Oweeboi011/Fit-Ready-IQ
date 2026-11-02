@@ -49,13 +49,21 @@ export async function GET(request: NextRequest) {
       : fail('invalid', 400, 'That is not a Komoot tour link.');
   }
 
-  const params = new URLSearchParams({ _embedded: 'coordinates' });
-  if (link.shareToken) params.set('share_token', link.shareToken);
+  // The host is fixed and the id is digits only (parseKomootLink), but the URL
+  // is still built from user input. Rebuilding the id as a number and setting
+  // the token through URLSearchParams means no pasted text reaches the path.
+  const tourId = Number(link.id);
+  if (!Number.isSafeInteger(tourId) || tourId <= 0) {
+    return fail('invalid', 400, 'That is not a Komoot tour link.');
+  }
+  const upstreamUrl = new URL(`${API_BASE}/${tourId}`);
+  upstreamUrl.searchParams.set('_embedded', 'coordinates');
+  if (link.shareToken) upstreamUrl.searchParams.set('share_token', link.shareToken);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(`${API_BASE}/${link.id}?${params}`, {
+    const res = await fetch(upstreamUrl, {
       headers: { Accept: 'application/hal+json, application/json' },
       signal: controller.signal,
     });
