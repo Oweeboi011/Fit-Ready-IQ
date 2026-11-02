@@ -135,7 +135,7 @@ function StravaCallbackInner() {
   if (outcome.state === 'failed') {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-950 p-4">
-        <div className="w-full max-w-sm rounded-2xl border border-ink/[0.08] bg-slate-900 p-6 text-center shadow-2xl">
+        <div className="border-ink/8 w-full max-w-sm rounded-2xl border bg-slate-900 p-6 text-center shadow-2xl">
           <AlertCircle aria-hidden="true" className="mx-auto mb-4 h-10 w-10 text-amber-400" />
           <h1 className="text-lg font-semibold text-white">{outcome.title}</h1>
           <p className="mt-2 text-sm text-slate-400">{outcome.detail}</p>

@@ -28,19 +28,19 @@ export default function ActivityListItem({ activity, onClick }: ActivityListItem
     <button
       type="button"
       onClick={onClick}
-      className="group w-full rounded-lg border border-ink/[0.07] bg-ink/5 px-3.5 py-3 text-left transition-colors hover:border-violet-500/40 hover:bg-violet-900/10"
+      className="group border-ink/[0.07] bg-ink/5 w-full rounded-lg border px-3.5 py-3 text-left transition-colors hover:border-violet-500/40 hover:bg-violet-900/10"
     >
       <div className="flex items-start justify-between gap-2">
         <p className="line-clamp-1 text-[13px] font-semibold text-slate-200 group-hover:text-violet-300">
           {activity.name}
         </p>
         <span
-          className={`flex-shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${SOURCE_BADGE[activity.source] ?? 'bg-slate-700 text-slate-300'}`}
+          className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${SOURCE_BADGE[activity.source] ?? 'bg-slate-700 text-slate-300'}`}
         >
           {SOURCE_LABEL[activity.source] ?? activity.source}
         </span>
       </div>
-      <p className="mt-0.5 text-[10px] capitalize text-slate-500">
+      <p className="mt-0.5 text-[10px] text-slate-500 capitalize">
         {activity.sport_type} · {new Date(activity.start_date).toLocaleDateString()}
       </p>
       <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-400">

@@ -340,7 +340,7 @@ export default function DetailsModal({
       case 'challenging':
         return 'text-red-400 bg-red-500/10';
       default:
-        return 'text-slate-600 bg-ink/[0.06]';
+        return 'text-slate-600 bg-ink/6';
     }
   };
 
@@ -384,9 +384,9 @@ export default function DetailsModal({
       title={
         <>
           <div
-            className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
               data.type === 'mountain'
-                ? 'bg-ink/[0.06]'
+                ? 'bg-ink/6'
                 : data.type === 'campsite'
                   ? 'bg-emerald-500/10'
                   : 'bg-blue-500/10'
@@ -401,8 +401,8 @@ export default function DetailsModal({
             )}
           </div>
           <div className="min-w-0">
-            <h2 className="truncate text-lg font-semibold leading-tight text-white">{data.name}</h2>
-            <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wider text-slate-400">
+            <h2 className="truncate text-lg leading-tight font-semibold text-white">{data.name}</h2>
+            <p className="mt-0.5 text-[11px] font-medium tracking-wider text-slate-400 uppercase">
               {data.type === 'mountain'
                 ? 'Mountain / Peak'
                 : data.type === 'campsite'
@@ -466,8 +466,8 @@ export default function DetailsModal({
 
                 {/* Quick Stats */}
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                    <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                    <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                       <Route aria-hidden="true" className="h-3 w-3" />
                       Length
                     </p>
@@ -475,8 +475,8 @@ export default function DetailsModal({
                       {data.distance_km == null ? '—' : `${data.distance_km.toFixed(1)} km`}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                    <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                    <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                       <TrendingUp aria-hidden="true" className="h-3 w-3" />
                       Relief
                     </p>
@@ -484,8 +484,8 @@ export default function DetailsModal({
                       {data.elevation_gain_m == null ? '—' : `${data.elevation_gain_m} m`}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                    <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                    <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                       <Gauge aria-hidden="true" className="h-3 w-3" />
                       Difficulty
                     </p>
@@ -493,12 +493,12 @@ export default function DetailsModal({
                       {DIFFICULTY_LABELS[data.difficulty]}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                    <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                    <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                       <Footprints aria-hidden="true" className="h-3 w-3" />
                       Activity
                     </p>
-                    <p className="mt-1.5 text-xl font-bold capitalize text-white">
+                    <p className="mt-1.5 text-xl font-bold text-white capitalize">
                       {formatActivityType(data.activity_type)}
                     </p>
                   </div>
@@ -525,32 +525,32 @@ export default function DetailsModal({
                 {/* Strava Segment Records */}
                 {data.strava_segment && (
                   <div>
-                    <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-300">
+                    <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold tracking-wider text-slate-300 uppercase">
                       <Award aria-hidden="true" className="h-3.5 w-3.5" />
                       Strava Segment
                     </h3>
-                    <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 p-4">
+                    <div className="border-ink/6 rounded-lg border bg-slate-800/60 p-4">
                       <div className="mb-3 flex items-center justify-between">
                         <p className="text-sm font-semibold text-white">
                           {data.strava_segment.name}
                         </p>
-                        <span className="rounded bg-ink/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                        <span className="bg-ink/6 rounded px-2 py-0.5 text-[10px] font-semibold tracking-wide text-slate-500 uppercase">
                           {data.strava_segment.total_efforts == null
                             ? 'Efforts unknown'
                             : `${data.strava_segment.total_efforts} efforts`}
                         </span>
                       </div>
                       <div className="mb-3 grid grid-cols-2 gap-2">
-                        <div className="rounded-lg bg-ink/[0.06] px-3 py-2">
-                          <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                        <div className="bg-ink/6 rounded-lg px-3 py-2">
+                          <p className="text-[10px] tracking-wide text-slate-400 uppercase">
                             Distance
                           </p>
                           <p className="font-tabular text-base font-bold text-white">
                             {data.strava_segment.distance.toFixed(1)} km
                           </p>
                         </div>
-                        <div className="rounded-lg bg-ink/[0.06] px-3 py-2">
-                          <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                        <div className="bg-ink/6 rounded-lg px-3 py-2">
+                          <p className="text-[10px] tracking-wide text-slate-400 uppercase">
                             Avg Grade
                           </p>
                           <p className="font-tabular text-base font-bold text-white">
@@ -562,7 +562,7 @@ export default function DetailsModal({
                         <div className="grid grid-cols-2 gap-2">
                           {data.strava_segment.kom_time && (
                             <div className="rounded-lg border border-blue-500/25 bg-blue-500/10 px-3 py-2">
-                              <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-400">
+                              <p className="text-[10px] font-semibold tracking-wide text-blue-400 uppercase">
                                 KOM
                               </p>
                               <p className="font-tabular text-base font-bold text-blue-200">
@@ -572,7 +572,7 @@ export default function DetailsModal({
                           )}
                           {data.strava_segment.qom_time && (
                             <div className="rounded-lg border border-pink-500/25 bg-pink-500/10 px-3 py-2">
-                              <p className="text-[10px] font-semibold uppercase tracking-wide text-pink-400">
+                              <p className="text-[10px] font-semibold tracking-wide text-pink-400 uppercase">
                                 QOM
                               </p>
                               <p className="font-tabular text-base font-bold text-pink-200">
@@ -596,14 +596,14 @@ export default function DetailsModal({
                 {/* Route Summary — hike only */}
                 {!isCycling && (
                   <div>
-                    <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-300">
+                    <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold tracking-wider text-slate-300 uppercase">
                       <ListOrdered aria-hidden="true" className="h-3.5 w-3.5" />
                       Route Summary
                     </h3>
-                    <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 p-5">
+                    <div className="border-ink/6 rounded-lg border bg-slate-800/60 p-5">
                       <div className="space-y-4">
                         <div className="flex items-start">
-                          <div className="mr-4 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-green-500/15">
+                          <div className="mr-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-500/15">
                             <span className="font-bold text-green-400">1</span>
                           </div>
                           <div className="flex-1">
@@ -618,7 +618,7 @@ export default function DetailsModal({
                           </div>
                         </div>
                         <div className="flex items-start">
-                          <div className="mr-4 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-500/15">
+                          <div className="mr-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500/15">
                             <span className="font-bold text-blue-400">2</span>
                           </div>
                           <div className="flex-1">
@@ -630,7 +630,7 @@ export default function DetailsModal({
                           </div>
                         </div>
                         <div className="flex items-start">
-                          <div className="mr-4 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-red-500/15">
+                          <div className="mr-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500/15">
                             <span className="font-bold text-red-400">3</span>
                           </div>
                           <div className="flex-1">
@@ -650,12 +650,12 @@ export default function DetailsModal({
                 {/* Elevation Details — hike only */}
                 {!isCycling && (
                   <div>
-                    <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-300">
+                    <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold tracking-wider text-slate-300 uppercase">
                       <MapPin aria-hidden="true" className="h-3.5 w-3.5" />
                       Elevation Details
                     </h3>
-                    <div className="space-y-3 rounded-lg border border-ink/[0.06] bg-slate-800/60 p-4">
-                      <div className="flex items-center justify-between border-b border-ink/[0.06] pb-3">
+                    <div className="border-ink/6 space-y-3 rounded-lg border bg-slate-800/60 p-4">
+                      <div className="border-ink/6 flex items-center justify-between border-b pb-3">
                         <div className="flex items-center">
                           <div className="mr-3 h-2.5 w-2.5 rounded-full bg-emerald-500"></div>
                           <div>
@@ -667,7 +667,7 @@ export default function DetailsModal({
                           {metrics.startElevation}m
                         </p>
                       </div>
-                      <div className="flex items-center justify-between border-b border-ink/[0.06] pb-3">
+                      <div className="border-ink/6 flex items-center justify-between border-b pb-3">
                         <div className="flex items-center">
                           <div className="mr-3 h-2.5 w-2.5 rounded-full bg-red-500"></div>
                           <div>
@@ -694,11 +694,11 @@ export default function DetailsModal({
                 {/* Location — cycling only */}
                 {isCycling && (
                   <div>
-                    <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-300">
+                    <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold tracking-wider text-slate-300 uppercase">
                       <MapPin aria-hidden="true" className="h-3.5 w-3.5" />
                       Location
                     </h3>
-                    <div className="rounded-lg border border-ink/[0.06] bg-slate-800/40 p-4">
+                    <div className="border-ink/6 rounded-lg border bg-slate-800/40 p-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <p className="text-xs text-slate-400">Latitude</p>
@@ -720,11 +720,11 @@ export default function DetailsModal({
                 {/* Estimated Time — cycling only */}
                 {isCycling && (
                   <div>
-                    <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-300">
+                    <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold tracking-wider text-slate-300 uppercase">
                       <Clock aria-hidden="true" className="h-3.5 w-3.5" />
                       Estimated Time
                     </h3>
-                    <div className="rounded-lg border border-ink/[0.06] bg-slate-800/40 p-4">
+                    <div className="border-ink/6 rounded-lg border bg-slate-800/40 p-4">
                       <p className="text-xs text-slate-400">Based on distance and elevation gain</p>
                       <p className="mt-1 text-lg font-semibold text-white">
                         {(() => {
@@ -744,13 +744,13 @@ export default function DetailsModal({
                 {/* Activity-Specific Profile Details */}
                 {isCycling ? (
                   <div>
-                    <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-300">
+                    <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold tracking-wider text-slate-300 uppercase">
                       <Bike aria-hidden="true" className="h-3.5 w-3.5" />
                       Cycling Details
                     </h3>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                      <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                        <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                           Avg Speed Zone
                         </p>
                         <p className="mt-1.5 text-base font-bold text-white">
@@ -772,8 +772,8 @@ export default function DetailsModal({
                                 : 'Steep climbs'}
                         </p>
                       </div>
-                      <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                      <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                        <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                           Bike Type
                         </p>
                         <p className="mt-1.5 text-base font-bold text-white">
@@ -785,8 +785,8 @@ export default function DetailsModal({
                         </p>
                         <p className="text-xs text-slate-400">Recommended category</p>
                       </div>
-                      <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                      <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                        <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                           Power Output
                         </p>
                         <p className="mt-1.5 text-base font-bold text-white">
@@ -800,8 +800,8 @@ export default function DetailsModal({
                         </p>
                         <p className="text-xs text-slate-400">Estimated avg watts</p>
                       </div>
-                      <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                      <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                        <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                           Technical Level
                         </p>
                         <p className="mt-1.5 text-base font-bold text-white">
@@ -837,8 +837,8 @@ export default function DetailsModal({
                       <>
                         {/* Stats */}
                         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                          <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3 text-center">
-                            <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                          <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3 text-center">
+                            <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                               <Clock aria-hidden="true" className="h-3 w-3" />
                               Climb Time
                             </p>
@@ -849,8 +849,8 @@ export default function DetailsModal({
                               {lo != null ? "Naismith's rule" : 'ascent unknown'}
                             </p>
                           </div>
-                          <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3 text-center">
-                            <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                          <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3 text-center">
+                            <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                               <HeartPulse aria-hidden="true" className="h-3 w-3" />
                               Fitness
                             </p>
@@ -865,17 +865,17 @@ export default function DetailsModal({
                             </p>
                             <p className="text-[11px] text-slate-400">required level</p>
                           </div>
-                          <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3 text-center">
-                            <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                          <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3 text-center">
+                            <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                               <CalendarDays aria-hidden="true" className="h-3 w-3" />
                               Best Season
                             </p>
-                            <p className="mt-1.5 text-sm font-bold leading-tight text-white">
+                            <p className="mt-1.5 text-sm leading-tight font-bold text-white">
                               {weatherNotes.best}
                             </p>
                           </div>
-                          <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3 text-center">
-                            <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                          <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3 text-center">
+                            <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                               <Thermometer aria-hidden="true" className="h-3 w-3" />
                               Summit Temp
                             </p>
@@ -888,8 +888,8 @@ export default function DetailsModal({
 
                         {/* Pre-Climb Briefing */}
                         <div className="space-y-3">
-                          <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-300">
-                            <span className="flex h-5 w-5 items-center justify-center rounded bg-ink/[0.06]">
+                          <h3 className="flex items-center gap-2 text-sm font-semibold tracking-wider text-slate-300 uppercase">
+                            <span className="bg-ink/6 flex h-5 w-5 items-center justify-center rounded">
                               <ClipboardList
                                 aria-hidden="true"
                                 className="h-3 w-3 text-slate-600"
@@ -898,9 +898,9 @@ export default function DetailsModal({
                             Pre-Climb Briefing
                           </h3>
 
-                          <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 p-4">
+                          <div className="border-ink/6 rounded-lg border bg-slate-800/60 p-4">
                             <div className="flex items-start gap-3">
-                              <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-blue-500/10">
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-500/10">
                                 <CircleParking
                                   aria-hidden="true"
                                   className="h-4 w-4 text-blue-400"
@@ -923,9 +923,9 @@ export default function DetailsModal({
                             </div>
                           </div>
 
-                          <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 p-4">
+                          <div className="border-ink/6 rounded-lg border bg-slate-800/60 p-4">
                             <div className="flex items-start gap-3">
-                              <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-emerald-500/10">
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-500/10">
                                 <Flag aria-hidden="true" className="h-4 w-4 text-emerald-400" />
                               </span>
                               <div>
@@ -942,9 +942,9 @@ export default function DetailsModal({
                             </div>
                           </div>
 
-                          <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 p-4">
+                          <div className="border-ink/6 rounded-lg border bg-slate-800/60 p-4">
                             <div className="flex items-start gap-3">
-                              <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-sky-500/10">
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-sky-500/10">
                                 <CloudSun aria-hidden="true" className="h-4 w-4 text-sky-400" />
                               </span>
                               <div className="flex-1">
@@ -953,14 +953,14 @@ export default function DetailsModal({
                                     Weather Conditions
                                   </p>
                                   {weatherNotes.live && (
-                                    <span className="rounded-full bg-sky-500/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-sky-400">
+                                    <span className="rounded-full bg-sky-500/20 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-sky-400 uppercase">
                                       Live
                                     </span>
                                   )}
                                 </div>
                                 <div className="mt-2 grid grid-cols-2 gap-2">
                                   <div className="rounded-md bg-emerald-500/10 px-3 py-2">
-                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
+                                    <p className="text-[10px] font-semibold tracking-wide text-emerald-400 uppercase">
                                       Best time
                                     </p>
                                     <p className="text-sm font-bold text-emerald-300">
@@ -968,7 +968,7 @@ export default function DetailsModal({
                                     </p>
                                   </div>
                                   <div className="rounded-md bg-red-500/10 px-3 py-2">
-                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-red-400">
+                                    <p className="text-[10px] font-semibold tracking-wide text-red-400 uppercase">
                                       Avoid
                                     </p>
                                     <p className="text-sm font-bold text-red-300">
@@ -976,7 +976,7 @@ export default function DetailsModal({
                                     </p>
                                   </div>
                                 </div>
-                                <p className="mt-2 rounded-md bg-ink/5 px-3 py-2 text-xs text-slate-300">
+                                <p className="bg-ink/5 mt-2 rounded-md px-3 py-2 text-xs text-slate-300">
                                   RISK: {weatherNotes.risk}
                                 </p>
                                 {weatherRetry}
@@ -991,20 +991,20 @@ export default function DetailsModal({
 
                         {/* Gear */}
                         <div>
-                          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-300">
-                            <span className="flex h-5 w-5 items-center justify-center rounded bg-ink/[0.06]">
+                          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wider text-slate-300 uppercase">
+                            <span className="bg-ink/6 flex h-5 w-5 items-center justify-center rounded">
                               <Backpack aria-hidden="true" className="h-3 w-3 text-slate-600" />
                             </span>
                             Recommended Gear
                           </h3>
-                          <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 p-4">
+                          <div className="border-ink/6 rounded-lg border bg-slate-800/60 p-4">
                             <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
                               {gearList.map((item, i) => (
                                 <div
                                   key={i}
                                   className="flex items-start gap-2 text-sm text-slate-200"
                                 >
-                                  <span className="mt-0.5 flex-shrink-0 text-emerald-500">-</span>
+                                  <span className="mt-0.5 shrink-0 text-emerald-500">-</span>
                                   {item}
                                 </div>
                               ))}
@@ -1014,11 +1014,11 @@ export default function DetailsModal({
 
                         {/* Coordinates */}
                         <div>
-                          <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-300">
+                          <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold tracking-wider text-slate-300 uppercase">
                             <Crosshair aria-hidden="true" className="h-3.5 w-3.5" />
                             Coordinates
                           </h3>
-                          <div className="grid grid-cols-2 gap-4 rounded-lg border border-ink/[0.06] bg-slate-800/40 px-4 py-3">
+                          <div className="border-ink/6 grid grid-cols-2 gap-4 rounded-lg border bg-slate-800/40 px-4 py-3">
                             <div>
                               <p className="text-xs text-slate-400">Latitude</p>
                               <p className="font-mono text-sm font-medium text-white">
@@ -1040,7 +1040,7 @@ export default function DetailsModal({
 
                 {/* Actions — "Add to Training Plan" led this row in the
                       loudest treatment on the screen and had no handler. */}
-                <div className="flex flex-wrap gap-2 border-t border-ink/[0.06] pt-5">
+                <div className="border-ink/6 flex flex-wrap gap-2 border-t pt-5">
                   <button
                     type="button"
                     onClick={() => {
@@ -1073,7 +1073,7 @@ export default function DetailsModal({
         ) : data.type === 'mountain' ? (
           <div className="space-y-6">
             {/* Mountaineer Profile type label */}
-            <div className="flex items-center gap-3 rounded-lg border border-ink/[0.06] bg-slate-800/40 px-4 py-3">
+            <div className="border-ink/6 flex items-center gap-3 rounded-lg border bg-slate-800/40 px-4 py-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-700">
                 <Mountain aria-hidden="true" className="h-4 w-4 text-slate-300" />
               </div>
@@ -1087,8 +1087,8 @@ export default function DetailsModal({
 
             {/* Quick Stats */}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                   <Mountain aria-hidden="true" className="h-3 w-3" />
                   Elevation
                 </p>
@@ -1096,8 +1096,8 @@ export default function DetailsModal({
                   {data.elevation_m == null ? '—' : `${data.elevation_m} m`}
                 </p>
               </div>
-              <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                   <TrendingUp aria-hidden="true" className="h-3 w-3" />
                   Prominence
                 </p>
@@ -1105,12 +1105,12 @@ export default function DetailsModal({
                   {data.prominence_m == null ? '—' : `${data.prominence_m} m`}
                 </p>
               </div>
-              <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                   <Tent aria-hidden="true" className="h-3 w-3" />
                   Type
                 </p>
-                <p className="mt-1.5 text-xl font-bold capitalize text-white">
+                <p className="mt-1.5 text-xl font-bold text-white capitalize">
                   {data.mountain_type}
                 </p>
               </div>
@@ -1127,28 +1127,28 @@ export default function DetailsModal({
             {/* Strava Segment Records */}
             {data.strava_segment && (
               <div>
-                <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-300">
+                <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold tracking-wider text-slate-300 uppercase">
                   <Award aria-hidden="true" className="h-3.5 w-3.5" />
                   Strava Segment
                 </h3>
-                <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 p-4">
+                <div className="border-ink/6 rounded-lg border bg-slate-800/60 p-4">
                   <div className="mb-3 flex items-center justify-between">
                     <p className="text-sm font-semibold text-white">{data.strava_segment.name}</p>
-                    <span className="rounded bg-ink/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    <span className="bg-ink/6 rounded px-2 py-0.5 text-[10px] font-semibold tracking-wide text-slate-500 uppercase">
                       {data.strava_segment.total_efforts == null
                         ? 'Efforts unknown'
                         : `${data.strava_segment.total_efforts} efforts`}
                     </span>
                   </div>
                   <div className="mb-3 grid grid-cols-2 gap-2">
-                    <div className="rounded-lg bg-ink/[0.06] px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Distance</p>
+                    <div className="bg-ink/6 rounded-lg px-3 py-2">
+                      <p className="text-[10px] tracking-wide text-slate-400 uppercase">Distance</p>
                       <p className="font-tabular text-base font-bold text-white">
                         {data.strava_segment.distance.toFixed(1)} km
                       </p>
                     </div>
-                    <div className="rounded-lg bg-ink/[0.06] px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-400">
+                    <div className="bg-ink/6 rounded-lg px-3 py-2">
+                      <p className="text-[10px] tracking-wide text-slate-400 uppercase">
                         Avg Grade
                       </p>
                       <p className="font-tabular text-base font-bold text-white">
@@ -1160,7 +1160,7 @@ export default function DetailsModal({
                     <div className="grid grid-cols-2 gap-2">
                       {data.strava_segment.kom_time && (
                         <div className="rounded-lg border border-blue-500/25 bg-blue-500/10 px-3 py-2">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-400">
+                          <p className="text-[10px] font-semibold tracking-wide text-blue-400 uppercase">
                             KOM
                           </p>
                           <p className="font-tabular text-base font-bold text-blue-200">
@@ -1170,7 +1170,7 @@ export default function DetailsModal({
                       )}
                       {data.strava_segment.qom_time && (
                         <div className="rounded-lg border border-pink-500/25 bg-pink-500/10 px-3 py-2">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-pink-400">
+                          <p className="text-[10px] font-semibold tracking-wide text-pink-400 uppercase">
                             QOM
                           </p>
                           <p className="font-tabular text-base font-bold text-pink-200">
@@ -1193,14 +1193,14 @@ export default function DetailsModal({
 
             {/* Route Summary - For Mountains */}
             <div>
-              <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-300">
+              <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold tracking-wider text-slate-300 uppercase">
                 <ListOrdered aria-hidden="true" className="h-3.5 w-3.5" />
                 Route Summary
               </h3>
-              <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 p-5">
+              <div className="border-ink/6 rounded-lg border bg-slate-800/60 p-5">
                 <div className="space-y-4">
                   <div className="flex items-start">
-                    <div className="mr-4 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-green-500/15">
+                    <div className="mr-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-500/15">
                       <span className="font-bold text-green-400">1</span>
                     </div>
                     <div className="flex-1">
@@ -1214,7 +1214,7 @@ export default function DetailsModal({
                     </div>
                   </div>
                   <div className="flex items-start">
-                    <div className="mr-4 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-500/15">
+                    <div className="mr-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500/15">
                       <span className="font-bold text-blue-400">2</span>
                     </div>
                     <div className="flex-1">
@@ -1232,7 +1232,7 @@ export default function DetailsModal({
                     </div>
                   </div>
                   <div className="flex items-start">
-                    <div className="mr-4 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-red-500/15">
+                    <div className="mr-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500/15">
                       <span className="font-bold text-red-400">3</span>
                     </div>
                     <div className="flex-1">
@@ -1252,13 +1252,13 @@ export default function DetailsModal({
             {/* Jumpoff to Summit - For Mountains */}
             {(data.jumpoff_elevation || data.summit_elevation) && (
               <div>
-                <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-300">
+                <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold tracking-wider text-slate-300 uppercase">
                   <MapPin aria-hidden="true" className="h-3.5 w-3.5" />
                   Elevation Details
                 </h3>
-                <div className="space-y-3 rounded-lg border border-ink/[0.06] bg-slate-800/60 p-4">
+                <div className="border-ink/6 space-y-3 rounded-lg border bg-slate-800/60 p-4">
                   {data.jumpoff_elevation && (
-                    <div className="flex items-center justify-between border-b border-ink/[0.06] pb-3">
+                    <div className="border-ink/6 flex items-center justify-between border-b pb-3">
                       <div className="flex items-center">
                         <div className="mr-3 h-2.5 w-2.5 rounded-full bg-emerald-500"></div>
                         <div>
@@ -1271,7 +1271,7 @@ export default function DetailsModal({
                       </p>
                     </div>
                   )}
-                  <div className="flex items-center justify-between border-b border-ink/[0.06] pb-3">
+                  <div className="border-ink/6 flex items-center justify-between border-b pb-3">
                     <div className="flex items-center">
                       <div className="mr-3 h-2.5 w-2.5 rounded-full bg-red-500"></div>
                       <div>
@@ -1310,8 +1310,8 @@ export default function DetailsModal({
                 <>
                   {/* Stats row */}
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3 text-center">
-                      <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3 text-center">
+                      <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                         <Clock aria-hidden="true" className="h-3 w-3" />
                         Climb Time
                       </p>
@@ -1322,8 +1322,8 @@ export default function DetailsModal({
                         {ascent ? 'ascent (Naismith)' : 'start point unknown'}
                       </p>
                     </div>
-                    <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3 text-center">
-                      <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3 text-center">
+                      <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                         <HeartPulse aria-hidden="true" className="h-3 w-3" />
                         Fitness
                       </p>
@@ -1340,17 +1340,17 @@ export default function DetailsModal({
                       </p>
                       <p className="text-[11px] text-slate-400">required level</p>
                     </div>
-                    <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3 text-center">
-                      <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3 text-center">
+                      <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                         <CalendarDays aria-hidden="true" className="h-3 w-3" />
                         Best Season
                       </p>
-                      <p className="mt-1.5 text-sm font-bold leading-tight text-white">
+                      <p className="mt-1.5 text-sm leading-tight font-bold text-white">
                         {weatherNotes.best}
                       </p>
                     </div>
-                    <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3 text-center">
-                      <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3 text-center">
+                      <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                         <Thermometer aria-hidden="true" className="h-3 w-3" />
                         Summit Temp
                       </p>
@@ -1361,17 +1361,17 @@ export default function DetailsModal({
 
                   {/* Logistics cards */}
                   <div className="space-y-3">
-                    <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-300">
-                      <span className="flex h-5 w-5 items-center justify-center rounded bg-ink/[0.06]">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold tracking-wider text-slate-300 uppercase">
+                      <span className="bg-ink/6 flex h-5 w-5 items-center justify-center rounded">
                         <ClipboardList aria-hidden="true" className="h-3 w-3 text-slate-600" />
                       </span>
                       Pre-Climb Briefing
                     </h3>
 
                     {/* Parking */}
-                    <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 p-4">
+                    <div className="border-ink/6 rounded-lg border bg-slate-800/60 p-4">
                       <div className="flex items-start gap-3">
-                        <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-blue-500/10">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-500/10">
                           <CircleParking aria-hidden="true" className="h-4 w-4 text-blue-400" />
                         </span>
                         <div>
@@ -1389,9 +1389,9 @@ export default function DetailsModal({
                     </div>
 
                     {/* Jumpoff */}
-                    <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 p-4">
+                    <div className="border-ink/6 rounded-lg border bg-slate-800/60 p-4">
                       <div className="flex items-start gap-3">
-                        <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-emerald-500/10">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-500/10">
                           <Flag aria-hidden="true" className="h-4 w-4 text-emerald-400" />
                         </span>
                         <div>
@@ -1413,23 +1413,23 @@ export default function DetailsModal({
                           around. There is no data source for it, so it is gone. */}
 
                     {/* Weather */}
-                    <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 p-4">
+                    <div className="border-ink/6 rounded-lg border bg-slate-800/60 p-4">
                       <div className="flex items-start gap-3">
-                        <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-sky-500/10">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-sky-500/10">
                           <CloudSun aria-hidden="true" className="h-4 w-4 text-sky-400" />
                         </span>
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <p className="text-sm font-semibold text-white">Weather Conditions</p>
                             {weatherNotes.live && (
-                              <span className="rounded-full bg-sky-500/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-sky-400">
+                              <span className="rounded-full bg-sky-500/20 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-sky-400 uppercase">
                                 Live
                               </span>
                             )}
                           </div>
                           <div className="mt-2 grid grid-cols-2 gap-2">
                             <div className="rounded-md bg-emerald-500/10 px-3 py-2">
-                              <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
+                              <p className="text-[10px] font-semibold tracking-wide text-emerald-400 uppercase">
                                 Best time
                               </p>
                               <p className="text-sm font-bold text-emerald-300">
@@ -1437,7 +1437,7 @@ export default function DetailsModal({
                               </p>
                             </div>
                             <div className="rounded-lg bg-red-500/10 px-3 py-2">
-                              <p className="text-[11px] font-semibold uppercase tracking-wide text-red-400">
+                              <p className="text-[11px] font-semibold tracking-wide text-red-400 uppercase">
                                 Avoid
                               </p>
                               <p className="text-sm font-bold text-red-300">{weatherNotes.avoid}</p>
@@ -1458,17 +1458,17 @@ export default function DetailsModal({
 
                   {/* Recommended Gear */}
                   <div>
-                    <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-300">
-                      <span className="flex h-5 w-5 items-center justify-center rounded bg-ink/[0.06]">
+                    <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wider text-slate-300 uppercase">
+                      <span className="bg-ink/6 flex h-5 w-5 items-center justify-center rounded">
                         <Backpack aria-hidden="true" className="h-3 w-3 text-slate-600" />
                       </span>
                       Recommended Gear
                     </h3>
-                    <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 p-4">
+                    <div className="border-ink/6 rounded-lg border bg-slate-800/60 p-4">
                       <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
                         {gearList.map((item, i) => (
                           <div key={i} className="flex items-start gap-2 text-sm text-slate-200">
-                            <span className="mt-0.5 flex-shrink-0 text-emerald-500">-</span>
+                            <span className="mt-0.5 shrink-0 text-emerald-500">-</span>
                             {item}
                           </div>
                         ))}
@@ -1478,11 +1478,11 @@ export default function DetailsModal({
 
                   {/* Location coords */}
                   <div>
-                    <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-300">
+                    <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold tracking-wider text-slate-300 uppercase">
                       <Crosshair aria-hidden="true" className="h-3.5 w-3.5" />
                       Coordinates
                     </h3>
-                    <div className="grid grid-cols-2 gap-4 rounded-lg border border-ink/[0.06] bg-slate-800/40 px-4 py-3">
+                    <div className="border-ink/6 grid grid-cols-2 gap-4 rounded-lg border bg-slate-800/40 px-4 py-3">
                       <div>
                         <p className="text-xs text-slate-400">Latitude</p>
                         <p className="font-mono text-sm font-medium text-white">
@@ -1503,7 +1503,7 @@ export default function DetailsModal({
 
             {/* Actions — "Find Routes to Summit" had no handler, and this row
                   used light-theme buttons inside a dark modal. */}
-            <div className="flex flex-wrap gap-2 border-t border-ink/[0.06] pt-5">
+            <div className="border-ink/6 flex flex-wrap gap-2 border-t pt-5">
               <button
                 type="button"
                 onClick={() => {
@@ -1539,18 +1539,18 @@ export default function DetailsModal({
 
             {/* Quick Stats */}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                   <Tent aria-hidden="true" className="h-3 w-3" />
                   Type
                 </p>
-                <p className="mt-1.5 text-xl font-bold capitalize text-white">
+                <p className="mt-1.5 text-xl font-bold text-white capitalize">
                   {data.campsite_type}
                 </p>
               </div>
               {data.rating && (
-                <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                  <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                  <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                     <Star aria-hidden="true" className="h-3 w-3" />
                     Rating
                   </p>
@@ -1562,8 +1562,8 @@ export default function DetailsModal({
                   </div>
                 </div>
               )}
-              <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                   Coordinates
                 </p>
                 <p className="font-tabular mt-1.5 text-xs font-medium text-slate-300">
@@ -1583,7 +1583,7 @@ export default function DetailsModal({
             {/* Amenities */}
             {data.amenities && data.amenities.length > 0 && (
               <div>
-                <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-300">
+                <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold tracking-wider text-slate-300 uppercase">
                   <CircleCheck aria-hidden="true" className="h-3.5 w-3.5" />
                   Amenities
                 </h3>
@@ -1591,7 +1591,7 @@ export default function DetailsModal({
                   {data.amenities.map((amenity, index) => (
                     <span
                       key={index}
-                      className="rounded-md border border-ink/[0.08] bg-ink/[0.06] px-2.5 py-1 text-xs font-medium text-slate-200"
+                      className="border-ink/8 bg-ink/6 rounded-md border px-2.5 py-1 text-xs font-medium text-slate-200"
                     >
                       {amenity}
                     </span>
@@ -1602,16 +1602,16 @@ export default function DetailsModal({
 
             {/* Camper Profile Details */}
             <div>
-              <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-300">
+              <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold tracking-wider text-slate-300 uppercase">
                 <Tent aria-hidden="true" className="h-3.5 w-3.5" />
                 Camping Details
               </h3>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                  <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                     Site Type
                   </p>
-                  <p className="mt-1.5 text-base font-bold capitalize text-white">
+                  <p className="mt-1.5 text-base font-bold text-white capitalize">
                     {data.campsite_type}
                   </p>
                   <p className="text-xs text-slate-400">
@@ -1622,8 +1622,8 @@ export default function DetailsModal({
                         : 'Backcountry camping'}
                   </p>
                 </div>
-                <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                  <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                     Accessibility
                   </p>
                   <p className="mt-1.5 text-base font-bold text-white">
@@ -1641,8 +1641,8 @@ export default function DetailsModal({
                         : 'Remote location'}
                   </p>
                 </div>
-                <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                  <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                     Experience Level
                   </p>
                   <p className="mt-1.5 text-base font-bold text-white">
@@ -1654,8 +1654,8 @@ export default function DetailsModal({
                   </p>
                   <p className="text-xs text-slate-400">Recommended skill level</p>
                 </div>
-                <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                  <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                  <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                     <CalendarDays aria-hidden="true" className="h-3 w-3" />
                     Best Season
                   </p>
@@ -1679,14 +1679,14 @@ export default function DetailsModal({
 
             {/* Gear Recommendations */}
             <div>
-              <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-300">
+              <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold tracking-wider text-slate-300 uppercase">
                 <Backpack aria-hidden="true" className="h-3.5 w-3.5" />
                 Recommended Gear
               </h3>
-              <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 p-4">
+              <div className="border-ink/6 rounded-lg border bg-slate-800/60 p-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
+                    <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-300 uppercase">
                       Shelter
                     </h4>
                     <ul className="space-y-1 text-sm text-slate-300">
@@ -1707,7 +1707,7 @@ export default function DetailsModal({
                     </ul>
                   </div>
                   <div>
-                    <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
+                    <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-300 uppercase">
                       Cooking
                     </h4>
                     <ul className="space-y-1 text-sm text-slate-300">
@@ -1722,7 +1722,7 @@ export default function DetailsModal({
                     </ul>
                   </div>
                   <div>
-                    <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
+                    <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-300 uppercase">
                       Essentials
                     </h4>
                     <ul className="space-y-1 text-sm text-slate-300">
@@ -1732,7 +1732,7 @@ export default function DetailsModal({
                     </ul>
                   </div>
                   <div>
-                    <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
+                    <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-300 uppercase">
                       Clothing
                     </h4>
                     <ul className="space-y-1 text-sm text-slate-300">
@@ -1747,12 +1747,12 @@ export default function DetailsModal({
 
             {/* Location Info */}
             <div>
-              <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-300">
+              <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold tracking-wider text-slate-300 uppercase">
                 <Info aria-hidden="true" className="h-3.5 w-3.5" />
                 About This Campsite
               </h3>
               <div className="space-y-2">
-                <div className="rounded-lg border border-ink/[0.06] bg-slate-800/40 p-4">
+                <div className="border-ink/6 rounded-lg border bg-slate-800/40 p-4">
                   <p className="text-sm text-slate-300">
                     <span className="font-semibold text-white">{data.name}</span> is a{' '}
                     {data.campsite_type} located at coordinates {data.coordinates[0].toFixed(4)},{' '}
@@ -1762,8 +1762,8 @@ export default function DetailsModal({
                     mountains.
                   </p>
                 </div>
-                <div className="rounded-lg border border-ink/[0.06] bg-slate-800/40 p-4">
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <div className="border-ink/6 rounded-lg border bg-slate-800/40 p-4">
+                  <p className="mb-1 text-xs font-semibold tracking-wide text-slate-400 uppercase">
                     Nearby Activities
                   </p>
                   <p className="text-sm text-slate-300">
@@ -1776,7 +1776,7 @@ export default function DetailsModal({
 
             {/* Actions — "Check Availability" had no handler and no booking
                   integration behind it to have one. */}
-            <div className="flex flex-wrap gap-2 border-t border-ink/[0.06] pt-5">
+            <div className="border-ink/6 flex flex-wrap gap-2 border-t pt-5">
               <button
                 type="button"
                 onClick={() => {
@@ -1802,7 +1802,7 @@ export default function DetailsModal({
               };
               const meta = sourceMeta[data.source] ?? {
                 label: data.source,
-                bg: 'bg-ink/[0.06]',
+                bg: 'bg-ink/6',
                 text: 'text-slate-200',
               };
               const activityDate = new Date(data.start_date).toLocaleDateString(undefined, {
@@ -1813,9 +1813,9 @@ export default function DetailsModal({
               });
               return (
                 <div
-                  className={`flex items-center gap-3 rounded-lg border border-ink/[0.08] ${meta.bg} px-4 py-3`}
+                  className={`border-ink/8 flex items-center gap-3 rounded-lg border ${meta.bg} px-4 py-3`}
                 >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-ink/[0.06] shadow-sm">
+                  <div className="bg-ink/6 flex h-8 w-8 items-center justify-center rounded-md shadow-xs">
                     <Route aria-hidden="true" className={`h-4 w-4 ${meta.text}`} />
                   </div>
                   <div>
@@ -1831,7 +1831,7 @@ export default function DetailsModal({
                 Places API, which answers with a point, and a profile drawn
                 between two points is invented terrain. */}
             {activityProfilePath && (
-              <div className="rounded-lg border border-ink/[0.08] bg-ink/[0.03] px-4 py-3">
+              <div className="border-ink/8 bg-ink/3 rounded-lg border px-4 py-3">
                 <ElevationProfile
                   samples={activityProfile.samples}
                   loading={activityProfile.loading}
@@ -1842,8 +1842,8 @@ export default function DetailsModal({
 
             {/* Stats */}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                   <Route aria-hidden="true" className="h-3 w-3" />
                   Distance
                 </p>
@@ -1852,8 +1852,8 @@ export default function DetailsModal({
                   <span className="text-sm font-normal text-slate-400">km</span>
                 </p>
               </div>
-              <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                   Elevation Gain
                 </p>
                 <p className="font-tabular mt-1.5 text-xl font-bold text-white">
@@ -1861,8 +1861,8 @@ export default function DetailsModal({
                   <span className="text-sm font-normal text-slate-400">m</span>
                 </p>
               </div>
-              <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                   <Timer aria-hidden="true" className="h-3 w-3" />
                   Moving Time
                 </p>
@@ -1874,17 +1874,17 @@ export default function DetailsModal({
                   })()}
                 </p>
               </div>
-              <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                   Sport
                 </p>
-                <p className="mt-1.5 text-base font-bold capitalize text-white">
+                <p className="mt-1.5 text-base font-bold text-white capitalize">
                   {data.sport_type}
                 </p>
               </div>
               {data.avg_heartrate && (
-                <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                  <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                     Avg Heart Rate
                   </p>
                   <p className="font-tabular mt-1.5 text-xl font-bold text-white">
@@ -1894,8 +1894,8 @@ export default function DetailsModal({
                 </div>
               )}
               {data.max_heartrate && (
-                <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
+                  <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                     Max Heart Rate
                   </p>
                   <p className="font-tabular mt-1.5 text-xl font-bold text-white">
@@ -1908,21 +1908,21 @@ export default function DetailsModal({
 
             {/* Pace / Speed */}
             {data.moving_time_s > 0 && data.distance_km > 0 && (
-              <div className="rounded-lg border border-ink/[0.06] bg-slate-800/40 p-4">
-                <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-300">
+              <div className="border-ink/6 rounded-lg border bg-slate-800/40 p-4">
+                <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold tracking-wider text-slate-300 uppercase">
                   <Gauge aria-hidden="true" className="h-3.5 w-3.5" />
                   Performance
                 </h3>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <p className="text-[10px] font-semibold uppercase text-slate-400">Avg Speed</p>
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase">Avg Speed</p>
                     <p className="font-tabular mt-0.5 font-bold text-white">
                       {((data.distance_km / data.moving_time_s) * 3600).toFixed(1)} km/h
                     </p>
                   </div>
                   {data.sport_type.toLowerCase() !== 'ride' && (
                     <div>
-                      <p className="text-[10px] font-semibold uppercase text-slate-400">Avg Pace</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase">Avg Pace</p>
                       <p className="font-tabular mt-0.5 font-bold text-white">
                         {(() => {
                           const totalSec = Math.round(data.moving_time_s / data.distance_km);
@@ -1938,7 +1938,7 @@ export default function DetailsModal({
             )}
 
             {/* Actions */}
-            <div className="flex flex-wrap gap-2 border-t border-ink/[0.08] pt-5">
+            <div className="border-ink/8 flex flex-wrap gap-2 border-t pt-5">
               {data.source === 'strava' && data.external_id && (
                 <a
                   href={`https://www.strava.com/activities/${data.external_id}`}

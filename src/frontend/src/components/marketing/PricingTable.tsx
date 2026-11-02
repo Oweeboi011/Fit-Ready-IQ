@@ -26,7 +26,7 @@ export function PricingTable() {
         <div
           role="radiogroup"
           aria-label="Billing period"
-          className="inline-flex items-center gap-1 rounded-full border border-ink/[0.08] bg-ink/[0.03] p-1"
+          className="border-ink/8 bg-ink/3 inline-flex items-center gap-1 rounded-full border p-1"
         >
           {/* A radiogroup is expected to be one tab stop with arrow keys between
               options; this rendered as two independent tab stops with none. */}
@@ -43,7 +43,7 @@ export function PricingTable() {
                 e.preventDefault();
                 setBilling(billing === 'monthly' ? 'annual' : 'monthly');
               }}
-              className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+              className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 focus-visible:outline-hidden ${
                 billing === option
                   ? // The selected pill inverts against the page, so both halves have
                     // to flip with the theme: a literal `bg-white text-slate-900`
@@ -66,13 +66,11 @@ export function PricingTable() {
             <div
               key={plan.id}
               className={`relative flex flex-col rounded-2xl border p-6 ${
-                plan.featured
-                  ? 'border-blue-500/40 bg-blue-500/[0.04]'
-                  : 'border-ink/[0.07] bg-ink/[0.02]'
+                plan.featured ? 'border-blue-500/40 bg-blue-500/4' : 'border-ink/[0.07] bg-ink/2'
               }`}
             >
               {plan.featured && (
-                <span className="absolute -top-2.5 left-6 rounded-full bg-blue-600 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
+                <span className="absolute -top-2.5 left-6 rounded-full bg-blue-600 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider text-white uppercase">
                   Most popular
                 </span>
               )}
@@ -97,7 +95,7 @@ export function PricingTable() {
                   <li key={highlight} className="flex gap-2.5 text-sm text-slate-300">
                     <Check
                       aria-hidden="true"
-                      className={`mt-0.5 h-4 w-4 flex-shrink-0 ${
+                      className={`mt-0.5 h-4 w-4 shrink-0 ${
                         plan.featured ? 'text-blue-400' : 'text-slate-500'
                       }`}
                     />

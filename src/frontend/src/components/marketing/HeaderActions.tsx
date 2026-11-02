@@ -58,7 +58,7 @@ export function HeaderActions() {
         Pricing
       </Link>
 
-      <ThemeToggle className="h-8 w-8 !px-0" />
+      <ThemeToggle className="h-8 w-8 px-0!" />
 
       {signedIn ? (
         <Link href="/app" className={`${buttonSecondary} ${buttonSize.sm}`}>

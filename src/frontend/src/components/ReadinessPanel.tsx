@@ -14,7 +14,7 @@ export function ReadinessBadge({ readiness }: { readiness: Readiness }) {
   const color = READINESS_COLORS[readiness.level];
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide"
+      className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold tracking-wide uppercase"
       style={{ backgroundColor: `${color}22`, color }}
       title={readiness.summary}
     >
@@ -42,22 +42,22 @@ export function ReadinessPanel({
 
   return (
     <div>
-      <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-300">
+      <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold tracking-wider text-slate-300 uppercase">
         <Gauge aria-hidden="true" className="h-3.5 w-3.5" />
         Your readiness
       </h3>
 
-      <div className="rounded-lg border border-ink/[0.06] bg-slate-800/60 p-4">
+      <div className="border-ink/6 rounded-lg border bg-slate-800/60 p-4">
         <div className="flex items-center gap-4">
           {readiness.score == null ? (
-            <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full border-2 border-dashed border-ink/15">
+            <div className="border-ink/15 flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-dashed">
               <ActivityIcon aria-hidden="true" className="h-5 w-5 text-slate-600" />
             </div>
           ) : (
             <div
               role="img"
               aria-label={`Readiness ${readiness.score} out of 100: ${readiness.label}`}
-              className="relative flex h-14 w-14 flex-shrink-0 items-center justify-center"
+              className="relative flex h-14 w-14 shrink-0 items-center justify-center"
             >
               <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true">
                 <circle cx="28" cy="28" r="24" fill="none" stroke="#1e293b" strokeWidth="5" />
@@ -90,7 +90,7 @@ export function ReadinessPanel({
         </div>
 
         {readiness.factors.length > 0 && (
-          <dl className="mt-4 space-y-2 border-t border-ink/[0.06] pt-3">
+          <dl className="border-ink/6 mt-4 space-y-2 border-t pt-3">
             {readiness.factors.map((factor) => (
               <div key={factor.id}>
                 <div className="mb-1 flex items-baseline justify-between gap-2">
@@ -99,7 +99,7 @@ export function ReadinessPanel({
                     {factor.capacity} <span className="text-slate-600">of</span> {factor.demand}
                   </dd>
                 </div>
-                <div className="h-1 w-full overflow-hidden rounded-full bg-ink/10">
+                <div className="bg-ink/10 h-1 w-full overflow-hidden rounded-full">
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{
@@ -153,12 +153,9 @@ function TrainingPlanPanel({ readiness }: { readiness: Readiness }) {
   if (plan.status === 'unknown') return null;
 
   return (
-    <div className="mt-4 border-t border-ink/[0.06] pt-4">
+    <div className="border-ink/6 mt-4 border-t pt-4">
       <div className="flex items-start gap-2.5">
-        <CalendarRange
-          aria-hidden="true"
-          className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-blue-400"
-        />
+        <CalendarRange aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-400" />
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold text-slate-200">
             {plan.status === 'ready'
@@ -183,9 +180,9 @@ function TrainingPlanPanel({ readiness }: { readiness: Readiness }) {
           </button>
 
           {expanded && (
-            <div className="mt-2 overflow-x-auto rounded-lg border border-ink/[0.06]">
+            <div className="border-ink/6 mt-2 overflow-x-auto rounded-lg border">
               <table className="w-full text-left">
-                <thead className="bg-ink/[0.04]">
+                <thead className="bg-ink/4">
                   <tr>
                     {[
                       'Week',
@@ -196,14 +193,14 @@ function TrainingPlanPanel({ readiness }: { readiness: Readiness }) {
                       <th
                         key={heading}
                         scope="col"
-                        className="px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400"
+                        className="px-3 py-1.5 text-[9px] font-semibold tracking-wider text-slate-400 uppercase"
                       >
                         {heading}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-ink/[0.04]">
+                <tbody className="divide-ink/4 divide-y">
                   {plan.targets.map((target) => (
                     <tr key={target.week}>
                       <th

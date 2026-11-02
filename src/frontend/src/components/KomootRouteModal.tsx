@@ -122,9 +122,9 @@ function RouteOutline({ path }: { path: [number, number][] }) {
   return (
     <svg
       viewBox="0 0 200 200"
-      className="h-40 w-full rounded-lg bg-ink/[0.03]"
+      className="bg-ink/3 h-40 w-full rounded-lg"
       role="img"
-      aria-label="Route outline"
+      aria-label="Route outline-solid"
     >
       <path
         d={d.line}
@@ -149,8 +149,8 @@ function RouteOutline({ path }: { path: [number, number][] }) {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-ink/10 bg-ink/[0.03] px-3 py-2">
-      <div className="text-[10px] uppercase tracking-wide text-slate-500">{label}</div>
+    <div className="border-ink/10 bg-ink/3 rounded-lg border px-3 py-2">
+      <div className="text-[10px] tracking-wide text-slate-500 uppercase">{label}</div>
       <div className="text-sm font-semibold text-slate-100">{value}</div>
     </div>
   );
@@ -194,7 +194,7 @@ function Checklist({ items }: { items: ChecklistItem[] }) {
               role="checkbox"
               aria-checked={checked}
               onClick={() => toggle(item.id)}
-              className="flex w-full items-start gap-2.5 rounded-lg border border-ink/10 bg-ink/[0.02] px-3 py-2 text-left hover:bg-ink/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              className="border-ink/10 bg-ink/2 hover:bg-ink/5 flex w-full items-start gap-2.5 rounded-lg border px-3 py-2 text-left focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-hidden"
             >
               <Icon
                 className={`mt-0.5 h-4 w-4 shrink-0 ${checked ? 'text-emerald-400' : 'text-slate-500'}`}
@@ -206,7 +206,7 @@ function Checklist({ items }: { items: ChecklistItem[] }) {
                 >
                   {item.label}
                   {item.priority === 'essential' && (
-                    <span className="rounded bg-amber-500/15 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+                    <span className="rounded bg-amber-500/15 px-1.5 py-px text-[10px] font-semibold tracking-wide text-amber-300 uppercase">
                       Essential
                     </span>
                   )}
@@ -246,7 +246,7 @@ function WeatherSection({ weather, onRetry }: { weather: WeatherState; onRetry: 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{title}</h3>
+      <h3 className="text-xs font-semibold tracking-wide text-slate-400 uppercase">{title}</h3>
       {children}
     </section>
   );
@@ -336,7 +336,7 @@ export default function KomootRouteModal({
             value={link}
             onChange={(e) => setLink(e.target.value)}
             placeholder="https://www.komoot.com/tour/…"
-            className="min-w-0 flex-1 rounded-lg border border-ink/15 bg-ink/[0.03] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+            className="border-ink/15 bg-ink/3 min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-400"
           />
           <button
             type="submit"

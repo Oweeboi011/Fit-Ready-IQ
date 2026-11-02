@@ -18,13 +18,13 @@ export default function MapLegend({
   hasPreciseLocation,
 }: MapLegendProps) {
   return (
-    <div className="absolute bottom-24 left-4 hidden rounded-xl border border-ink/10 bg-slate-900/90 p-4 shadow-xl backdrop-blur sm:block">
-      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+    <div className="border-ink/10 absolute bottom-24 left-4 hidden rounded-xl border bg-slate-900/90 p-4 shadow-xl backdrop-blur-sm sm:block">
+      <h3 className="mb-2 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
         Legend
       </h3>
       <div className="space-y-2">
         <div>
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+          <p className="mb-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
             Route Difficulty
           </p>
           <div className="space-y-1 text-xs">
@@ -43,8 +43,8 @@ export default function MapLegend({
           </div>
         </div>
         {(hasMountains || hasCampsites) && (
-          <div className="border-t border-ink/10 pt-2">
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+          <div className="border-ink/10 border-t pt-2">
+            <p className="mb-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
               Points of Interest
             </p>
             <div className="space-y-1 text-xs">

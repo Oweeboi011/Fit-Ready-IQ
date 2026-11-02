@@ -22,12 +22,12 @@ export default function CurrentLocationButton({
       className={`flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all ${
         hasPreciseLocation
           ? 'border-blue-500/20 bg-blue-500/10 hover:border-blue-500/40 hover:bg-blue-500/20'
-          : 'border-ink/10 bg-ink/5 hover:border-ink/20 hover:bg-ink/[0.08]'
+          : 'border-ink/10 bg-ink/5 hover:border-ink/20 hover:bg-ink/8'
       }`}
       title={hasPreciseLocation ? 'Focus map on your location' : 'Focus map on this area'}
     >
       <div
-        className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg shadow-md ${
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg shadow-md ${
           hasPreciseLocation ? 'bg-blue-600 shadow-blue-900/50' : 'bg-slate-700'
         }`}
       >
@@ -49,7 +49,7 @@ export default function CurrentLocationButton({
       </div>
       <ChevronRight
         aria-hidden="true"
-        className={`h-3.5 w-3.5 flex-shrink-0 ${hasPreciseLocation ? 'text-blue-400' : 'text-slate-500'}`}
+        className={`h-3.5 w-3.5 shrink-0 ${hasPreciseLocation ? 'text-blue-400' : 'text-slate-500'}`}
       />
     </button>
   );

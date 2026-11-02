@@ -147,7 +147,7 @@ function MapUnavailable({ detail }: { detail: string }) {
         </button>
         {showDiagnostics && (
           <p className="mt-3 text-xs text-slate-500">
-            Error detail: <span className="break-all font-mono">{detail}</span>
+            Error detail: <span className="font-mono break-all">{detail}</span>
           </p>
         )}
       </div>
