@@ -465,6 +465,52 @@ function replyText(reply: GeminiContent): string {
 
 const NO_ANSWER = "I couldn't generate a response. Please try again.";
 
+const TOOL_RESPONSE_MAX_DEPTH = 4;
+const TOOL_RESPONSE_MAX_ARRAY = 20;
+const TOOL_RESPONSE_MAX_KEYS = 40;
+const TOOL_RESPONSE_MAX_STRING = 500;
+
+function looksInstructionLike(text: string): boolean {
+  const t = text.toLowerCase();
+  return (
+    t.includes('ignore previous') ||
+    t.includes('system prompt') ||
+    t.includes('developer message') ||
+    t.includes('tool instructions') ||
+    t.includes('you must') ||
+    t.includes('call tool')
+  );
+}
+
+function sanitizeToolValue(value: unknown, depth = 0): unknown {
+  if (value == null) return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return value;
+
+  if (typeof value === 'string') {
+    const clipped = value.length > TOOL_RESPONSE_MAX_STRING
+      ? `${value.slice(0, TOOL_RESPONSE_MAX_STRING)}…`
+      : value;
+    return looksInstructionLike(clipped)
+      ? '[redacted instruction-like tool text]'
+      : clipped;
+  }
+
+  if (depth >= TOOL_RESPONSE_MAX_DEPTH) return '[truncated]';
+
+  if (Array.isArray(value)) {
+    return value.slice(0, TOOL_RESPONSE_MAX_ARRAY).map((v) => sanitizeToolValue(v, depth + 1));
+  }
+
+  if (typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).slice(0, TOOL_RESPONSE_MAX_KEYS);
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of entries) out[k] = sanitizeToolValue(v, depth + 1);
+    return out;
+  }
+
+  return String(value);
+}
+
 /**
  * A turn: ask the model, run any tools it asks for, and ask again with their
  * results, until it answers in text or the round limit is reached.
@@ -494,7 +540,8 @@ async function converse(
       const outcome = await runTool(fc.name, fc.args ?? {}, context, deps);
       proposal = outcome.proposal ?? proposal;
       log.info('chat_tool_called', { tool: fc.name, ok: !('error' in outcome.response) });
-      results.push({ functionResponse: { name: fc.name, response: outcome.response } });
+      const safeResponse = sanitizeToolValue(outcome.response);
+      results.push({ functionResponse: { name: fc.name, response: safeResponse } });
     }
     contents = [...contents, reply, { role: 'user', parts: results }];
   }
