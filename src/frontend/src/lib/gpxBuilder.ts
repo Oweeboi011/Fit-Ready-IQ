@@ -33,6 +33,11 @@ function coord(value: number): string {
 export interface BuildGpxOptions {
   name: string;
   waypoints: PlannerWaypoint[];
+  /**
+   * The routed line, `[lng, lat]`, when the router joined the waypoints. The
+   * track follows it; without it, the track can only join the waypoints.
+   */
+  path?: [number, number][];
   /** Overrides the timestamp; injected by tests. */
   createdAt?: Date;
 }
@@ -42,8 +47,18 @@ export interface BuildGpxOptions {
  *
  * Some tools show only waypoints and others only tracks, and a plan that opens
  * empty in the user's watch app is a plan they cannot use.
+ *
+ * The track is the routed path when there is one. It used to be the waypoints
+ * alone, so a watch following an exported plan drew straight lines across
+ * whatever lay between them — the route the planner had just measured along
+ * real paths was on screen and nowhere in the file.
  */
-export function buildGpx({ name, waypoints, createdAt = new Date() }: BuildGpxOptions): string {
+export function buildGpx({
+  name,
+  waypoints,
+  path,
+  createdAt = new Date(),
+}: BuildGpxOptions): string {
   const safeName = escapeXml(name.trim() || 'Fit Ready IQ route');
   const time = createdAt.toISOString();
 
@@ -55,7 +70,9 @@ export function buildGpx({ name, waypoints, createdAt = new Date() }: BuildGpxOp
     })
     .join('\n');
 
-  const trkpts = waypoints
+  const trackPoints: Pick<PlannerWaypoint, 'coordinates' | 'elevation'>[] =
+    path && path.length >= 2 ? path.map((coordinates) => ({ coordinates })) : waypoints;
+  const trkpts = trackPoints
     .map((w) => {
       const [lng, lat] = w.coordinates;
       const ele = w.elevation == null ? '' : `<ele>${w.elevation.toFixed(1)}</ele>`;

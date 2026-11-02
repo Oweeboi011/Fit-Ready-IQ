@@ -24,7 +24,8 @@ export interface SavedPlace {
 }
 
 // Lazy-load Firestore only in the browser to avoid SSR/prerender failures.
-async function getFirestoreDb() {
+// Shared with planSync.ts, the other browser writer.
+export async function getFirestoreDb() {
   if (typeof window === 'undefined') return null;
   if (!isFirebaseAuthConfigured()) return null;
   const { getApps, getApp } = await import('firebase/app');

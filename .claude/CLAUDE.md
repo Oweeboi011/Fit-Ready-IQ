@@ -110,6 +110,7 @@ The FastAPI backend is not called by the frontend in production; it is planned f
 
 ```
 users/{uid}/saved_places/{placeId}
+users/{uid}/plans/{planId}              # browser-written, mirrors the device's planned routes
 users/{uid}/strava_activities/{actId}   # Admin SDK write-only
 users/{uid}.strava_sync                 # sync manifest — a FIELD on the user doc, not a subcollection
 places_cache/{gridKey}                  # shared, Admin SDK only, 24 h TTL, first writer wins while fresh
@@ -244,7 +245,7 @@ Firebase Admin SDK tries credentials in this order: `FIREBASE_SERVICE_ACCOUNT_KE
 - `src/lib/routeDuration.ts` — Naismith ascent estimate, shared by the details view and the weather window so the two cannot disagree
 - `src/lib/mapLayers.ts` — map layer vocabulary and persistence
 - `src/lib/gpxBuilder.ts` — planner → GPX (round-trips through `gpxParser`)
-- `src/lib/savedPlans.ts` — device-local planned routes
+- `src/lib/savedPlans.ts` — planned routes on the device; `planSync.ts` / `usePlanSync.ts` mirror them to `users/{uid}/plans` when signed in. A local `synced` flag tells "deleted on another device" from "made here signed out"
 - `src/lib/usePlannerRoute.ts` — snaps planner waypoints to walking paths via `/api/directions`
 - `src/lib/placeUrl.ts` — `?place=` deep links, used by Share and by reload restore
 - `src/lib/roadmap.ts` — roadmap content, kept beside the code it describes

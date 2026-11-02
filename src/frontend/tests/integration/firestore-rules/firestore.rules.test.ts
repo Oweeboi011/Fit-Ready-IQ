@@ -96,6 +96,65 @@ describe('users/{uid}', () => {
   });
 });
 
+/** Exactly what planSync.ts writes for a two-waypoint plan. */
+function plan(overrides: Record<string, unknown> = {}) {
+  return {
+    name: 'Pulag traverse',
+    waypoints: [
+      { id: 'w1', name: 'Jumpoff', coordinates: [120.9, 16.5], elevation: 2100 },
+      { id: 'w2', name: 'Summit', coordinates: [120.91, 16.51] },
+    ],
+    savedAt: 1_793_600_000_000,
+    distanceKm: 7.4,
+    updatedAt: serverTimestamp(),
+    ...overrides,
+  };
+}
+
+describe('users/{uid}/plans', () => {
+  it('lets the owner save, read and delete a plan', async () => {
+    await assertSucceeds(setDoc(doc(alice(), 'users/alice/plans/plan-1'), plan()));
+    await assertSucceeds(getDocs(collection(alice(), 'users/alice/plans')));
+    await assertSucceeds(deleteDoc(doc(alice(), 'users/alice/plans/plan-1')));
+  });
+
+  it('accepts a plan saved without a routed distance', async () => {
+    await assertSucceeds(
+      setDoc(doc(alice(), 'users/alice/plans/plan-2'), plan({ distanceKm: null }))
+    );
+  });
+
+  it("refuses someone else's plans, either way", async () => {
+    await seed(['users', 'alice', 'plans', 'plan-1'], { name: 'x' });
+    await assertFails(getDoc(doc(bob(), 'users/alice/plans/plan-1')));
+    await assertFails(setDoc(doc(bob(), 'users/alice/plans/plan-2'), plan()));
+    await assertFails(getDoc(doc(anon(), 'users/alice/plans/plan-1')));
+  });
+
+  it('refuses fields the app never writes, and a plan with no waypoints', async () => {
+    await assertFails(setDoc(doc(alice(), 'users/alice/plans/p'), plan({ synced: true })));
+    await assertFails(setDoc(doc(alice(), 'users/alice/plans/p'), plan({ waypoints: [] })));
+  });
+
+  it('bounds the waypoint list at the planner’s own cap', async () => {
+    const many = Array.from({ length: 28 }, (_, i) => ({
+      id: `w${i}`,
+      name: `${i}`,
+      coordinates: [120.9, 16.5],
+    }));
+    await assertFails(setDoc(doc(alice(), 'users/alice/plans/p'), plan({ waypoints: many })));
+    await assertSucceeds(
+      setDoc(doc(alice(), 'users/alice/plans/p'), plan({ waypoints: many.slice(0, 27) }))
+    );
+  });
+
+  it('takes the write time from the server, not the client', async () => {
+    await assertFails(
+      setDoc(doc(alice(), 'users/alice/plans/p'), plan({ updatedAt: new Date(0) }))
+    );
+  });
+});
+
 describe('users/{uid}/saved_places', () => {
   it('lets the owner save a well-formed bookmark', async () => {
     await assertSucceeds(setDoc(doc(alice(), 'users/alice/saved_places/p1'), bookmark()));

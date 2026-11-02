@@ -76,6 +76,7 @@ export default defineConfig({
         'src/app/api/discover/route.ts',
         'src/app/api/directions/route.ts',
         'src/lib/osmDiscovery.ts',
+        'src/lib/planSync.ts',
         'src/app/api/komoot/tour/route.ts',
         'src/app/api/weather/route.ts',
       ],

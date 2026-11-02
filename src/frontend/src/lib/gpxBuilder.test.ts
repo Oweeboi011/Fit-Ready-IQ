@@ -44,6 +44,37 @@ describe('buildGpx', () => {
     expect(xml).toContain('<trkpt lat="2.000000" lon="1.000000">');
   });
 
+  it('makes the track the routed path, and keeps the waypoints as waypoints', async () => {
+    const path: [number, number][] = [
+      [120.9, 16.5],
+      [120.903, 16.502],
+      [120.906, 16.507],
+      [120.91, 16.51],
+    ];
+    const xml = buildGpx({
+      name: 'Routed',
+      createdAt: CREATED,
+      waypoints: [wp(120.9, 16.5, 'Jumpoff'), wp(120.91, 16.51, 'Summit')],
+      path,
+    });
+
+    expect(xml.match(/<wpt /g)).toHaveLength(2);
+    expect(xml.match(/<trkpt /g)).toHaveLength(4);
+    expect(xml).toContain('<trkpt lat="16.502000" lon="120.903000">');
+    const parsed = await parseGpxFile(gpxFile(xml));
+    expect(parsed.polyline).toHaveLength(4);
+  });
+
+  it('falls back to joining the waypoints when there is no routed path', () => {
+    const xml = buildGpx({
+      name: 'Unrouted',
+      createdAt: CREATED,
+      waypoints: [wp(1, 2), wp(3, 4)],
+      path: [[1, 2]],
+    });
+    expect(xml.match(/<trkpt /g)).toHaveLength(2);
+  });
+
   it('escapes XML metacharacters in names', () => {
     const xml = buildGpx({
       name: 'Ridge & <Gully>',

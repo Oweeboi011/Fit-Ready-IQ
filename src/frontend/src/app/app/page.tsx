@@ -823,6 +823,7 @@ export default function Home() {
           plannerRoute={plannerRoute}
           plannerTravelMode={plannerTravelMode}
           onPlannerTravelModeChange={setPlannerTravelMode}
+          uid={authUser?.uid ?? null}
           onClearPlanner={() => setPlannerWaypoints([])}
           onLoadPlan={setPlannerWaypoints}
           onMapClick={plannerOpen ? addWaypoint : undefined}

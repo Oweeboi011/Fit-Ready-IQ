@@ -32,7 +32,7 @@
 export const USER_KEYED_DOCUMENTS = ['strava_tokens'] as const;
 
 /** Subcollections of `users/{uid}`. Deleted by deleting the parent recursively. */
-export const USER_SUBCOLLECTIONS = ['saved_places', 'strava_activities'] as const;
+export const USER_SUBCOLLECTIONS = ['saved_places', 'plans', 'strava_activities'] as const;
 
 /** Top-level collections whose documents carry a `user_id` field. */
 export const USER_OWNED_COLLECTIONS = [
