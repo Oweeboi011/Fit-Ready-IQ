@@ -68,3 +68,10 @@ updates:
     target-branch: develop
     cooldown:
       default-days: 7
+    groups:
+      # init, analyze and upload-sarif are one action at one version: CodeQL
+      # fails when init and analyze disagree, so a bump to either alone can
+      # never pass (#122, #126). Bump them together.
+      codeql:
+        patterns:
+          - "github/codeql-action*"
