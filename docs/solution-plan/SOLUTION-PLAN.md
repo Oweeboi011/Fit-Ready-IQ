@@ -36,8 +36,8 @@ These rules hold across every feature, and a feature that cannot meet them does 
 
 | Capability                                                      | Status  | Next                                                          |
 | --------------------------------------------------------------- | ------- | ------------------------------------------------------------- |
-| Discover routes, peaks, campsites near you (OpenStreetMap, #86) | Done    | Climb measured from terrain along each route (#142)           |
-| Elevation, difficulty (NPS formula), unknown band               | Done    | Difficulty for routes without an ascent tag (#142)            |
+| Discover routes, peaks, campsites near you (OpenStreetMap, #86) | Done    | Rate routes in the list, not only when opened                 |
+| Elevation, difficulty (NPS formula), unknown band               | Done    | Climb from terrain for untagged routes, on open (#142)        |
 | Live weather, alerts, **weather window** for a route's duration | Done    | Persona alert thresholds                                      |
 | Readiness score and "routes you're ready for"                   | Done    | Persona weighting                                             |
 | Strava sync (server-held tokens), GPX and Apple Health import   | Done    | Garmin / COROS direct connect                                 |
@@ -52,7 +52,7 @@ These rules hold across every feature, and a feature that cannot meet them does 
 
 ```mermaid
 flowchart LR
-    A["Free providers (#86) ✓<br/>measured route length"] --> B["Climb from terrain<br/>(#142)"]
+    A["Free providers (#86) ✓<br/>measured route length"] --> B["Climb from terrain<br/>(#142) ✓"]
     B --> C["Persona scoring<br/>+ alert thresholds"]
     B --> D["Trip + safety timer<br/>ADR-0003"]
     D --> E["Grounded, tool-using chat<br/>(grounded in the Trip)"]
@@ -60,13 +60,14 @@ flowchart LR
 ```
 
 - **Geometry before Trip.** A Trip references a Route. Routes now carry a measured length
-  (ADR-0004's first half, via OpenStreetMap); the climb along them is the remaining half (#142).
+  (ADR-0004's first half, via OpenStreetMap), and the climb along them is measured from terrain
+  when a route is opened (#142).
 - **The backend stays undeployed** until a use case needs a second runtime. Trip runs in route
   handlers plus a scheduled function.
 - **Field-level schemas are written with the first code that produces them**, not ahead of it.
-- **Billing after Trip.** Pro is sold on readiness, which can score only routes with a known
-  climb until #142 lands; wiring `hasEntitlement()` before then charges for a score most routes
-  cannot yet have.
+- **Billing after Trip.** Pro is sold on readiness. Since #142 a route opened in the details view
+  has a climb, but the list still rates only routes that carry an `ascent` tag, so readiness
+  across the list is still partial.
 
 Open product questions (owner): is the Guide tier near-term or withdrawn until it exists? Does
 the free tier keep readiness? How close must a track pass a summit before a peak is suggested?
@@ -96,7 +97,7 @@ by the change are updated in the same PR, and a new user-scoped collection is in
 | Fixes sit on unmerged branches; CI only runs on PRs        | Land work in order through PRs. Don't stack more on an unreviewed branch    |
 | Production unmonitored                                     | Set `PRODUCTION_URL` and `RATE_LIMIT_SALT`; `uptime.yml` then alerts        |
 | Free upstreams (Waymarked Trails, Photon, OSRM) are shared | Edge-cached per cell; `ROUTING_API_URL` / `ELEVATION_API_URL` to self-host  |
-| Overpass at capacity blocks route geometry (#142)          | Degrade to "climb unknown"; self-hosted Overpass is the durable fix         |
+| Terrain service quota (OpenTopoData, 1 000 calls/day)      | Climb measured per opened route and CDN-cached a month; `ELEVATION_API_URL` |
 | Docs drift                                                 | `lint:docs` gate, same-PR rule (ADR-0005), three-folder taxonomy (ADR-0007) |
 | `/privacy` lacks legal review and a contact address        | Owner action before launch                                                  |
 

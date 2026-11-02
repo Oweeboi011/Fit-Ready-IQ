@@ -46,6 +46,7 @@ import { ReadinessPanel } from '@/components/ReadinessPanel';
 import { computeReadiness } from '@/lib/readiness';
 import type { Activity } from '@/lib/activityTypes';
 import type { RouteDetails, DetailsData } from '@/lib/detailsData';
+import { useMeasuredClimb } from '@/lib/useMeasuredClimb';
 import { PhotoGallery } from '@/components/PhotoGallery';
 import { ShareButton } from '@/components/ShareButton';
 import { buttonPrimary, buttonSecondary, buttonSize } from '@/lib/ui';
@@ -149,11 +150,13 @@ interface DetailsModalProps {
 export default function DetailsModal({
   isOpen,
   onClose,
-  data,
+  data: selected,
   onGetDirections,
   activities = [],
   onConnectDevices,
 }: DetailsModalProps) {
+  // An unrated route gets its climb measured from terrain when opened (#142).
+  const { details: data, climbSource, measuredClimb } = useMeasuredClimb(isOpen ? selected : null);
   const [liveWeather, setLiveWeather] = useState<WeatherResult | null>(null);
   const [weatherStatus, setWeatherStatus] = useState<WeatherStatus>('idle');
   // Bumped by the retry button to re-run the weather effect.
@@ -417,8 +420,17 @@ export default function DetailsModal({
                       Climb
                     </p>
                     <p className="font-tabular mt-1.5 text-xl font-bold text-white">
-                      {data.elevation_gain_m == null ? '—' : `${data.elevation_gain_m} m`}
+                      {data.elevation_gain_m != null
+                        ? `${data.elevation_gain_m} m`
+                        : climbSource === 'measuring'
+                          ? 'Measuring…'
+                          : '—'}
                     </p>
+                    {measuredClimb && (
+                      <p className="mt-0.5 text-[10px] text-slate-400">
+                        from terrain · {measuredClimb.descentM} m down
+                      </p>
+                    )}
                   </div>
                   <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
                     <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">

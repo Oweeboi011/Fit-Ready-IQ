@@ -38,6 +38,8 @@ const SERVER_ONLY = [
   // have any use for it. Listing it keeps the graph honest: without this, a
   // client module could import the table and reach rateLimit.ts through it.
   'src/lib/rateLimitRules\\.ts',
+  // Server-to-server fetches to OSM services with our User-Agent; uses the logger.
+  'src/lib/osmFetch\\.ts',
 ];
 
 /**
