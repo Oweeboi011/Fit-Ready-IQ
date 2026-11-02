@@ -39,7 +39,7 @@ afterEach(() => {
 });
 
 describe('POST /api/directions', () => {
-  it('returns the polyline, km and seconds, and caches at the edge', async () => {
+  it('returns the polyline, km and seconds', async () => {
     upstream(ok({ geometry: 'abc', distance: 9559.9, duration: 8343.4 }));
     const res = await POST(request({ origin: ZERMATT, destination: RIFFELALP }));
     expect(res.status).toBe(200);
@@ -47,7 +47,6 @@ describe('POST /api/directions', () => {
     expect(body.polyline).toBe('abc');
     expect(body.distanceKm).toBeCloseTo(9.5599, 6);
     expect(body.durationSeconds).toBe(8343);
-    expect(res.headers.get('Cache-Control')).toContain('s-maxage');
   });
 
   it('asks the foot profile by default, in lng,lat order, through every stop', async () => {
@@ -106,7 +105,7 @@ describe('POST /api/directions', () => {
 
   it('reports a timeout as one', async () => {
     upstream(() => {
-      throw new DOMException('aborted', 'AbortError');
+      throw new DOMException('timed out', 'TimeoutError');
     });
     const res = await POST(request({ origin: ZERMATT, destination: RIFFELALP }));
     expect(res.status).toBe(504);

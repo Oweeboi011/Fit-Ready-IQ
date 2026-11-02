@@ -89,15 +89,24 @@ export function toSearchResults(
   return results;
 }
 
-/** Results biased towards `near`, nearest-relevant first. Throws on a failed request. */
-async function searchPhoton(query: string, near: [number, number]): Promise<PhotonFeature[]> {
-  const params = new URLSearchParams({
-    q: query,
-    lat: String(near[1]),
-    lon: String(near[0]),
-    limit: String(MAX_RESULTS * 2),
-  });
-  const res = await fetch(`${PHOTON_URL}?${params}`);
+/**
+ * The bias point, to two decimals (~1 km). It only ranks nearby results first,
+ * which a kilometre does not change, and a third party need not learn exactly
+ * where the user is standing on every keystroke.
+ */
+function coarse(value: number): string {
+  return value.toFixed(2);
+}
+
+/** Results biased towards `near` (coarse `lat`, `lon`), nearest first. Throws on failure. */
+async function searchPhoton(
+  query: string,
+  lat: string,
+  lon: string,
+  signal: AbortSignal
+): Promise<PhotonFeature[]> {
+  const params = new URLSearchParams({ q: query, lat, lon, limit: String(MAX_RESULTS * 2) });
+  const res = await fetch(`${PHOTON_URL}?${params}`, { signal });
   if (!res.ok) throw new Error(`Photon HTTP ${res.status}`);
   const data = (await res.json()) as { features?: PhotonFeature[] };
   return data.features ?? [];
@@ -119,38 +128,44 @@ export function usePlaceSearch(
   near: [number, number] | undefined
 ): PlaceSearchState {
   const [state, setState] = useState<PlaceSearchState>(IDLE);
+  // Keyed on rounded strings rather than the array: `near` is rebuilt on every
+  // render upstream, and a GPS fix that moves a few metres should not re-run
+  // the search either.
+  const lat = near ? coarse(near[1]) : null;
+  const lon = near ? coarse(near[0]) : null;
 
   useEffect(() => {
-    if (!isSearchable(query) || !near) {
+    if (!isSearchable(query) || lat === null || lon === null) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- resets to idle when the input goes away, after the previous run has been cancelled
       setState(IDLE);
       return;
     }
 
-    let cancelled = false;
+    // Aborted when a newer query replaces this one: the stale answer is
+    // discarded, and the shared server stops working on it too.
+    const controller = new AbortController();
     setState({ results: [], loading: true, empty: false, failed: false });
 
     const timer = setTimeout(() => {
-      searchPhoton(query.trim(), near).then(
+      searchPhoton(query.trim(), lat, lon, controller.signal).then(
         (features) => {
-          if (cancelled) return; // a newer query won
+          if (controller.signal.aborted) return; // a newer query won
           const results = toSearchResults(features);
           setState({ results, loading: false, empty: results.length === 0, failed: false });
         },
         () => {
-          if (!cancelled) setState({ results: [], loading: false, empty: false, failed: true });
+          if (!controller.signal.aborted) {
+            setState({ results: [], loading: false, empty: false, failed: true });
+          }
         }
       );
     }, DEBOUNCE_MS);
 
     return () => {
-      cancelled = true;
+      controller.abort();
       clearTimeout(timer);
     };
-    // Keyed on the coordinates rather than the array: `near` is rebuilt on every
-    // render upstream, and depending on it would re-run this on each keystroke's
-    // render — which is exactly the request the debounce exists to avoid.
-  }, [query, near?.[0], near?.[1]]);
+  }, [query, lat, lon]);
 
   return state;
 }

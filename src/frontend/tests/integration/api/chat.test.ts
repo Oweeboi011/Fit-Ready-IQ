@@ -285,7 +285,11 @@ vi.mock('@/app/api/weather/route', () => ({
   GET: async (req: Request) => {
     weather.calls.push(req.url);
     return weather.ok
-      ? Response.json({ condition: 'CLEAR', window: { status: 'found' } })
+      ? Response.json({
+          location: { lat: 45.98, lng: 7.79 },
+          current: { condition: 'CLEAR' },
+          window: { status: 'found' },
+        })
       : Response.json({ error: 'down' }, { status: 502 });
   },
 }));
@@ -369,9 +373,12 @@ describe('POST /api/chat — tools', () => {
     expect(url.searchParams.get('lat')).toBe('46.01');
     expect(url.searchParams.get('lng')).toBe('7.79');
     expect(url.searchParams.get('hours')).toBe('5');
+    // Only the fields the model needs: the coordinates stay out.
     expect(toolResults()[0].response.report).toEqual({
-      condition: 'CLEAR',
+      current: { condition: 'CLEAR' },
+      summary: null,
       window: { status: 'found' },
+      alerts: [],
     });
   });
 

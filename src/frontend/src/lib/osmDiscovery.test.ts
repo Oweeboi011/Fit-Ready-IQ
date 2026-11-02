@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  cleanName,
   PHOTON_QUERIES,
   campsiteFromPhoton,
   commonsFileUrl,
@@ -21,6 +22,23 @@ import {
   worthClimbing,
   type PhotonPlace,
 } from './osmDiscovery';
+
+describe('cleanName', () => {
+  it('removes control characters and collapses whitespace', () => {
+    expect(cleanName('  Mt.\u0007  Pulag\n\tTrail ')).toBe('Mt. Pulag Trail');
+  });
+
+  it('bounds a name that is really a paragraph', () => {
+    const name = cleanName('a'.repeat(500));
+    expect(name).toHaveLength(120);
+    expect(name?.endsWith('…')).toBe(true);
+  });
+
+  it('is null when nothing printable is left', () => {
+    expect(cleanName(undefined)).toBeNull();
+    expect(cleanName(' \u0000 ')).toBeNull();
+  });
+});
 
 describe('Web Mercator', () => {
   it('round-trips a point', () => {

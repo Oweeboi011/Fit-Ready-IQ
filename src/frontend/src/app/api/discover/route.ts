@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-import { createLogger, upstreamSnippet } from '@/lib/logger';
+import { createLogger, serializeError, upstreamSnippet } from '@/lib/logger';
 import {
   MAX_CAMPSITES,
   MAX_MOUNTAINS,
@@ -229,7 +229,7 @@ export async function GET(request: NextRequest) {
       routes.push(...result.value.routes);
       result.value.wikidata.forEach((qid, place) => wikidataByPlace.set(place, qid));
     } else {
-      log.warn('discover_waymarked_failed', { site, error: String(result.reason) });
+      log.warn('discover_waymarked_failed', { site, error: serializeError(result.reason) });
     }
   }
   // Both route sources down is a failed collection; one down is fewer routes.
@@ -239,7 +239,7 @@ export async function GET(request: NextRequest) {
   if (mountainsResult.status === 'fulfilled') {
     mountains = mountainsResult.value;
   } else {
-    log.warn('discover_peaks_failed', { error: String(mountainsResult.reason) });
+    log.warn('discover_peaks_failed', { error: serializeError(mountainsResult.reason) });
     failed.push('mountains');
   }
 
@@ -249,7 +249,7 @@ export async function GET(request: NextRequest) {
       .map(campsiteFromPhoton)
       .filter((c): c is Campsite => c !== null);
   } else {
-    log.warn('discover_campsites_failed', { error: String(campsitesResult.reason) });
+    log.warn('discover_campsites_failed', { error: serializeError(campsitesResult.reason) });
     failed.push('campsites');
   }
 
@@ -262,39 +262,18 @@ export async function GET(request: NextRequest) {
     .map((route) => wikidataByPlace.get(route.place_id!))
     .filter((qid): qid is string => Boolean(qid));
   const images = await fetchWikidataImages([...new Set(wanted)]).catch((err) => {
-    log.warn('discover_wikidata_failed', { error: String(err) });
+    log.warn('discover_wikidata_failed', { error: serializeError(err) });
     return new Map<string, string>();
   });
 
-  const normalizeApiString = (value: string, maxLen = 280): string => {
-    const withoutCtl = value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
-    const compactWs = withoutCtl.replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
-    return compactWs.length > maxLen ? `${compactWs.slice(0, maxLen)}…` : compactWs;
-  };
-
-  const sanitizeForClient = (input: unknown): unknown => {
-    if (typeof input === 'string') return normalizeApiString(input);
-    if (Array.isArray(input)) return input.map((v) => sanitizeForClient(v));
-    if (input && typeof input === 'object') {
-      const out: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
-        out[k] = sanitizeForClient(v);
-      }
-      return out;
-    }
-    return input;
-  };
-
-  const responseBody = {
-    routes: withWikidataPhotos(nearRoutes, wikidataByPlace, images),
-    mountains,
-    campsites: nearCampsites,
-    failed,
-    attribution: '© OpenStreetMap contributors, Waymarked Trails, Photon, Wikidata',
-  };
-
   return NextResponse.json(
-    sanitizeForClient(responseBody),
+    {
+      routes: withWikidataPhotos(nearRoutes, wikidataByPlace, images),
+      mountains,
+      campsites: nearCampsites,
+      failed,
+      attribution: '© OpenStreetMap contributors, Waymarked Trails, Photon, Wikidata',
+    },
     {
       headers: {
         // Trails and summits change over months; a week at the edge is fresh enough.

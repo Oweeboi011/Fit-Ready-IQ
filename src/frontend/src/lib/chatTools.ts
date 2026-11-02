@@ -174,27 +174,26 @@ function weatherHours(args: Record<string, unknown>): number | null {
   return typeof hours === 'number' && hours > 0 && hours <= 240 ? Math.round(hours) : null;
 }
 
-function redactWeatherReport(report: unknown): unknown {
-  if (!report || typeof report !== 'object') return report;
+/** Enough hazards to describe a day; the window already names the ones that matter. */
+const MAX_ALERTS_FOR_MODEL = 12;
 
-  const clone = { ...(report as Record<string, unknown>) };
-  const location = clone.location;
-  if (location && typeof location === 'object') {
-    const safeLocation = { ...(location as Record<string, unknown>) };
-    delete safeLocation.lat;
-    delete safeLocation.lng;
-    delete safeLocation.latitude;
-    delete safeLocation.longitude;
-    clone.location = safeLocation;
-  }
-
-  delete clone.lat;
-  delete clone.lng;
-  delete clone.latitude;
-  delete clone.longitude;
-  delete clone.coordinates;
-
-  return clone;
+/**
+ * The parts of a weather report the model needs, by name. An allowlist rather
+ * than deleting what it should not see: a field the weather route gains later
+ * — coordinates, a provider id — stays out until someone decides it belongs.
+ * Every string here is our own (`summary`, alert lines), so nothing in it is
+ * free text from a third party.
+ */
+export function weatherForModel(report: unknown): Record<string, unknown> {
+  const r = (report ?? {}) as Record<string, unknown>;
+  const alerts = Array.isArray(r.alerts) ? r.alerts : [];
+  return {
+    current: r.current ?? null,
+    summary: r.summary ?? null,
+    window: r.window ?? null,
+    alerts: alerts.slice(0, MAX_ALERTS_FOR_MODEL),
+    ...(alerts.length > MAX_ALERTS_FOR_MODEL ? { alerts_total: alerts.length } : {}),
+  };
 }
 
 /** Runs one tool call. Never throws: a failure is reported to the model as a result. */
@@ -217,9 +216,11 @@ export async function runTool(
       }
       try {
         const report = await deps.weather(point[1], point[0], weatherHours(args));
-        const safeReport = redactWeatherReport(report);
         return {
-          response: { at: ctx.openPlace?.place.name ?? "the user's location", report: safeReport },
+          response: {
+            at: ctx.openPlace?.place.name ?? "the user's location",
+            report: weatherForModel(report),
+          },
         };
       } catch {
         return {
