@@ -80,6 +80,10 @@ export default defineConfig({
         'src/lib/usePlanSync.ts',
         'src/lib/chatTools.ts',
         'src/app/api/komoot/tour/route.ts',
+        'src/app/api/route-climb/route.ts',
+        'src/lib/routeClimb.ts',
+        'src/lib/useMeasuredClimb.ts',
+        'src/lib/osmFetch.ts',
         'src/app/api/weather/route.ts',
       ],
       thresholds: {

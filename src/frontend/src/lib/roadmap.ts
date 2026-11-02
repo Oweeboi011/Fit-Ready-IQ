@@ -244,7 +244,7 @@ export const CONSIDERATIONS: RoadmapNote[] = [
 export const CHALLENGES: RoadmapNote[] = [
   {
     title: 'Few routes are tagged with their climb',
-    body: 'OpenStreetMap gives every route a measured length, but only some carry an ascent tag, and difficulty needs both. Most routes therefore read "Unrated" until the climb is measured from terrain along the route.',
+    body: 'OpenStreetMap gives every route a measured length, but only some carry an ascent tag, and difficulty needs both. So the climb is measured from terrain along the route when you open it; the list still rates only routes that carry the tag.',
   },
   {
     title: 'Free services are shared',

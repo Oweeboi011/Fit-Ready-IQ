@@ -157,6 +157,17 @@ OpenTopoData; route photos from Wikidata. Returns `{ routes, mountains, campsite
 where `failed` names any collection whose source did not answer. A complete answer is cached at
 the edge for a week; one with a failure is `no-store`. Parsing is in `lib/osmDiscovery.ts`.
 
+### GET /api/route-climb
+
+`?site=hiking|mtb&id=<relation>`, a route `/api/discover` returned (`wmt-{site}-{id}`). Reads
+the route's path from Waymarked Trails, samples it at least every 150 m (50 m minimum spacing,
+300 points at most), asks OpenTopoData for the heights a batch a second, and returns
+`{ climbM, descentM, spacingM, samples }` in the direction the route is mapped. Changes under
+5 m are terrain-model noise and are not counted. With no number it returns `{ climbM: null,
+reason }`: `too_long` (over about 45 km, too long to sample closely) and `no_geometry` are
+answers, cached a month; `upstream` and `quota` are 502 and `no-store`. The details view calls
+it only for a route with no `ascent` tag. 40/hour. Maths in `lib/routeClimb.ts`.
+
 ### /api/places/cache
 
 - `GET ?lat=&lng=`: public. Returns the cell's routes, mountains and campsites if fresh (24 h),
@@ -212,7 +223,8 @@ OSRM proxy (FOSSGIS's public servers, or `ROUTING_API_URL`). No key. `origin`, `
 `WALK` | `BICYCLE`, mapped to OSRM's car, foot and bike profiles). Returns
 `{ polyline, distanceKm, durationSeconds }`; the two numbers are `null` when the router did not
 report them. Failures carry a `reason`: `no_route` (404), `busy` (the public server refused for
-load), `upstream`, `timeout`, `bad_request`. CDN-cached a day. 120/hour.
+load), `upstream`, `timeout`, `bad_request`. Not CDN-cached: the CDN caches only GET and HEAD.
+120/hour.
 
 ### GET /api/advisories
 

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-import { createLogger, serializeError, upstreamSnippet } from '@/lib/logger';
+import { createLogger, serializeError } from '@/lib/logger';
+import { fetchOsmJson } from '@/lib/osmFetch';
 import {
   MAX_CAMPSITES,
   MAX_MOUNTAINS,
@@ -49,27 +50,12 @@ export const runtime = 'nodejs';
  * is never cached, or one bad minute upstream would be a week of empty tabs.
  */
 
-const USER_AGENT = 'Fit-Ready-IQ/1.0 (+https://github.com/Oweeboi011/Fit-Ready-IQ)';
-
-const UPSTREAM_TIMEOUT_MS = 8_000;
 const WIKIDATA_TIMEOUT_MS = 5_000;
 /** Detail lookups in flight at once, per site. Polite to a volunteer service. */
 const DETAIL_CONCURRENCY = 6;
 const ELEVATION_URL = process.env.ELEVATION_API_URL || 'https://api.opentopodata.org/v1/mapzen';
 
 type Collection = 'routes' | 'mountains' | 'campsites';
-
-async function fetchJson<T>(url: string, timeoutMs = UPSTREAM_TIMEOUT_MS): Promise<T> {
-  const res = await fetch(url, {
-    headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
-    signal: AbortSignal.timeout(timeoutMs),
-  });
-  if (!res.ok) {
-    const host = new URL(url).host;
-    throw new Error(`HTTP ${res.status} from ${host}: ${upstreamSnippet(await res.text())}`);
-  }
-  return (await res.json()) as T;
-}
 
 /** Runs `task` over `items`, at most `limit` at a time, keeping order. */
 async function mapLimited<T, U>(items: T[], limit: number, task: (item: T) => Promise<U>) {
@@ -96,12 +82,12 @@ async function fetchWaymarked(
   lng: number
 ): Promise<{ routes: Route[]; wikidata: Map<string, string> }> {
   const { host, limit } = WAYMARKED_SITES[site];
-  const list = await fetchJson<{ results?: { id: number }[] }>(
+  const list = await fetchOsmJson<{ results?: { id: number }[] }>(
     `${host}/api/v1/list/by_area?bbox=${waymarkedBbox(lat, lng)}&limit=${limit}`
   );
   const ids = (list.results ?? []).map((r) => r.id).filter(Number.isInteger);
   const details = await mapLimited(ids, DETAIL_CONCURRENCY, (id) =>
-    fetchJson<WaymarkedDetails>(`${host}/api/v1/details/relation/${id}`).catch(() => null)
+    fetchOsmJson<WaymarkedDetails>(`${host}/api/v1/details/relation/${id}`).catch(() => null)
   );
 
   const routes: Route[] = [];
@@ -121,7 +107,7 @@ async function fetchPhoton(
   lng: number,
   query: (typeof PHOTON_QUERIES)[keyof typeof PHOTON_QUERIES]
 ): Promise<PhotonPlace[]> {
-  const data = await fetchJson<{ features?: PhotonPlace[] }>(photonReverseUrl(lat, lng, query));
+  const data = await fetchOsmJson<{ features?: PhotonPlace[] }>(photonReverseUrl(lat, lng, query));
   return data.features ?? [];
 }
 
@@ -152,7 +138,7 @@ async function fetchHeights(mountains: Mountain[]): Promise<(number | null)[]> {
   if (mountains.length === 0) return [];
   const query = mountains.map((m) => `${m.coordinates[1]},${m.coordinates[0]}`).join('|');
   try {
-    const data = await fetchJson<{ results?: { elevation?: number | null }[] }>(
+    const data = await fetchOsmJson<{ results?: { elevation?: number | null }[] }>(
       `${ELEVATION_URL}?locations=${encodeURIComponent(query)}`
     );
     const results = data.results ?? [];
@@ -177,7 +163,7 @@ async function fetchWikidataImages(ids: string[]): Promise<Map<string, string>> 
   const query = `SELECT ?item ?image WHERE { VALUES ?item { ${ids
     .map((id) => `wd:${id}`)
     .join(' ')} } ?item wdt:P18 ?image }`;
-  const data = await fetchJson<{
+  const data = await fetchOsmJson<{
     results?: { bindings?: { item: { value: string }; image: { value: string } }[] };
   }>(
     `https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(query)}`,
