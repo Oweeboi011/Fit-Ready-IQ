@@ -266,14 +266,35 @@ export async function GET(request: NextRequest) {
     return new Map<string, string>();
   });
 
+  const normalizeApiString = (value: string, maxLen = 280): string => {
+    const withoutCtl = value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
+    const compactWs = withoutCtl.replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+    return compactWs.length > maxLen ? `${compactWs.slice(0, maxLen)}…` : compactWs;
+  };
+
+  const sanitizeForClient = (input: unknown): unknown => {
+    if (typeof input === 'string') return normalizeApiString(input);
+    if (Array.isArray(input)) return input.map((v) => sanitizeForClient(v));
+    if (input && typeof input === 'object') {
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
+        out[k] = sanitizeForClient(v);
+      }
+      return out;
+    }
+    return input;
+  };
+
+  const responseBody = {
+    routes: withWikidataPhotos(nearRoutes, wikidataByPlace, images),
+    mountains,
+    campsites: nearCampsites,
+    failed,
+    attribution: '© OpenStreetMap contributors, Waymarked Trails, Photon, Wikidata',
+  };
+
   return NextResponse.json(
-    {
-      routes: withWikidataPhotos(nearRoutes, wikidataByPlace, images),
-      mountains,
-      campsites: nearCampsites,
-      failed,
-      attribution: '© OpenStreetMap contributors, Waymarked Trails, Photon, Wikidata',
-    },
+    sanitizeForClient(responseBody),
     {
       headers: {
         // Trails and summits change over months; a week at the edge is fresh enough.
