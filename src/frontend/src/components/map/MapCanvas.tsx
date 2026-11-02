@@ -44,6 +44,8 @@ interface MapCanvasProps {
   plannerRoute: PlannerRoute;
   plannerTravelMode: PlannerTravelMode;
   onPlannerTravelModeChange: (mode: PlannerTravelMode) => void;
+  /** The signed-in user, whose plans sync to their account. */
+  uid: string | null;
   onClearPlanner: () => void;
   onLoadPlan: (waypoints: PlannerWaypoint[]) => void;
   onMapClick: ((coordinates: [number, number], name?: string) => void) | undefined;
@@ -80,6 +82,7 @@ export default function MapCanvas({
   plannerRoute,
   plannerTravelMode,
   onPlannerTravelModeChange,
+  uid,
   onClearPlanner,
   onLoadPlan,
   onMapClick,
@@ -137,6 +140,7 @@ export default function MapCanvas({
         route={plannerRoute}
         travelMode={plannerTravelMode}
         onTravelModeChange={onPlannerTravelModeChange}
+        uid={uid}
         onClear={onClearPlanner}
         onLoadPlan={(waypoints) => {
           onLoadPlan(waypoints);

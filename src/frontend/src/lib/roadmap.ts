@@ -140,8 +140,9 @@ export const ROADMAP: RoadmapPhase[] = [
       },
       {
         title: 'Plans synced to an account',
-        status: 'pending',
-        detail: 'Plans are device-local, so they do not follow you to a phone.',
+        status: 'done',
+        detail:
+          'Signed in, saved plans follow you to every device; signed out, they stay on this one. A plan deleted on one device stays deleted on the others.',
       },
     ],
   },

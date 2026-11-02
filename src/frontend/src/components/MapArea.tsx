@@ -72,6 +72,7 @@ interface MapAreaProps {
   plannerRoute: PlannerRoute;
   plannerTravelMode: PlannerTravelMode;
   onPlannerTravelModeChange: (mode: PlannerTravelMode) => void;
+  uid: string | null;
   onClearPlanner: () => void;
   onLoadPlan: (waypoints: PlannerWaypoint[]) => void;
   onMapClick: ((coordinates: [number, number], name?: string) => void) | undefined;
@@ -167,6 +168,7 @@ export default function MapArea(props: MapAreaProps) {
         plannerRoute={props.plannerRoute}
         plannerTravelMode={props.plannerTravelMode}
         onPlannerTravelModeChange={props.onPlannerTravelModeChange}
+        uid={props.uid}
         onClearPlanner={props.onClearPlanner}
         onLoadPlan={props.onLoadPlan}
         onMapClick={props.onMapClick}

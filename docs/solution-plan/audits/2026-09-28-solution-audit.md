@@ -57,20 +57,22 @@ Fixes on a branch are not fixes. The phases now land in order through PRs (#83 i
 | Pricing says Garmin/COROS/Apple Health "sync"                                                                                            | Fixed `ed36d30` — they are imports                                                                              |
 | Nested buttons in list cards and search results                                                                                          | Fixed `b54e8d4`                                                                                                 |
 
-### Open — needs the owner
+### Open — needs the owner (status 2026-11-02)
 
-- **Merge #83**, then the phase 2–5 PRs in order. E2E is a required check and currently fails
-  with `BillingNotEnabledMapError`: the Google Cloud project behind the CI Maps key has billing
-  off. Every E2E run has failed since at least August.
-- **Set `PRODUCTION_URL`** and **`RATE_LIMIT_SALT`** in production; add `Firestore Rules` to the
-  required checks; set per-day quotas on the browser Maps key.
+- ~~Merge #83 and the phase 2–5 PRs~~ — done; released in #88 and later releases.
+- ~~E2E blocked by `BillingNotEnabledMapError`~~ — gone: the app no longer uses Google Maps
+  (#86), and E2E runs against a discovery fixture. It passed on #138.
+- **Set `PRODUCTION_URL`** (repo variable, for `uptime.yml`) and **`RATE_LIMIT_SALT`** (Vercel)
+  — still unset; `/api/health` reports `degraded` until the salt exists. Add `Firestore Rules`
+  to the required checks.
+- ~~Per-day quotas on the browser Maps key~~ — there is no browser Maps key any more. Delete the
+  unused `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` and `GOOGLE_ROUTES_API_KEY` from Vercel and GitHub.
 - **E2E uses production secrets**, including the Firebase private key. Move it to a test Firebase
   project behind a GitHub Environment.
 - **Privacy page**: legal review and a contact address.
 - **Pricing and paywall**: `hasEntitlement` is never called, so everything is free for everyone;
-  the save limit and trial are not enforced. The copy promises less than users get, never more —
-  wiring the paywall is a product decision.
-- **Semgrep**: 30 blocking findings already on `main` (not a required check).
+  the save limit and trial are not enforced. Wiring it is a product decision.
+- **Semgrep**: runs on every PR (not a required check).
 
 ### Deferred, with reasons
 
@@ -78,8 +80,8 @@ Fixes on a branch are not fixes. The phases now land in order through PRs (#83 i
   one reviewed pass.
 - **ruff rule expansion, import-linter, backend rate-limit key** — the backend is not deployed and
   its tests could not be run locally (no Poetry for this Python). Change it with CI watching.
-- **CSP enforcement with nonces**, **offline support**, **splitting DetailsModal/MapView** — larger
-  pieces of work, unchanged from the 2026-09-26 plan.
+- **CSP enforcement with nonces**, **offline support**, **splitting DetailsModal** — larger pieces
+  of work, unchanged from the 2026-09-26 plan. MapView was split in #128.
 - **ChatBot aborting on close** — dropped: Gemini bills the call regardless, and the reply is more
   useful in the transcript than discarded.
 - **`storage.rules` deployment** — deliberately not in `firebase.json`: Storage is not provisioned

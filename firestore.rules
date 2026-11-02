@@ -47,6 +47,22 @@ service cloud.firestore {
     // plus a server timestamp), and nothing else. This rule used to be
     // `isOwner` alone, so the browser could store any fields of any size under
     // any id — the product's cheapest route to unbounded storage cost.
+    // A planned route, mirrored from the device by planSync.ts. Rules cannot
+    // walk a list, so each waypoint's shape is not checked here — the list is
+    // bounded instead (the planner's own cap: origin, destination and 25
+    // stops), which bounds the document. The data is private to its owner.
+    function isValidPlan(planId) {
+      let d = request.resource.data;
+      return planId.size() <= 128
+        && d.keys().hasAll(['name', 'waypoints', 'savedAt', 'updatedAt'])
+        && d.keys().hasOnly(['name', 'waypoints', 'savedAt', 'distanceKm', 'updatedAt'])
+        && d.name is string && d.name.size() <= 200
+        && d.waypoints is list && d.waypoints.size() > 0 && d.waypoints.size() <= 27
+        && d.savedAt is number
+        && optionalNumber(d, 'distanceKm')
+        && d.updatedAt == request.time;
+    }
+
     function isValidSavedPlace(placeId) {
       let d = request.resource.data;
       return placeId.size() <= 128
@@ -98,6 +114,12 @@ service cloud.firestore {
       match /saved_places/{placeId} {
         allow read, delete: if isOwner(userId);
         allow create, update: if isOwner(userId) && isValidSavedPlace(placeId);
+      }
+
+      // Planned routes, synced from the device by planSync.ts (#23).
+      match /plans/{planId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidPlan(planId);
       }
 
       // Strava historical activities synced server-side via Admin SDK

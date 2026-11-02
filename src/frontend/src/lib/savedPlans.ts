@@ -7,8 +7,8 @@ import type { PlannerWaypoint } from './gpxBuilder';
  *
  * Local rather than Firestore so a plan survives without an account — the
  * planner is usable signed out, and losing a half-built route at sign-in would
- * be the worst possible moment to lose it. Syncing these to an account is a
- * later step; the storage shape is already the wire shape.
+ * be the worst possible moment to lose it. Signed in, `planSync.ts` mirrors
+ * this list to the account.
  */
 
 export interface SavedPlan {
@@ -27,6 +27,12 @@ export interface SavedPlan {
    * validator never checked this field, so both shapes load.
    */
   distanceKm: number | null;
+  /**
+   * Whether the account has this plan. Local only, never written to the
+   * account: it is how sync tells "deleted on another device" (synced, now
+   * missing) from "made here signed out" (never synced). See `planSync.ts`.
+   */
+  synced?: boolean;
 }
 
 export const SAVED_PLANS_KEY = 'fri_saved_plans';
@@ -81,6 +87,11 @@ function persist(plans: SavedPlan[]): SavedPlan[] {
 export function savePlan(plan: SavedPlan): SavedPlan[] {
   const existing = loadPlans().filter((p) => p.id !== plan.id);
   return persist([plan, ...existing].sort((a, b) => b.savedAt - a.savedAt));
+}
+
+/** Replaces the whole list — what sync does after merging with the account. */
+export function replacePlans(plans: SavedPlan[]): SavedPlan[] {
+  return persist([...plans].sort((a, b) => b.savedAt - a.savedAt));
 }
 
 export function deletePlan(id: string): SavedPlan[] {

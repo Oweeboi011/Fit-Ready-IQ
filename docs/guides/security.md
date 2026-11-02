@@ -18,14 +18,15 @@ flowchart LR
     FS[("Firestore<br/>rules enforce the browser path")]
     X["Strava · Gemini · Google"]
     B -->|ID token, HTTPS| R
-    B -->|saved_places only| FS
+    B -->|saved_places, plans| FS
     R -->|Admin SDK bypasses rules| FS
     R --> X
     S -.never.-> B
 ```
 
 The Admin SDK bypasses Firestore rules, so **route handlers are the security boundary for
-everything except `saved_places`**. Every route takes identity from a verified token, never
+everything except `saved_places` and `plans`**, the two subcollections the browser writes under
+its own rules. Every route takes identity from a verified token, never
 from a request body or query string.
 
 ## Controls
