@@ -110,7 +110,7 @@ describe('computeReadiness', () => {
   });
 
   it('says the route is unmeasured, not that training is missing, when length is unknown', () => {
-    // Every Google Places route has no length. Telling someone with a full
+    // A climbing area, or an unmeasured route, has no length. Telling someone with a full
     // training log to "connect a device" would send them in circles.
     const r = computeReadiness({ distanceKm: null, ascentM: 400 }, STRONG, NOW);
     expect(r.score).toBeNull();

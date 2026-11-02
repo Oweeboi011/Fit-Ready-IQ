@@ -2,7 +2,6 @@
 
 // Fit Ready IQ - Main Page
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useJsApiLoader } from '@react-google-maps/api';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -58,8 +57,6 @@ const KomootRouteModal = dynamic(() => import('@/components/KomootRouteModal'), 
 /** Not gated on open state — it renders its own launcher button. */
 const ChatBot = dynamic(() => import('@/components/ChatBot'), { ssr: false });
 
-const libraries: ('places' | 'geometry')[] = ['places', 'geometry'];
-
 type TabId = 'routes' | 'mountains' | 'campsites' | 'history' | 'saved';
 
 const TAB_IDS: readonly TabId[] = ['routes', 'mountains', 'campsites', 'history', 'saved'];
@@ -106,21 +103,6 @@ export default function Home() {
   } = useUserLocation();
   const isLocating = locationStatus === 'locating';
 
-  const googleMapsApiKey = (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '').trim();
-
-  const googleMapsLoaderOptions = useMemo(
-    () => ({ googleMapsApiKey, libraries }),
-    [googleMapsApiKey]
-  );
-
-  const { isLoaded, loadError } = useJsApiLoader(googleMapsLoaderOptions);
-
-  // The Google script now serves discovery only (#86): the map itself is
-  // MapLibre on free tiles and renders with or without it. `useJsApiLoader`
-  // reports `loadError` only when the script fails to fetch — a blank key loads
-  // fine and then fails every call — so the absence is checked directly.
-  const discoveryUnavailable = Boolean(loadError) || !googleMapsApiKey;
-
   const {
     routes,
     mountains,
@@ -129,11 +111,8 @@ export default function Home() {
     error,
     setError,
     failedCollections,
-    elevationUnavailable,
     retryPlacesFetch,
   } = usePlacesData({
-    isLoaded,
-    discoveryUnavailable,
     userLocation,
     locationStatus,
     locationSource,
@@ -435,13 +414,6 @@ export default function Home() {
         message: locationProblemMessage(locationProblem, locationSource),
       });
     }
-    if (elevationUnavailable) {
-      list.push({
-        id: 'elevation',
-        tone: 'warning',
-        message: 'Elevation data is unavailable, so climbs and gains are shown as unknown.',
-      });
-    }
     if (failedCollections.length > 0) {
       list.push({
         id: 'collections',
@@ -459,15 +431,7 @@ export default function Home() {
     if (error) list.push({ id: 'places', tone: 'warning', message: error });
     if (saveError) list.push({ id: 'save', tone: 'warning', message: saveError });
     return list;
-  }, [
-    locationProblem,
-    locationSource,
-    elevationUnavailable,
-    failedCollections,
-    stravaSyncState,
-    error,
-    saveError,
-  ]);
+  }, [locationProblem, locationSource, failedCollections, stravaSyncState, error, saveError]);
 
   /** A read on the terrain around the user, from data already loaded. */
   const terrainPulse = useMemo(() => {
@@ -780,7 +744,6 @@ export default function Home() {
           isLoading={isLoading}
           error={error}
           onRetryPlaces={retryPlacesFetch}
-          elevationUnavailable={elevationUnavailable}
           failedCollections={failedCollections}
           collectionLabels={COLLECTION_LABELS}
           isSaved={isSaved}

@@ -2,25 +2,26 @@
 
 import { useEffect, useState } from 'react';
 
-import { newPlacesService, textSearchOnce } from './placesSearch';
-
 /**
  * Free-text place search, for finding somewhere that is not already on the map.
  *
  * The sidebar's search box only *filters* the results already loaded, so a peak
  * outside the current discovery radius could not be found at all — and therefore
- * could not be planned to. This queries Places directly.
+ * could not be planned to. This queries Photon, komoot's OpenStreetMap geocoder,
+ * which (unlike Nominatim) is built for search-as-you-type.
  *
- * Every call is billable, which shapes the whole design: the query is debounced,
- * short queries are refused outright, and a stale response is discarded rather
- * than allowed to overwrite a newer one. Typing "Mount Pulag" at one request per
+ * It is free but shared, which shapes the design: the query is debounced, short
+ * queries are refused outright, and a stale response is discarded rather than
+ * allowed to overwrite a newer one. Typing "Mount Pulag" at one request per
  * keystroke would be eleven searches for one intention.
  */
+
+const PHOTON_URL = 'https://photon.komoot.io/api/';
 
 export interface PlaceSearchResult {
   id: string;
   name: string;
-  /** Formatted address, when Google supplies one. */
+  /** Where it is — town, region, country — when Photon knows. */
   address: string | null;
   /** `[lng, lat]`, GeoJSON order, matching the rest of the app. */
   coordinates: [number, number];
@@ -35,38 +36,50 @@ const DEBOUNCE_MS = 400;
 /** More than a screenful is not a shortlist, it is a second problem. */
 const MAX_RESULTS = 6;
 
-/** Biases results towards the user rather than restricting to them. */
-const SEARCH_RADIUS_M = 100_000;
-
-/** Whether a query is worth spending a Places call on. */
+/** Whether a query is worth a request. */
 export function isSearchable(query: string): boolean {
   return query.trim().length >= MIN_QUERY_LENGTH;
 }
 
+/** A Photon GeoJSON feature, with just the fields the list reads. */
+export interface PhotonFeature {
+  geometry?: { coordinates?: number[] };
+  properties?: {
+    osm_type?: string;
+    osm_id?: number;
+    name?: string;
+    city?: string;
+    county?: string;
+    state?: string;
+    country?: string;
+  };
+}
+
 /**
- * Google's `PlaceResult` reduced to what the list needs.
+ * Photon's features reduced to what the list needs.
  *
  * Anything without a name or coordinates is dropped rather than rendered as a
  * blank row that cannot be planned to — the same rule the discovery pipeline
  * follows.
  */
 export function toSearchResults(
-  places: google.maps.places.PlaceResult[],
+  features: PhotonFeature[],
   limit = MAX_RESULTS
 ): PlaceSearchResult[] {
   const results: PlaceSearchResult[] = [];
 
-  for (const place of places) {
-    const lat = place.geometry?.location?.lat();
-    const lng = place.geometry?.location?.lng();
-    if (!place.name || lat == null || lng == null) continue;
+  for (const feature of features) {
+    const [lng, lat] = feature.geometry?.coordinates ?? [];
+    const p = feature.properties ?? {};
+    if (!p.name || typeof lat !== 'number' || typeof lng !== 'number') continue;
 
+    const where = [p.city ?? p.county, p.state, p.country].filter(Boolean);
     results.push({
-      // `place_id` is Google's stable identity; the name is a fallback for the
-      // rare result without one, and only needs to be unique within this list.
-      id: place.place_id ?? `${place.name}:${lat},${lng}`,
-      name: place.name,
-      address: place.formatted_address ?? place.vicinity ?? null,
+      // The OSM identity is stable; the name is a fallback for a result
+      // without one, and only needs to be unique within this list.
+      id: p.osm_type && p.osm_id ? `${p.osm_type}${p.osm_id}` : `${p.name}:${lat},${lng}`,
+      name: p.name,
+      address: where.length > 0 ? where.join(', ') : null,
       coordinates: [lng, lat],
     });
 
@@ -76,14 +89,30 @@ export function toSearchResults(
   return results;
 }
 
+/** Results biased towards `near`, nearest-relevant first. Throws on a failed request. */
+async function searchPhoton(query: string, near: [number, number]): Promise<PhotonFeature[]> {
+  const params = new URLSearchParams({
+    q: query,
+    lat: String(near[1]),
+    lon: String(near[0]),
+    limit: String(MAX_RESULTS * 2),
+  });
+  const res = await fetch(`${PHOTON_URL}?${params}`);
+  if (!res.ok) throw new Error(`Photon HTTP ${res.status}`);
+  const data = (await res.json()) as { features?: PhotonFeature[] };
+  return data.features ?? [];
+}
+
 export interface PlaceSearchState {
   results: PlaceSearchResult[];
   loading: boolean;
   /** Set only when a search ran and found nothing, so the UI can say so. */
   empty: boolean;
+  /** The search itself failed — distinct from finding nothing. */
+  failed: boolean;
 }
 
-const IDLE: PlaceSearchState = { results: [], loading: false, empty: false };
+const IDLE: PlaceSearchState = { results: [], loading: false, empty: false, failed: false };
 
 export function usePlaceSearch(
   query: string,
@@ -98,23 +127,20 @@ export function usePlaceSearch(
       return;
     }
 
-    // The SDK is injected by the loader; without it there is nothing to ask, and
-    // the map already reports that failure.
-    if (typeof google === 'undefined' || !google.maps?.places) {
-      setState(IDLE);
-      return;
-    }
-
     let cancelled = false;
-    setState({ results: [], loading: true, empty: false });
+    setState({ results: [], loading: true, empty: false, failed: false });
 
     const timer = setTimeout(() => {
-      const location = { lat: near[1], lng: near[0] };
-      textSearchOnce(newPlacesService(), query.trim(), location, SEARCH_RADIUS_M).then((places) => {
-        if (cancelled) return; // a newer query won
-        const results = toSearchResults(places);
-        setState({ results, loading: false, empty: results.length === 0 });
-      });
+      searchPhoton(query.trim(), near).then(
+        (features) => {
+          if (cancelled) return; // a newer query won
+          const results = toSearchResults(features);
+          setState({ results, loading: false, empty: results.length === 0, failed: false });
+        },
+        () => {
+          if (!cancelled) setState({ results: [], loading: false, empty: false, failed: true });
+        }
+      );
     }, DEBOUNCE_MS);
 
     return () => {
@@ -123,7 +149,7 @@ export function usePlaceSearch(
     };
     // Keyed on the coordinates rather than the array: `near` is rebuilt on every
     // render upstream, and depending on it would re-run this on each keystroke's
-    // render — which is exactly the billable call the debounce exists to avoid.
+    // render — which is exactly the request the debounce exists to avoid.
   }, [query, near?.[0], near?.[1]]);
 
   return state;

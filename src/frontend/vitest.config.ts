@@ -73,6 +73,8 @@ export default defineConfig({
         'src/app/api/places/cache/route.ts',
         'src/app/api/strava/sync/route.ts',
         'src/app/api/elevation/route.ts',
+        'src/app/api/discover/route.ts',
+        'src/lib/osmDiscovery.ts',
         'src/app/api/komoot/tour/route.ts',
         'src/app/api/weather/route.ts',
       ],

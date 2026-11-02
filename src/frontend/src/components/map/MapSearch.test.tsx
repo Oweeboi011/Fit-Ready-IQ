@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * The search hook is mocked: it talks to the billable Places API, and what is
+ * The search hook is mocked: it talks to a shared public geocoder, and what is
  * worth testing here is the panel's behaviour around the results — the keyboard
  * path, and that "Add" reaches the planner with the place's name.
  */

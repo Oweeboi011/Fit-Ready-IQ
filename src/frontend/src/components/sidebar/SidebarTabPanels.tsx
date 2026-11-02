@@ -19,7 +19,6 @@ interface SidebarTabPanelsProps {
   isLoading: boolean;
   error: string | null;
   onRetryPlaces: () => void;
-  elevationUnavailable: boolean;
   failedCollections: CollectionName[];
   collectionLabels: Record<CollectionName, string>;
   filteredRoutes: RouteData[];
@@ -51,7 +50,6 @@ export default function SidebarTabPanels(props: SidebarTabPanelsProps) {
     isLoading,
     error,
     onRetryPlaces,
-    elevationUnavailable,
     failedCollections,
     collectionLabels,
     filteredRoutes,
@@ -98,7 +96,6 @@ export default function SidebarTabPanels(props: SidebarTabPanelsProps) {
       ) : (
         <div className="space-y-1.5">
           <CollectionStatusNotices
-            elevationUnavailable={elevationUnavailable}
             failedCollections={failedCollections}
             collectionLabels={collectionLabels}
             onRetry={onRetryPlaces}

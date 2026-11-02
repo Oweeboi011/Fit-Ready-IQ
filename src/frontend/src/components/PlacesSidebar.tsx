@@ -42,7 +42,6 @@ interface PlacesSidebarProps {
   isLoading: boolean;
   error: string | null;
   onRetryPlaces: () => void;
-  elevationUnavailable: boolean;
   failedCollections: CollectionName[];
   collectionLabels: Record<CollectionName, string>;
   isSaved: (id: string) => boolean;
@@ -85,7 +84,6 @@ export default function PlacesSidebar({
   isLoading,
   error,
   onRetryPlaces,
-  elevationUnavailable,
   failedCollections,
   collectionLabels,
   isSaved,
@@ -145,7 +143,6 @@ export default function PlacesSidebar({
         isLoading={isLoading}
         error={error}
         onRetryPlaces={onRetryPlaces}
-        elevationUnavailable={elevationUnavailable}
         failedCollections={failedCollections}
         collectionLabels={collectionLabels}
         filteredRoutes={filteredRoutes}

@@ -1,29 +1,28 @@
 import { describe, expect, it } from 'vitest';
 
-import { isSearchable, MIN_QUERY_LENGTH, toSearchResults } from './usePlaceSearch';
+import {
+  isSearchable,
+  MIN_QUERY_LENGTH,
+  toSearchResults,
+  type PhotonFeature,
+} from './usePlaceSearch';
 
 /**
  * The debounce and cancellation are timing behaviour exercised by the component;
- * these cover the two pure decisions — whether a query is worth a billable call,
- * and which results are fit to show.
+ * these cover the two pure decisions — whether a query is worth a request, and
+ * which results are fit to show.
  */
 
-type Place = google.maps.places.PlaceResult;
-
-/** A PlaceResult with just the fields the mapper reads. */
-function place(overrides: Partial<Place> & { lat?: number; lng?: number }): Place {
-  const { lat, lng, ...rest } = overrides;
-  return {
-    geometry:
-      lat == null || lng == null
-        ? undefined
-        : ({ location: { lat: () => lat, lng: () => lng } } as Place['geometry']),
-    ...rest,
-  } as Place;
+/** A Photon feature with just the fields the mapper reads. */
+function feature(
+  properties: PhotonFeature['properties'],
+  coordinates?: [number, number]
+): PhotonFeature {
+  return { geometry: coordinates ? { coordinates } : undefined, properties };
 }
 
 describe('isSearchable', () => {
-  it('refuses a query too short to be worth a billable call', () => {
+  it('refuses a query too short to be worth a request', () => {
     expect(isSearchable('')).toBe(false);
     expect(isSearchable('a')).toBe(false);
     expect(isSearchable('ab')).toBe(false);
@@ -42,70 +41,73 @@ describe('isSearchable', () => {
 });
 
 describe('toSearchResults', () => {
-  it('maps name, address and coordinates in [lng, lat] order', () => {
+  it('maps name, place and coordinates, keeping GeoJSON [lng, lat] order', () => {
     const results = toSearchResults([
-      place({
-        place_id: 'p1',
-        name: 'Mount Pulag',
-        formatted_address: 'Benguet, Philippines',
-        lat: 16.5964,
-        lng: 120.8974,
-      }),
+      feature(
+        {
+          osm_type: 'N',
+          osm_id: 26863664,
+          name: 'Matterhorn',
+          city: 'Valtournenche',
+          state: "Valle d'Aosta",
+          country: 'Italia',
+        },
+        [7.6586, 45.9764]
+      ),
     ]);
 
     expect(results).toEqual([
       {
-        id: 'p1',
-        name: 'Mount Pulag',
-        address: 'Benguet, Philippines',
-        // GeoJSON order, as everywhere else in this app.
-        coordinates: [120.8974, 16.5964],
+        id: 'N26863664',
+        name: 'Matterhorn',
+        address: "Valtournenche, Valle d'Aosta, Italia",
+        coordinates: [7.6586, 45.9764],
       },
     ]);
   });
 
-  it('falls back to vicinity when there is no formatted address', () => {
+  it('falls back to the county when there is no town', () => {
     const [result] = toSearchResults([
-      place({ place_id: 'p1', name: 'Trailhead', vicinity: 'Nuvali', lat: 14, lng: 121 }),
+      feature({ name: 'Trailhead', county: 'Visp', country: 'Schweiz' }, [7.7, 46]),
     ]);
-    expect(result.address).toBe('Nuvali');
+    expect(result.address).toBe('Visp, Schweiz');
   });
 
-  it('reports a missing address as null rather than an empty string', () => {
-    const [result] = toSearchResults([place({ place_id: 'p1', name: 'Peak', lat: 14, lng: 121 })]);
+  it('reports a missing place as null rather than an empty string', () => {
+    const [result] = toSearchResults([feature({ name: 'Peak' }, [121, 14])]);
     expect(result.address).toBeNull();
   });
 
   it('drops a result with no coordinates — it could never be planned to', () => {
-    expect(toSearchResults([place({ place_id: 'p1', name: 'Nowhere' })])).toEqual([]);
+    expect(toSearchResults([feature({ name: 'Nowhere' })])).toEqual([]);
   });
 
   it('drops a result with no name rather than rendering a blank row', () => {
-    expect(toSearchResults([place({ place_id: 'p1', lat: 14, lng: 121 })])).toEqual([]);
+    expect(toSearchResults([feature({ osm_type: 'N', osm_id: 1 }, [121, 14])])).toEqual([]);
   });
 
-  it('synthesises an id when Google omits place_id, so React keys stay unique', () => {
+  it('synthesises an id when there is no OSM identity, so React keys stay unique', () => {
     const results = toSearchResults([
-      place({ name: 'A', lat: 1, lng: 2 }),
-      place({ name: 'B', lat: 3, lng: 4 }),
+      feature({ name: 'A' }, [2, 1]),
+      feature({ name: 'B' }, [4, 3]),
     ]);
     expect(results[0].id).not.toBe(results[1].id);
   });
 
   it('caps the list, because more than a screenful is not a shortlist', () => {
     const many = Array.from({ length: 25 }, (_, i) =>
-      place({ place_id: `p${i}`, name: `Peak ${i}`, lat: i, lng: i })
+      feature({ osm_type: 'N', osm_id: i + 1, name: `Peak ${i}` }, [i, i])
     );
     expect(toSearchResults(many)).toHaveLength(6);
     expect(toSearchResults(many, 3)).toHaveLength(3);
   });
 
-  it('keeps Google’s ordering, which is its relevance ranking', () => {
+  it("keeps Photon's ordering, which is its relevance ranking", () => {
     const results = toSearchResults([
-      place({ place_id: 'first', name: 'Closest', lat: 1, lng: 1 }),
-      place({ place_id: 'second', name: 'Further', lat: 2, lng: 2 }),
+      feature({ osm_type: 'N', osm_id: 1, name: 'Closest' }, [1, 1]),
+      feature({ osm_type: 'N', osm_id: 2, name: 'Further' }, [2, 2]),
     ]);
-    expect(results.map((r) => r.id)).toEqual(['first', 'second']);
+    expect(results.map((r) => r.id)).toEqual(['N1', 'N2']);
   });
 
   it('handles an empty response', () => {

@@ -1,7 +1,13 @@
-import { expect, test } from '@playwright/test';
+import { DISCOVERY_FIXTURE, expect, test } from './fixtures';
 
 test.describe('map loading overlay', () => {
   test('announces progress and can be dismissed without blocking the map', async ({ page }) => {
+    // The fixture answers instantly, which would close the overlay before
+    // there is anything to dismiss. Hold discovery open long enough to act.
+    await page.route('**/api/discover**', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 15_000));
+      await route.fulfill({ status: 200, json: DISCOVERY_FIXTURE }).catch(() => {});
+    });
     await page.goto('/app');
 
     const overlay = page.getByRole('status', { name: 'Map loading progress' });

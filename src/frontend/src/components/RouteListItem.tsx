@@ -120,10 +120,10 @@ export default function RouteListItem({
                 {route.distance_km == null ? 'unknown' : `${route.distance_km.toFixed(1)} km`}
               </dd>
             </div>
-            {/* Terrain relief sampled near the trailhead, not ascent along the
-                trail, so it must not be labelled "gain". */}
+            {/* The route's tagged ascent. Most OSM routes do not carry one,
+                and nothing here estimates it. */}
             <div className="flex items-baseline gap-1">
-              <dt className="text-slate-500">Relief</dt>
+              <dt className="text-slate-500">Climb</dt>
               <dd className="font-tabular font-semibold text-slate-200">
                 {route.elevation_gain_m == null ? 'unknown' : `${route.elevation_gain_m} m`}
               </dd>

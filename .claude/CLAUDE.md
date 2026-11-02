@@ -89,6 +89,7 @@ The FastAPI backend is not called by the frontend in production; it is planned f
 | `/api/strava/activities` | Fetch the caller's activities from Strava. The Strava token is held server-side in `strava_tokens/{uid}` (`lib/stravaTokens.ts`); the browser sends only its Firebase ID token. 409 means not connected. | — |
 | `/api/strava/connection` | GET connection status (athlete, never a token); DELETE disconnects. | — |
 | `/api/strava/sync` | Sync the caller's Strava activities → Firestore. **Requires a Firebase ID token**; the destination `uid` comes from that token, never the body. | 60 s |
+| `/api/discover` | Routes (Waymarked Trails, with measured length), peaks and campsites (Photon, heights from OpenTopoData) near a point, rounded to the 0.1° cell. Each collection fails on its own and is named in `failed`; a complete answer is CDN-cached a week, a partial one `no-store`. Rate-limited to 60/hour per caller. | 45 s |
 | `/api/places/cache` | Grid-based places cache (0.5° cells, 24 h TTL). GET is public; **POST requires a Firebase ID token** and caps each kind at 200 items. | 15 s |
 | `/api/weather` | Google Weather first; on failure falls over to OpenWeather when its key is set (logged as `weather_google_failed_using_openweather`), plus the route's weather window. Rate-limited to 200/hour per caller. | 15 s |
 | `/api/health` | Credential-presence checks only (no live API calls), including `rate_limiting` (degraded without `RATE_LIMIT_SALT`). Public, so it names no project or client ids. `s-maxage=30, stale-while-revalidate=10`. | 15 s |
@@ -154,7 +155,7 @@ body or a query parameter.
 To avoid redundant paid API calls:
 
 - **Weather + photos** (`DetailsModal.tsx`): module-level `weatherCache` (30 min TTL) and `photosCache` (session lifetime).
-- **Reverse geocode** (`usePlacesData.ts`): `sessionStorage` with 24 h TTL and 0.1° coordinate grid (`fri_geocode_*` key).
+- **Reverse geocode** (`usePlacesData.ts`): Nominatim, `sessionStorage` with 24 h TTL and 0.1° coordinate grid (`fri_geocode_*` key) — its usage policy asks for one request a second and caching.
 - **Last user location** (`useUserLocation.ts`): persisted to `localStorage` (`fri_last_location`) and restored on page load so the map focuses instantly. Restore it in an effect, never in a `useState` initializer — reading storage during render makes the server and client disagree on first paint and React discards the server tree.
 - **Places** (`usePlacesData.ts`): `localStorage` (`fri_places_cache`), 24 h, **keyed on the 0.1° location** — it used to be read regardless of where the user was.
 - **Sign-out clears personal storage.** Every `fri_*` key is classified in `lib/personalStorage.ts` (cleared on sign-out) or as a plain preference in its test; `personalStorage.test.ts` fails on an unclassified key.
@@ -207,6 +208,8 @@ Firebase Admin SDK tries credentials in this order: `FIREBASE_SERVICE_ACCOUNT_KE
 - `src/lib/userDataFootprint.ts` — the single list of where user data lives; export and erasure both walk it
 - `src/lib/useAdminGate.ts` — client hook that asks the server whether the user is an admin
 - `src/components/MapView.tsx` — the map: MapLibre on OpenFreeMap vector tiles with hillshading, no key. Markers, lines and camera live in `src/components/map/` (`MapMarkers`, `MapLines`, `useMapCamera`)
+- `src/lib/osmDiscovery.ts` — what `/api/discover` asks Waymarked Trails and Photon, and how answers become places. Pure, so every rule about what a number means is tested
+- `src/lib/usePlaceSearch.ts` — the map search box, on Photon (built for search-as-you-type, unlike Nominatim)
 - `src/lib/mapStyle.ts` — base style, terrain source and the bounds maths, pure so it tests without WebGL
 - `scripts/copy-maplibre-worker.ts` — runs before `dev` and `build`; MapLibre's worker must be served from `public/` because bundling breaks the path it looks for. The copy is gitignored
 - `src/components/NavDock.tsx` + `src/components/dock/` — the floating dock over the map: content tabs, weather, terrain, advisories, alerts, layers, quick links
@@ -284,24 +287,16 @@ changed meaning will otherwise feed every visitor to that region for 24 hours.
 
 ### Google APIs actually required
 
-Legacy Places is enough for discovery, but these are separate enablements and
-the app degrades honestly without them. Elevation is no longer one of them — it
-moved to `/api/elevation` (OpenTopoData, free) as the first step of #86, which
-replaces the rest. Nor is the map: it is MapLibre on OpenFreeMap tiles, and
-renders with no Google key at all. The Maps JavaScript script still loads, but
-only to carry Places, Geocoding and Distance Matrix until discovery moves too:
+Only **Routes**, and Weather if you use Google for it. #86 moved everything else
+to free providers: the map is MapLibre on OpenFreeMap tiles, discovery is
+`/api/discover` (OpenStreetMap), search is Photon, the area label is Nominatim
+and elevation is OpenTopoData. No Google script loads in the browser.
 
 | API | Powers | Without it |
 |---|---|---|
-| Maps JavaScript | Loads the three client-side services below | "Place discovery could not start" with the map still up |
-| Places (legacy) | Route/peak/campsite discovery | Empty lists with a retry |
-| Geocoding | The "near <place>" label | Falls back to whatever label the place carries |
-| Distance Matrix (legacy) | Walking distance to each result | Distance omitted |
 | **Routes** (not legacy Directions) | Directions, planner path snapping | Straight lines, labelled as such |
 
-**Two keys are required, of two different kinds.** The browser key is
-HTTP-referrer restricted and needs the client-side APIs above plus
-Geocoding and Distance Matrix. `/api/directions` and `/api/weather` call Google
+**The server key must not be referrer-restricted.** `/api/directions` and `/api/weather` call Google
 *server-to-server*, which sends no referer, so a referrer-restricted key is
 rejected with "Requests from referer &lt;empty&gt; are blocked" — they need their
 own key with **no referrer restriction**, in `GOOGLE_ROUTES_API_KEY` and

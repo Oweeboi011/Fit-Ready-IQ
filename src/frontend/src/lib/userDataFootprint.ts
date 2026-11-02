@@ -55,12 +55,12 @@ export const USER_OWNED_TREE_COLLECTIONS = ['chat_sessions'] as const;
  * Shared documents that are not the user's content but are stamped with the uid
  * of whoever wrote them.
  *
- * `places_cache` holds Google Places results for a grid cell, served to every
+ * `places_cache` holds discovery results for a grid cell, served to every
  * visitor in it, with `written_by` naming the account that filled it so a
  * poisoned region can be traced. That stamp is personal data about the writer,
  * so erasure deletes the cells they wrote — it is a 24-hour cache that the next
  * visitor refills, so removing a cell costs one set of live lookups. They are
- * left out of the export: the content is Google's data about places, not
+ * left out of the export: the content is OpenStreetMap's data about places, not
  * anything the person provided, and the only thing about them in it is the uid
  * the export is already addressed to.
  */
@@ -71,7 +71,7 @@ export const USER_ATTRIBUTED_DOCUMENTS = [
 /** Stated in every export, alongside what is retained on deletion. */
 export const ATTRIBUTED_NOT_EXPORTED =
   'places_cache cells you filled carry your uid as written_by. They hold shared ' +
-  'Google Places results rather than your data, so they are not exported; they ' +
+  'OpenStreetMap results rather than your data, so they are not exported; they ' +
   'are deleted with your account.';
 
 /**
