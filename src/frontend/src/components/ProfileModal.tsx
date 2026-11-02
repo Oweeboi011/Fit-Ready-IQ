@@ -125,11 +125,11 @@ export default function ProfileModal({
               alt="Profile"
               width={56}
               height={56}
-              className="h-14 w-14 rounded-full border-2 border-ink/20"
+              className="border-ink/20 h-14 w-14 rounded-full border-2"
               unoptimized
             />
           ) : (
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-xl font-bold text-white">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-blue-500 to-purple-600 text-xl font-bold text-white">
               {user?.displayName?.charAt(0) ?? '?'}
             </div>
           )}
@@ -142,28 +142,28 @@ export default function ProfileModal({
           </div>
           <button
             onClick={onSignOut}
-            className="ml-auto flex-shrink-0 rounded-lg border border-ink/10 bg-ink/5 px-3 py-1.5 text-xs font-medium text-slate-400 transition-all hover:bg-ink/10 hover:text-white"
+            className="border-ink/10 bg-ink/5 hover:bg-ink/10 ml-auto shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium text-slate-400 transition-all hover:text-white"
           >
             Sign out
           </button>
         </div>
 
         {/* Fitness Score */}
-        <div className="rounded-xl border border-ink/[0.06] bg-slate-800/60 p-4">
+        <div className="border-ink/6 rounded-xl border bg-slate-800/60 p-4">
           {/* The window has to be on screen: without it, a score that resets
                 on the 1st of the month looks like the app losing your data. */}
           <div className="mb-4 flex items-baseline justify-between gap-2">
-            <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-300">
+            <h3 className="flex items-center gap-1.5 text-xs font-semibold tracking-wider text-slate-300 uppercase">
               <Gauge aria-hidden="true" className="h-3.5 w-3.5" />
               Fitness Score
             </h3>
-            <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
+            <span className="text-[10px] font-medium tracking-wider text-slate-500 uppercase">
               {monthLabel} to date
             </span>
           </div>
           <div className="flex items-center gap-6">
             {/* Circular gauge */}
-            <div className="relative flex-shrink-0">
+            <div className="relative shrink-0">
               <svg width="90" height="90" viewBox="0 0 90 90">
                 <circle cx="45" cy="45" r="36" fill="none" stroke="#1e293b" strokeWidth="8" />
                 <circle
@@ -181,7 +181,7 @@ export default function ProfileModal({
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-bold leading-none text-white">{fitness.score}</span>
+                <span className="text-2xl leading-none font-bold text-white">{fitness.score}</span>
                 <span className="text-[10px] text-slate-400">/100</span>
               </div>
             </div>
@@ -199,7 +199,7 @@ export default function ProfileModal({
                       {value}/{max}
                     </span>
                   </div>
-                  <div className="h-1.5 w-full rounded-full bg-ink/10">
+                  <div className="bg-ink/10 h-1.5 w-full rounded-full">
                     <div
                       className="h-1.5 rounded-full transition-all duration-500"
                       style={{ width: `${(value / max) * 100}%`, backgroundColor: color }}
@@ -240,10 +240,10 @@ export default function ProfileModal({
               color: 'text-red-400',
             },
           ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="rounded-xl border border-ink/[0.06] bg-slate-800/60 p-3">
+            <div key={label} className="border-ink/6 rounded-xl border bg-slate-800/60 p-3">
               <Icon aria-hidden="true" className={`h-4 w-4 ${color} mb-2`} />
               <p className="text-[10px] text-slate-400">{label}</p>
-              <p className="mt-0.5 text-base font-bold leading-tight text-white">{value}</p>
+              <p className="mt-0.5 text-base leading-tight font-bold text-white">{value}</p>
             </div>
           ))}
         </div>
@@ -253,9 +253,9 @@ export default function ProfileModal({
 
         {/* This Month */}
         <div>
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-300">
+          <h3 className="mb-3 text-xs font-semibold tracking-wider text-slate-300 uppercase">
             This Month
-            <span className="ml-2 font-normal normal-case text-slate-500">
+            <span className="ml-2 font-normal text-slate-500 normal-case">
               {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
             </span>
           </h3>
@@ -288,10 +288,10 @@ export default function ProfileModal({
               const d = monthlyByType[key];
               return (
                 <div key={key} className={`rounded-xl border ${border} ${bg} p-3`}>
-                  <p className={`text-[10px] font-semibold uppercase tracking-wide ${color}`}>
+                  <p className={`text-[10px] font-semibold tracking-wide uppercase ${color}`}>
                     {label}
                   </p>
-                  <p className="mt-1.5 text-lg font-bold leading-none text-white">
+                  <p className="mt-1.5 text-lg leading-none font-bold text-white">
                     {d.km.toFixed(1)}
                     <span className="ml-0.5 text-xs font-normal text-slate-400">km</span>
                   </p>
@@ -314,17 +314,17 @@ export default function ProfileModal({
 
         {/* Extra insights */}
         <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-xl border border-ink/[0.06] bg-slate-800/60 p-3 text-center">
+          <div className="border-ink/6 rounded-xl border bg-slate-800/60 p-3 text-center">
             <ActivityIcon aria-hidden="true" className="mx-auto mb-1 h-4 w-4 text-slate-400" />
             <p className="text-[10px] text-slate-400">Activities</p>
             <p className="text-lg font-bold text-white">{stats.count}</p>
           </div>
-          <div className="rounded-xl border border-ink/[0.06] bg-slate-800/60 p-3 text-center">
+          <div className="border-ink/6 rounded-xl border bg-slate-800/60 p-3 text-center">
             <TrendingUp aria-hidden="true" className="mx-auto mb-1 h-4 w-4 text-slate-400" />
             <p className="text-[10px] text-slate-400">Top Sport</p>
-            <p className="text-sm font-bold capitalize text-white">{stats.topType ?? '—'}</p>
+            <p className="text-sm font-bold text-white capitalize">{stats.topType ?? '—'}</p>
           </div>
-          <div className="rounded-xl border border-ink/[0.06] bg-slate-800/60 p-3 text-center">
+          <div className="border-ink/6 rounded-xl border bg-slate-800/60 p-3 text-center">
             <Zap aria-hidden="true" className="mx-auto mb-1 h-4 w-4 text-slate-400" />
             <p className="text-[10px] text-slate-400">Avg Dist</p>
             <p className="text-sm font-bold text-white">
@@ -335,12 +335,12 @@ export default function ProfileModal({
 
         {/* Recent activities */}
         <div>
-          <h3 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-300">
+          <h3 className="mb-3 flex items-center gap-1.5 text-xs font-semibold tracking-wider text-slate-300 uppercase">
             <History aria-hidden="true" className="h-3.5 w-3.5" />
             Recent Activities
           </h3>
           {recent.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-ink/[0.08] bg-slate-800/30 py-8 text-center">
+            <div className="border-ink/8 flex flex-col items-center justify-center rounded-xl border border-dashed bg-slate-800/30 py-8 text-center">
               <ActivityIcon aria-hidden="true" className="mb-2 h-6 w-6 text-slate-500" />
               <p className="text-sm text-slate-400">No activities yet</p>
               <p className="mt-1 text-xs text-slate-500">Connect Strava or upload a GPX file</p>
@@ -350,10 +350,10 @@ export default function ProfileModal({
               {recent.map((a) => (
                 <div
                   key={a.id}
-                  className="flex items-center gap-3 rounded-xl border border-ink/[0.06] bg-slate-800/60 px-4 py-3"
+                  className="border-ink/6 flex items-center gap-3 rounded-xl border bg-slate-800/60 px-4 py-3"
                 >
                   <div
-                    className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${SOURCE_BG[a.source]}`}
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${SOURCE_BG[a.source]}`}
                   >
                     <ActivityIcon aria-hidden="true" className="h-4 w-4 text-white" />
                   </div>
@@ -369,7 +369,7 @@ export default function ProfileModal({
                       {SOURCE_LABELS[a.source]}
                     </p>
                   </div>
-                  <div className="flex-shrink-0 text-right">
+                  <div className="shrink-0 text-right">
                     <p className="text-sm font-semibold text-white">
                       {a.distance_km.toFixed(1)} km
                     </p>

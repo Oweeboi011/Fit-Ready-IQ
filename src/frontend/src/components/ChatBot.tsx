@@ -173,10 +173,10 @@ export default function ChatBot() {
       {/* Floating toggle button */}
       <button
         onClick={() => setIsOpen((v) => !v)}
-        className={`fixed bottom-5 right-5 z-50 flex h-12 w-12 items-center justify-center rounded-2xl shadow-lg transition-all active:scale-95 ${
+        className={`fixed right-5 bottom-5 z-50 flex h-12 w-12 items-center justify-center rounded-2xl shadow-lg transition-all active:scale-95 ${
           isOpen
-            ? 'border border-ink/10 bg-slate-800 shadow-black/40 hover:bg-slate-700'
-            : 'bg-gradient-to-br from-blue-500 to-blue-700 shadow-blue-900/50 hover:scale-105 hover:shadow-xl hover:shadow-blue-900/60'
+            ? 'border-ink/10 border bg-slate-800 shadow-black/40 hover:bg-slate-700'
+            : 'bg-linear-to-br from-blue-500 to-blue-700 shadow-blue-900/50 hover:scale-105 hover:shadow-xl hover:shadow-blue-900/60'
         }`}
         aria-label={isOpen ? 'Close AI assistant' : 'Open AI assistant'}
         style={{ height: '3.25rem', width: '3.25rem' }}
@@ -198,13 +198,13 @@ export default function ChatBot() {
           }}
           // Was a hardcoded 360px panel offset 20px from the right edge, so on a
           // 360px phone it overflowed the viewport.
-          className="fixed inset-x-3 bottom-20 z-50 flex h-[min(520px,70vh)] flex-col overflow-hidden rounded-2xl border border-ink/[0.08] bg-slate-900 shadow-2xl shadow-black/60 sm:inset-x-auto sm:right-5 sm:w-[360px]"
+          className="border-ink/8 fixed inset-x-3 bottom-20 z-50 flex h-[min(520px,70vh)] flex-col overflow-hidden rounded-2xl border bg-slate-900 shadow-2xl shadow-black/60 sm:inset-x-auto sm:right-5 sm:w-[360px]"
           style={{ animation: 'cardEnter 0.2s ease-out' }}
         >
           {/* Header */}
-          <div className="flex flex-shrink-0 items-center justify-between border-b border-ink/[0.06] bg-slate-950/80 px-4 py-3 backdrop-blur">
+          <div className="border-ink/6 flex shrink-0 items-center justify-between border-b bg-slate-950/80 px-4 py-3 backdrop-blur-sm">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow shadow-blue-900/40">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-linear-to-br from-blue-500 to-blue-700 shadow-sm shadow-blue-900/40">
                 <Sparkles aria-hidden="true" className="h-4 w-4 text-white" />
               </div>
               <div>
@@ -217,7 +217,7 @@ export default function ChatBot() {
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-ink/[0.06] hover:text-slate-300"
+              className="hover:bg-ink/6 flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 transition-colors hover:text-slate-300"
               aria-label="Close"
             >
               <X aria-hidden="true" className="h-4 w-4" />
@@ -237,10 +237,10 @@ export default function ChatBot() {
               >
                 {/* Avatar */}
                 <div
-                  className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full ${
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
                     msg.role === 'assistant'
                       ? 'border border-blue-500/30 bg-blue-500/15'
-                      : 'border border-ink/10 bg-ink/[0.06]'
+                      : 'border-ink/10 bg-ink/6 border'
                   }`}
                 >
                   {msg.role === 'assistant' ? (
@@ -252,10 +252,10 @@ export default function ChatBot() {
 
                 {/* Bubble */}
                 <div
-                  className={`max-w-[76%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                  className={`max-w-[76%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
                     msg.role === 'user'
                       ? 'rounded-br-sm bg-blue-600 text-white'
-                      : 'rounded-bl-sm border border-ink/[0.06] bg-ink/[0.06] text-slate-200'
+                      : 'border-ink/6 bg-ink/6 rounded-bl-sm border text-slate-200'
                   }`}
                 >
                   {msg.content}
@@ -266,10 +266,10 @@ export default function ChatBot() {
             {/* Typing indicator */}
             {isLoading && (
               <div className="flex items-end gap-2">
-                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-blue-500/30 bg-blue-500/15">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-blue-500/30 bg-blue-500/15">
                   <Bot aria-hidden="true" className="h-3.5 w-3.5 text-blue-400" />
                 </div>
-                <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-sm border border-ink/[0.06] bg-ink/[0.06] px-3.5 py-2.5">
+                <div className="border-ink/6 bg-ink/6 flex items-center gap-1.5 rounded-2xl rounded-bl-sm border px-3.5 py-2.5">
                   <Loader2 aria-hidden="true" className="h-3 w-3 animate-spin text-slate-500" />
                   <span className="text-xs text-slate-500">Thinking…</span>
                 </div>
@@ -289,7 +289,7 @@ export default function ChatBot() {
                     setMessages((prev) => prev.slice(0, -2));
                     sendMessage(retry);
                   }}
-                  className="rounded-full border border-ink/10 bg-ink/[0.06] px-3 py-1 text-[11px] font-medium text-slate-300 transition-colors hover:bg-ink/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                  className="border-ink/10 bg-ink/6 hover:bg-ink/10 rounded-full border px-3 py-1 text-[11px] font-medium text-slate-300 transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-hidden"
                 >
                   Retry
                 </button>
@@ -304,7 +304,7 @@ export default function ChatBot() {
                     key={prompt}
                     type="button"
                     onClick={() => sendMessage(prompt)}
-                    className="block w-full rounded-xl border border-ink/[0.08] bg-ink/[0.03] px-3 py-2 text-left text-xs text-slate-300 transition-colors hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                    className="border-ink/8 bg-ink/3 block w-full rounded-xl border px-3 py-2 text-left text-xs text-slate-300 transition-colors hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-white focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-hidden"
                   >
                     {prompt}
                   </button>
@@ -316,8 +316,8 @@ export default function ChatBot() {
           </div>
 
           {/* Input */}
-          <div className="flex-shrink-0 border-t border-ink/[0.06] bg-slate-950/50 p-3">
-            <div className="flex items-center gap-2 rounded-xl border border-ink/[0.08] bg-ink/[0.04] px-3 py-2 transition-all focus-within:border-blue-500/40 focus-within:bg-ink/[0.06]">
+          <div className="border-ink/6 shrink-0 border-t bg-slate-950/50 p-3">
+            <div className="border-ink/8 bg-ink/4 focus-within:bg-ink/6 flex items-center gap-2 rounded-xl border px-3 py-2 transition-all focus-within:border-blue-500/40">
               <input
                 ref={inputRef}
                 type="text"
@@ -326,7 +326,7 @@ export default function ChatBot() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
                 placeholder="Ask about trails, fitness, gear..."
-                className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-600 outline-none"
+                className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-600 outline-hidden"
                 disabled={isLoading}
                 maxLength={MAX_INPUT}
               />
@@ -334,7 +334,7 @@ export default function ChatBot() {
                 type="button"
                 onClick={() => sendMessage()}
                 disabled={!input.trim() || isLoading}
-                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white transition-all hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-30"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white transition-all hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-30"
                 aria-label="Send message"
               >
                 <Send aria-hidden="true" className="h-3.5 w-3.5" />

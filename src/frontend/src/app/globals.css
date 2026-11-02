@@ -1,6 +1,126 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+/*
+ * The neutral ramp and `ink` point at CSS variables, so a theme swap is a
+ * variable swap rather than a rewrite of every component: light mode inverts
+ * them on `:root.light` below (see src/lib/theme.ts). `ink` is the translucent
+ * overlay behind hairline borders and hover washes — white on dark, black on
+ * light — and is separate from `white`, which sits on accent fills and must not
+ * flip. Opacity modifiers (`bg-slate-900/80`, `border-ink/10`) work because
+ * Tailwind 4 mixes any colour, so the variables can hold full rgb() values.
+ */
+@theme {
+  --font-sans: var(--font-inter), Inter, system-ui, sans-serif;
+
+  --color-slate-50: rgb(var(--c-slate-50));
+  --color-slate-100: rgb(var(--c-slate-100));
+  --color-slate-200: rgb(var(--c-slate-200));
+  --color-slate-300: rgb(var(--c-slate-300));
+  --color-slate-400: rgb(var(--c-slate-400));
+  --color-slate-500: rgb(var(--c-slate-500));
+  --color-slate-600: rgb(var(--c-slate-600));
+  --color-slate-700: rgb(var(--c-slate-700));
+  --color-slate-800: rgb(var(--c-slate-800));
+  --color-slate-900: rgb(var(--c-slate-900));
+  --color-slate-950: rgb(var(--c-slate-950));
+
+  --color-ink: rgb(var(--c-ink));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility sidebar-scroll {
+  scrollbar-gutter: stable;
+}
+
+@utility skeleton {
+  /* Skeleton shimmer. Themed, or the loading state is a dark block on a
+   * light page — which reads as content that failed rather than content
+   * that is arriving. */
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-from) 25%,
+    var(--skeleton-via) 50%,
+    var(--skeleton-from) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+@utility card-enter {
+  /* Card slide-in with spring easing */
+  animation: cardEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@utility fade-up {
+  /* Fade up from below */
+  animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@utility modal-enter {
+  /* Modal scale-in entrance */
+  animation: modalEnter 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@utility sheet-enter {
+  /* Bottom sheet slide up */
+  animation: sheetEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@utility loc-ring {
+  /* Location pulse rings — used in GPS overlay */
+  animation: locPulse 2.2s ease-out infinite;
+}
+
+@utility loc-ring-2 {
+  animation: locPulse 2.2s ease-out 0.75s infinite;
+}
 
 @layer base {
   /**
@@ -163,54 +283,6 @@
   }
 }
 
-@layer utilities {
-  .sidebar-scroll {
-    scrollbar-gutter: stable;
-  }
-
-  /* Skeleton shimmer. Themed, or the loading state is a dark block on a
-   * light page — which reads as content that failed rather than content
-   * that is arriving. */
-  .skeleton {
-    background: linear-gradient(
-      90deg,
-      var(--skeleton-from) 25%,
-      var(--skeleton-via) 50%,
-      var(--skeleton-from) 75%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.8s ease-in-out infinite;
-  }
-
-  /* Card slide-in with spring easing */
-  .card-enter {
-    animation: cardEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-
-  /* Fade up from below */
-  .fade-up {
-    animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-
-  /* Modal scale-in entrance */
-  .modal-enter {
-    animation: modalEnter 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-
-  /* Bottom sheet slide up */
-  .sheet-enter {
-    animation: sheetEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-
-  /* Location pulse rings — used in GPS overlay */
-  .loc-ring {
-    animation: locPulse 2.2s ease-out infinite;
-  }
-  .loc-ring-2 {
-    animation: locPulse 2.2s ease-out 0.75s infinite;
-  }
-}
-
 /* ── Keyframes ───────────────────────────────────────────── */
 
 @keyframes shimmer {
@@ -323,4 +395,26 @@
    inset resolves to 0. */
 .dock-safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* MapLibre's controls. Its stylesheet loads after this one, so each rule is
+   scoped under `.maplibregl-map` to win on specificity rather than order.
+
+   Zoom, compass and fullscreen sit on the right edge, vertically centred: the
+   top-right corner belongs to the hint toast and the bottom-right to the chat
+   button. */
+.maplibregl-map .maplibregl-ctrl-top-right {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* The OpenStreetMap credit is a licence condition, so it must stay visible:
+   lifted clear of the floating dock, which spans the full width on a phone. */
+.maplibregl-map .maplibregl-ctrl-bottom-left {
+  bottom: 4.5rem;
+}
+@media (max-width: 639px) {
+  .maplibregl-map .maplibregl-ctrl-bottom-left {
+    bottom: 5.5rem;
+  }
 }

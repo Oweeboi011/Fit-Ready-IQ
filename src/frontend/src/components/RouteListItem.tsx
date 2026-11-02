@@ -58,7 +58,7 @@ export default function RouteListItem({
   return (
     <div
       data-place-card
-      className="card-enter group relative w-full rounded-xl border border-ink/[0.07] bg-ink/5 text-left transition-all hover:border-blue-500/30 hover:bg-blue-500/10 active:scale-[0.99]"
+      className="card-enter group border-ink/[0.07] bg-ink/5 relative w-full rounded-xl border text-left transition-all hover:border-blue-500/30 hover:bg-blue-500/10 active:scale-[0.99]"
       style={{ animationDelay: `${index * 30}ms` }}
     >
       <div className="flex items-stretch gap-0">
@@ -66,14 +66,14 @@ export default function RouteListItem({
             results never carry photos — only the detail view fetches them.
             Replaced by a slim difficulty spine, which is the one thing that
             strip was actually communicating. */}
-        <div aria-hidden="true" className={`w-1 flex-shrink-0 rounded-l-xl ${ds.bar} opacity-70`} />
+        <div aria-hidden="true" className={`w-1 shrink-0 rounded-l-xl ${ds.bar} opacity-70`} />
         <div className="min-w-0 flex-1 px-3 py-2.5">
           <div className="flex items-start justify-between gap-1">
             <p className="line-clamp-1 text-[13px] font-semibold text-slate-100 group-hover:text-white">
               <button
                 type="button"
                 onClick={onClick}
-                className="text-left after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-blue-400"
+                className="text-left after:absolute after:inset-0 after:rounded-xl focus-visible:outline-hidden focus-visible:after:ring-2 focus-visible:after:ring-blue-400"
               >
                 {route.name}
               </button>
@@ -82,7 +82,7 @@ export default function RouteListItem({
               <button
                 type="button"
                 onClick={onToggleSave}
-                className="relative z-10 -m-2 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded text-slate-500 transition-colors hover:text-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                className="relative z-10 -m-2 flex h-11 w-11 shrink-0 items-center justify-center rounded text-slate-500 transition-colors hover:text-amber-400 focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-hidden"
                 aria-label={isSaved ? 'Unsave route' : 'Save route'}
               >
                 <Bookmark
@@ -94,12 +94,12 @@ export default function RouteListItem({
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1">
             <span
-              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ring-1 ${ds.pill}`}
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wide uppercase ring-1 ${ds.pill}`}
             >
               <span className={`h-1.5 w-1.5 rounded-full ${ds.dot}`} />
               {DIFFICULTY_LABELS[route.difficulty]}
             </span>
-            <span className="text-[9px] uppercase tracking-wider text-slate-500">
+            <span className="text-[9px] tracking-wider text-slate-500 uppercase">
               {formatActivityType(route.activity_type)}
             </span>
             {/* Silent when there is no training data to score against, rather

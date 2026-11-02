@@ -18,7 +18,7 @@ interface PhotoGalleryProps {
 
 function Frame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-center rounded-lg border border-dashed border-ink/[0.08] bg-ink/[0.03] py-8">
+    <div className="border-ink/8 bg-ink/3 flex items-center justify-center rounded-lg border border-dashed py-8">
       <div className="px-4 text-center">{children}</div>
     </div>
   );
@@ -35,7 +35,7 @@ function Frame({ children }: { children: React.ReactNode }) {
 export function PhotoGallery({ photos, loading, failed, placeName, onRetry }: PhotoGalleryProps) {
   return (
     <div>
-      <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wider text-slate-300">
+      <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold tracking-wider text-slate-300 uppercase">
         <Camera aria-hidden="true" className="h-3.5 w-3.5" />
         Photos
       </h3>
@@ -45,7 +45,7 @@ export function PhotoGallery({ photos, loading, failed, placeName, onRetry }: Ph
           <div
             role="status"
             aria-label="Loading photos"
-            className="mx-auto mb-2 h-5 w-5 animate-spin rounded-full border-2 border-ink/10 border-t-slate-400"
+            className="border-ink/10 mx-auto mb-2 h-5 w-5 animate-spin rounded-full border-2 border-t-slate-400"
           />
           <p className="text-sm text-slate-400">Loading photos…</p>
         </Frame>
@@ -54,7 +54,7 @@ export function PhotoGallery({ photos, loading, failed, placeName, onRetry }: Ph
           {photos.slice(0, 6).map((photo, index) => (
             <div
               key={photo}
-              className="group relative aspect-square overflow-hidden rounded-lg bg-ink/[0.03]"
+              className="group bg-ink/3 relative aspect-square overflow-hidden rounded-lg"
             >
               <Image
                 src={photo}

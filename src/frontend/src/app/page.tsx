@@ -61,11 +61,11 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       {/* Nav */}
-      <header className="sticky top-0 z-40 border-b border-ink/[0.06] bg-slate-950/85 backdrop-blur">
+      <header className="border-ink/6 sticky top-0 z-40 border-b bg-slate-950/85 backdrop-blur-sm">
         <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
           <Link
             href="/"
-            className="flex items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+            className="flex items-center gap-2.5 rounded-lg focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 focus-visible:outline-hidden"
           >
             {/* eslint-disable-next-line @next/next/no-img-element -- static SVG, no optimisation to gain */}
             <img src="/icon.svg" alt="" aria-hidden="true" className="h-7 w-7" />
@@ -82,25 +82,25 @@ export default function LandingPage() {
           {/* A single, quiet light source. One accent colour, not a rainbow. */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute -top-40 left-1/2 h-[30rem] w-[52rem] -translate-x-1/2 rounded-full bg-blue-600/10 blur-3xl"
+            className="pointer-events-none absolute -top-40 left-1/2 h-120 w-208 -translate-x-1/2 rounded-full bg-blue-600/10 blur-3xl"
           />
 
-          <div className="relative mx-auto max-w-4xl px-5 pb-20 pt-24 text-center sm:pt-32">
+          <div className="relative mx-auto max-w-4xl px-5 pt-24 pb-20 text-center sm:pt-32">
             <Link
               href="#how"
-              className="inline-flex items-center gap-2 rounded-full border border-ink/10 bg-ink/[0.03] px-3.5 py-1.5 text-xs text-slate-300 transition-colors hover:border-ink/20 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+              className="border-ink/10 bg-ink/3 hover:border-ink/20 inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs text-slate-300 transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 focus-visible:outline-hidden"
             >
               <Sparkles aria-hidden="true" className="h-3.5 w-3.5 text-blue-400" />
               Readiness scoring is live for every route
               <ArrowRight aria-hidden="true" className="h-3 w-3" />
             </Link>
 
-            <h1 className="mt-8 text-balance text-4xl font-bold leading-[1.08] tracking-tight text-white sm:text-6xl">
+            <h1 className="mt-8 text-4xl leading-[1.08] font-bold tracking-tight text-balance text-white sm:text-6xl">
               Know if you can finish it
               <span className="block text-slate-500">before you are halfway up.</span>
             </h1>
 
-            <p className="mx-auto mt-6 max-w-xl text-pretty text-lg leading-relaxed text-slate-400">
+            <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-pretty text-slate-400">
               Fit Ready IQ scores every trail, summit and campsite against your real training data —
               so the hardest decision of the trip is made at home, not on the mountain.
             </p>
@@ -125,13 +125,13 @@ export default function LandingPage() {
             number the data does not support.
           */}
           <div className="relative mx-auto max-w-3xl px-5 pb-24">
-            <div className="rounded-2xl border border-ink/[0.08] bg-slate-900/60 p-6 shadow-2xl shadow-blue-950/30 sm:p-8">
+            <div className="border-ink/8 rounded-2xl border bg-slate-900/60 p-6 shadow-2xl shadow-blue-950/30 sm:p-8">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <Mountain aria-hidden="true" className="h-3.5 w-3.5" />
                     Summit route
-                    <span className="rounded-full border border-ink/10 bg-ink/[0.04] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-400">
+                    <span className="border-ink/10 bg-ink/4 rounded-full border px-2 py-0.5 text-[10px] font-medium tracking-wider text-slate-400 uppercase">
                       Example
                     </span>
                   </div>
@@ -140,7 +140,7 @@ export default function LandingPage() {
                 </div>
 
                 <div className="text-right">
-                  <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                  <div className="text-[10px] font-semibold tracking-widest text-slate-500 uppercase">
                     Your readiness
                   </div>
                   <div className="font-tabular text-3xl font-bold text-emerald-400">82</div>
@@ -151,12 +151,12 @@ export default function LandingPage() {
               <div
                 role="img"
                 aria-label="Example readiness score: 82 out of 100"
-                className="mt-6 h-1.5 overflow-hidden rounded-full bg-ink/[0.06]"
+                className="bg-ink/6 mt-6 h-1.5 overflow-hidden rounded-full"
               >
-                <div className="h-full w-[82%] rounded-full bg-gradient-to-r from-blue-500 to-emerald-400" />
+                <div className="h-full w-[82%] rounded-full bg-linear-to-r from-blue-500 to-emerald-400" />
               </div>
 
-              <dl className="mt-6 grid grid-cols-2 gap-4 border-t border-ink/[0.06] pt-6 sm:grid-cols-4">
+              <dl className="border-ink/6 mt-6 grid grid-cols-2 gap-4 border-t pt-6 sm:grid-cols-4">
                 {[
                   ['Weekly volume', '31 km'],
                   ['Elevation base', '1,940 m'],
@@ -164,7 +164,7 @@ export default function LandingPage() {
                   ['Forecast', '18°C, clear'],
                 ].map(([label, value]) => (
                   <div key={label}>
-                    <dt className="text-[10px] uppercase tracking-wider text-slate-500">{label}</dt>
+                    <dt className="text-[10px] tracking-wider text-slate-500 uppercase">{label}</dt>
                     <dd className="font-tabular mt-1 text-sm font-medium text-slate-200">
                       {value}
                     </dd>
@@ -176,9 +176,9 @@ export default function LandingPage() {
         </section>
 
         {/* Features */}
-        <section className="border-t border-ink/[0.06] py-24">
+        <section className="border-ink/6 border-t py-24">
           <div className="mx-auto max-w-6xl px-5">
-            <h2 className="max-w-2xl text-balance text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            <h2 className="max-w-2xl text-3xl font-bold tracking-tight text-balance text-white sm:text-4xl">
               Difficulty ratings describe the trail. We describe you on it.
             </h2>
 
@@ -197,7 +197,7 @@ export default function LandingPage() {
         </section>
 
         {/* How it works */}
-        <section id="how" className="scroll-mt-16 border-t border-ink/[0.06] py-24">
+        <section id="how" className="border-ink/6 scroll-mt-16 border-t py-24">
           <div className="mx-auto max-w-6xl px-5">
             <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
               Three steps, then you know.
@@ -225,7 +225,7 @@ export default function LandingPage() {
         </section>
 
         {/* Pricing */}
-        <section id="pricing" className="scroll-mt-16 border-t border-ink/[0.06] py-24">
+        <section id="pricing" className="border-ink/6 scroll-mt-16 border-t py-24">
           <div className="mx-auto max-w-6xl px-5">
             <div className="mx-auto max-w-2xl text-center">
               <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
@@ -244,10 +244,10 @@ export default function LandingPage() {
         </section>
 
         {/* Closing CTA */}
-        <section className="border-t border-ink/[0.06] py-24">
+        <section className="border-ink/6 border-t py-24">
           <div className="mx-auto max-w-2xl px-5 text-center">
             <Route aria-hidden="true" className="mx-auto h-7 w-7 text-blue-400" />
-            <h2 className="mt-6 text-balance text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            <h2 className="mt-6 text-3xl font-bold tracking-tight text-balance text-white sm:text-4xl">
               Your next summit is already on the map.
             </h2>
             <p className="mt-4 text-slate-400">
@@ -260,7 +260,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t border-ink/[0.06] py-10">
+      <footer className="border-ink/6 border-t py-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 text-xs text-slate-500 sm:flex-row">
           {/* This page is statically prerendered, so `new Date()` here would be
               the build date — the copyright froze at whenever we last deployed.
@@ -270,19 +270,19 @@ export default function LandingPage() {
           <div className="flex items-center gap-5">
             <Link
               href="/app"
-              className="rounded transition-colors hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+              className="rounded transition-colors hover:text-slate-300 focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 focus-visible:outline-hidden"
             >
               Open the app
             </Link>
             <Link
               href="#pricing"
-              className="rounded transition-colors hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+              className="rounded transition-colors hover:text-slate-300 focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 focus-visible:outline-hidden"
             >
               Pricing
             </Link>
             <Link
               href="/privacy"
-              className="rounded transition-colors hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+              className="rounded transition-colors hover:text-slate-300 focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 focus-visible:outline-hidden"
             >
               Privacy
             </Link>

@@ -127,11 +127,11 @@ export default function RouteFilter({ filters, onFilterChange }: RouteFilterProp
   const resetFilters = () => onFilterChange(DEFAULT_FILTERS);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-ink/[0.08] bg-ink/[0.03]">
+    <div className="border-ink/8 bg-ink/3 overflow-hidden rounded-xl border">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-ink/[0.06] px-4 py-3">
+      <div className="border-ink/6 flex items-center justify-between border-b px-4 py-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-ink/[0.06]">
+          <div className="bg-ink/6 flex h-6 w-6 items-center justify-center rounded-md">
             <SlidersHorizontal aria-hidden="true" className="h-3.5 w-3.5 text-slate-400" />
           </div>
           <span className="text-sm font-semibold text-slate-200">Filters</span>
@@ -146,7 +146,7 @@ export default function RouteFilter({ filters, onFilterChange }: RouteFilterProp
             <button
               type="button"
               onClick={resetFilters}
-              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-slate-500 transition-colors hover:bg-ink/[0.06] hover:text-slate-300"
+              className="hover:bg-ink/6 flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-slate-500 transition-colors hover:text-slate-300"
               title="Reset all filters"
             >
               <RotateCcw aria-hidden="true" className="h-3 w-3" />
@@ -157,7 +157,7 @@ export default function RouteFilter({ filters, onFilterChange }: RouteFilterProp
             type="button"
             aria-expanded={isExpanded}
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-medium text-slate-500 transition-colors hover:bg-ink/[0.06] hover:text-slate-300"
+            className="hover:bg-ink/6 flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-medium text-slate-500 transition-colors hover:text-slate-300"
           >
             {isExpanded ? (
               <>
@@ -178,7 +178,7 @@ export default function RouteFilter({ filters, onFilterChange }: RouteFilterProp
       <div className="space-y-4 p-4">
         {/* Activity */}
         <div>
-          <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+          <p className="mb-2.5 text-[10px] font-semibold tracking-widest text-slate-500 uppercase">
             Activity Type
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -193,7 +193,7 @@ export default function RouteFilter({ filters, onFilterChange }: RouteFilterProp
                   className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all active:scale-95 ${
                     active
                       ? opt.activeClass
-                      : 'border-ink/[0.08] bg-ink/[0.04] text-slate-400 hover:bg-ink/[0.08] hover:text-slate-300'
+                      : 'border-ink/8 bg-ink/4 hover:bg-ink/8 text-slate-400 hover:text-slate-300'
                   }`}
                 >
                   <opt.Icon aria-hidden="true" className="h-3.5 w-3.5" />
@@ -206,7 +206,7 @@ export default function RouteFilter({ filters, onFilterChange }: RouteFilterProp
 
         {/* Difficulty */}
         <div>
-          <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+          <p className="mb-2.5 text-[10px] font-semibold tracking-widest text-slate-500 uppercase">
             Difficulty
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -221,11 +221,11 @@ export default function RouteFilter({ filters, onFilterChange }: RouteFilterProp
                   className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all active:scale-95 ${
                     active
                       ? opt.activeClass
-                      : 'border-ink/[0.08] bg-ink/[0.04] text-slate-400 hover:bg-ink/[0.08] hover:text-slate-300'
+                      : 'border-ink/8 bg-ink/4 hover:bg-ink/8 text-slate-400 hover:text-slate-300'
                   }`}
                 >
                   <div
-                    className={`h-2 w-2 rounded-full ${opt.dot} ${active ? 'shadow-sm' : 'opacity-60'}`}
+                    className={`h-2 w-2 rounded-full ${opt.dot} ${active ? 'shadow-xs' : 'opacity-60'}`}
                   />
                   <span>{opt.label}</span>
                 </button>
@@ -237,11 +237,11 @@ export default function RouteFilter({ filters, onFilterChange }: RouteFilterProp
 
       {/* Advanced Filters */}
       {isExpanded && (
-        <div className="space-y-5 border-t border-ink/[0.06] p-4">
+        <div className="border-ink/6 space-y-5 border-t p-4">
           {/* Distance */}
           <div>
             <div className="mb-3 flex items-center justify-between">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+              <p className="text-[10px] font-semibold tracking-widest text-slate-500 uppercase">
                 Max Distance From You
               </p>
               <span className="rounded-md border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-xs font-semibold text-blue-400">
@@ -272,7 +272,7 @@ export default function RouteFilter({ filters, onFilterChange }: RouteFilterProp
           {/* Elevation Gain */}
           <div>
             <div className="mb-3 flex items-center justify-between">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+              <p className="text-[10px] font-semibold tracking-widest text-slate-500 uppercase">
                 Elevation Gain
               </p>
               <span className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-400">

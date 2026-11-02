@@ -12,6 +12,7 @@ import type { MapLayer } from '@/lib/mapLayers';
 import type { Route as RouteData, Mountain as MountainData, Campsite } from '@/lib/placesTypes';
 import type { SavedPlace } from '@/lib/useSavedPlaces';
 import type { ActivityPolyline } from '@/lib/activityTypes';
+import type { Map as MapLibreMap } from 'maplibre-gl';
 
 interface MapAreaProps {
   isLoading: boolean;
@@ -55,8 +56,8 @@ interface MapAreaProps {
   showWeatherRadar: boolean;
   onToggleWeatherRadar: () => void;
   onLocate: () => void;
-  mapInstance: google.maps.Map | null;
-  onMapReady: (map: google.maps.Map | null) => void;
+  mapInstance: MapLibreMap | null;
+  onMapReady: (map: MapLibreMap | null) => void;
   directionsTarget: DirectionsTarget | null;
   onClearDirections: () => void;
   plannerOpen: boolean;
@@ -75,8 +76,6 @@ interface MapAreaProps {
   onLoadPlan: (waypoints: PlannerWaypoint[]) => void;
   onMapClick: ((coordinates: [number, number], name?: string) => void) | undefined;
   hasPreciseLocation: boolean;
-  isLoaded: boolean;
-  loadError: Error | undefined;
   filteredRoutes: RouteData[];
   mountains: MountainData[];
   campsites: Campsite[];
@@ -183,8 +182,6 @@ export default function MapArea(props: MapAreaProps) {
         campsites={props.campsites}
         savedPlaces={props.savedPlaces}
         hasPreciseLocation={props.hasPreciseLocation}
-        isLoaded={props.isLoaded}
-        loadError={props.loadError}
         onRouteClick={props.onRouteClick}
         onMountainClick={props.onMountainClick}
         onCampsiteClick={props.onCampsiteClick}

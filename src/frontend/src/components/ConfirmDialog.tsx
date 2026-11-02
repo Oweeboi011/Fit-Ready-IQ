@@ -17,7 +17,7 @@ import { buttonSecondary, buttonSize } from '@/lib/ui';
  */
 const buttonDanger =
   'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 ' +
+  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 ' +
   'focus-visible:ring-offset-slate-950 disabled:cursor-not-allowed disabled:opacity-50 ' +
   'bg-red-600 text-white hover:bg-red-500 active:bg-red-700';
 

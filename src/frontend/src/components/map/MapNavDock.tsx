@@ -7,6 +7,7 @@ import {
 } from '@/components/NavDock';
 import type { Advisory } from '@/lib/advisories';
 import type { MapLayer } from '@/lib/mapLayers';
+import type { Map as MapLibreMap } from 'maplibre-gl';
 
 interface MapNavDockProps {
   areaLabel: string | null;
@@ -46,7 +47,7 @@ interface MapNavDockProps {
   showWeatherRadar: boolean;
   onToggleWeatherRadar: () => void;
   onLocate: () => void;
-  mapInstance: google.maps.Map | null;
+  mapInstance: MapLibreMap | null;
 }
 
 export default function MapNavDock({
@@ -120,8 +121,7 @@ export default function MapNavDock({
       advisorySource={advisorySource}
       onSelectAdvisory={(a) => {
         if (!a.coordinates) return;
-        mapInstance?.panTo({ lat: a.coordinates[1], lng: a.coordinates[0] });
-        mapInstance?.setZoom(12);
+        mapInstance?.flyTo({ center: a.coordinates, zoom: 12 });
       }}
       layerCounts={layerCounts}
       onToggleLayer={onToggleLayer}

@@ -399,12 +399,12 @@ export default function ConnectDevicesModal({
         {devices.map((device) => (
           <div
             key={device.id}
-            className="rounded-xl border border-ink/[0.06] bg-slate-800/50 p-4 transition-all hover:border-ink/10 hover:bg-slate-800/80"
+            className="border-ink/6 hover:border-ink/10 rounded-xl border bg-slate-800/50 p-4 transition-all hover:bg-slate-800/80"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex min-w-0 items-start gap-3.5">
                 <div
-                  className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ${deviceColorMap[device.id]} shadow-lg`}
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${deviceColorMap[device.id]} shadow-lg`}
                 >
                   <DeviceIcon id={device.id} />
                 </div>
@@ -423,7 +423,7 @@ export default function ConnectDevicesModal({
                         )}
                       </span>
                     ) : (
-                      <span className="inline-flex items-center rounded-full bg-ink/5 px-2.5 py-0.5 text-xs font-medium text-slate-400 ring-1 ring-ink/10">
+                      <span className="bg-ink/5 ring-ink/10 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-slate-400 ring-1">
                         Not connected
                       </span>
                     )}
@@ -436,7 +436,7 @@ export default function ConnectDevicesModal({
                     competed down the page. The brand colour now lives only on
                     the icon tile; the one primary is "Import", which appears
                     once files are actually staged. */}
-              <div className="flex flex-shrink-0 flex-col gap-2">
+              <div className="flex shrink-0 flex-col gap-2">
                 {device.status === 'disconnected' ? (
                   device.type === 'oauth' ? (
                     <button
@@ -615,7 +615,7 @@ export default function ConnectDevicesModal({
                 role="alert"
                 className="mt-3 rounded-lg border border-red-500/20 bg-red-500/10 p-3"
               >
-                <p className="whitespace-pre-line text-xs text-red-300">{parseError[device.id]}</p>
+                <p className="text-xs whitespace-pre-line text-red-300">{parseError[device.id]}</p>
                 <p className="mt-2 text-[11px] text-red-400/80">
                   These files are still selected — fix the export and press Import again.
                 </p>
@@ -624,13 +624,13 @@ export default function ConnectDevicesModal({
 
             {/* Selected files preview */}
             {selectedFiles[device.id]?.length > 0 && (
-              <div className="mt-3 rounded-lg border border-ink/[0.06] bg-ink/5 p-3">
+              <div className="border-ink/6 bg-ink/5 mt-3 rounded-lg border p-3">
                 <p className="mb-1.5 text-xs font-semibold text-slate-300">Ready to import:</p>
                 <ul className="space-y-1">
                   {selectedFiles[device.id].map((file, index) => (
                     <li key={index} className="flex items-center gap-2 text-xs text-slate-400">
                       <svg
-                        className="h-3.5 w-3.5 flex-shrink-0 text-slate-400"
+                        className="h-3.5 w-3.5 shrink-0 text-slate-400"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -643,7 +643,7 @@ export default function ConnectDevicesModal({
                         />
                       </svg>
                       <span className="truncate">{file.name}</span>
-                      <span className="flex-shrink-0 text-slate-400">
+                      <span className="shrink-0 text-slate-400">
                         ({(file.size / 1024).toFixed(1)} KB)
                       </span>
                     </li>
@@ -656,11 +656,11 @@ export default function ConnectDevicesModal({
       </div>
 
       {/* Footer */}
-      <div className="rounded-b-2xl border-t border-ink/[0.06] bg-slate-900/80 px-5 py-4">
+      <div className="border-ink/6 rounded-b-2xl border-t bg-slate-900/80 px-5 py-4">
         <div className="flex items-center gap-2 text-xs text-slate-400">
           <svg
             aria-hidden="true"
-            className="h-4 w-4 flex-shrink-0 text-slate-400"
+            className="h-4 w-4 shrink-0 text-slate-400"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"

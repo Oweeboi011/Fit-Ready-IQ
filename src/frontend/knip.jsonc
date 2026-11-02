@@ -11,5 +11,8 @@
     "lint-staged",
     "secretlint",
     "@secretlint/secretlint-rule-preset-recommend",
+    // Tailwind 4 is loaded by `@import 'tailwindcss'` in globals.css, which
+    // knip does not parse.
+    "tailwindcss",
   ],
 }

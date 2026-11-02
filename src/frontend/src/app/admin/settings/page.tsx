@@ -325,7 +325,7 @@ export default function AdminSettingsPage() {
             Checking access…
           </div>
         ) : (
-          <div className="w-full max-w-sm rounded-2xl border border-ink/[0.06] bg-slate-900/60 p-8 text-center">
+          <div className="border-ink/6 w-full max-w-sm rounded-2xl border bg-slate-900/60 p-8 text-center">
             <Shield aria-hidden="true" className="mx-auto mb-4 h-8 w-8 text-slate-600" />
             <h1 className="text-base font-semibold text-slate-200">
               {isSignedIn ? 'Admin access required' : 'Sign in to continue'}
@@ -367,7 +367,7 @@ export default function AdminSettingsPage() {
         }}
       />
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-ink/[0.06] bg-slate-900/80 backdrop-blur-md">
+      <header className="border-ink/6 sticky top-0 z-10 border-b bg-slate-900/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center gap-4 px-5 py-3.5">
           <Link
             href="/app"
@@ -376,7 +376,7 @@ export default function AdminSettingsPage() {
             <ChevronLeft aria-hidden="true" className="h-4 w-4" />
             Back to map
           </Link>
-          <div className="h-4 w-px bg-ink/10" />
+          <div className="bg-ink/10 h-4 w-px" />
           <div className="flex items-center gap-2">
             <Shield aria-hidden="true" className="h-4 w-4 text-blue-400" />
             <span className="text-sm font-semibold text-slate-200">Admin Settings</span>
@@ -397,15 +397,15 @@ export default function AdminSettingsPage() {
         )}
 
         {/* Tab bar */}
-        <div className="mb-8 flex gap-1 rounded-xl border border-ink/[0.06] bg-slate-900/60 p-1">
+        <div className="border-ink/6 mb-8 flex gap-1 rounded-xl border bg-slate-900/60 p-1">
           {tabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => selectTab(id)}
               className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
                 activeTab === id
-                  ? 'bg-blue-600 text-white shadow'
-                  : 'text-slate-400 hover:bg-ink/5 hover:text-slate-200'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'hover:bg-ink/5 text-slate-400 hover:text-slate-200'
               }`}
             >
               <Icon aria-hidden="true" className="h-4 w-4" />
@@ -417,7 +417,7 @@ export default function AdminSettingsPage() {
         {/* ── General Tab ─────────────────────────────────────────────── */}
         {activeTab === 'general' && (
           <div className="space-y-6">
-            <section className="rounded-xl border border-ink/[0.07] bg-slate-900/60 p-6">
+            <section className="border-ink/[0.07] rounded-xl border bg-slate-900/60 p-6">
               <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-slate-200">
                 <Settings aria-hidden="true" className="h-4 w-4 text-slate-500" />
                 Application
@@ -443,7 +443,7 @@ export default function AdminSettingsPage() {
                     type="text"
                     value="Fit-Ready-IQ"
                     readOnly
-                    className="w-full cursor-not-allowed rounded-lg border border-ink/[0.06] bg-slate-800/50 px-3 py-2 text-sm text-slate-400"
+                    className="border-ink/6 w-full cursor-not-allowed rounded-lg border bg-slate-800/50 px-3 py-2 text-sm text-slate-400"
                   />
                 </div>
                 <div>
@@ -458,7 +458,7 @@ export default function AdminSettingsPage() {
                     type="text"
                     value={process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:4790'}
                     readOnly
-                    className="w-full cursor-not-allowed rounded-lg border border-ink/[0.06] bg-slate-800/50 px-3 py-2 text-sm text-slate-400"
+                    className="border-ink/6 w-full cursor-not-allowed rounded-lg border bg-slate-800/50 px-3 py-2 text-sm text-slate-400"
                   />
                 </div>
                 <div>
@@ -473,13 +473,13 @@ export default function AdminSettingsPage() {
                     type="text"
                     value={process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '—'}
                     readOnly
-                    className="w-full cursor-not-allowed rounded-lg border border-ink/[0.06] bg-slate-800/50 px-3 py-2 text-sm text-slate-400"
+                    className="border-ink/6 w-full cursor-not-allowed rounded-lg border bg-slate-800/50 px-3 py-2 text-sm text-slate-400"
                   />
                 </div>
               </div>
             </section>
 
-            <section className="rounded-xl border border-ink/[0.07] bg-slate-900/60 p-6">
+            <section className="border-ink/[0.07] rounded-xl border bg-slate-900/60 p-6">
               <div className="mb-5 flex items-center justify-between">
                 <div>
                   <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-slate-200">
@@ -501,14 +501,14 @@ export default function AdminSettingsPage() {
                 {envVars.map(({ key, label, scope }) => (
                   <div
                     key={key}
-                    className="flex items-center gap-3 rounded-lg border border-ink/[0.05] bg-slate-800/40 px-3 py-2.5"
+                    className="border-ink/5 flex items-center gap-3 rounded-lg border bg-slate-800/40 px-3 py-2.5"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-medium text-slate-300">{label}</p>
                       <p className="truncate font-mono text-[10px] text-slate-500">{key}</p>
                     </div>
                     <span
-                      className={`flex-shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold ${
+                      className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold ${
                         scope === 'Client'
                           ? 'bg-blue-900/40 text-blue-300'
                           : 'bg-purple-900/40 text-purple-300'
@@ -517,12 +517,12 @@ export default function AdminSettingsPage() {
                       {scope}
                     </span>
                     {envConfigured[key] === undefined ? (
-                      <span className="flex-shrink-0 text-[10px] text-slate-600">
+                      <span className="shrink-0 text-[10px] text-slate-600">
                         Open Observability to check
                       </span>
                     ) : (
                       <span
-                        className={`flex flex-shrink-0 items-center gap-1 text-[10px] font-semibold ${
+                        className={`flex shrink-0 items-center gap-1 text-[10px] font-semibold ${
                           envConfigured[key] ? 'text-emerald-400' : 'text-amber-400'
                         }`}
                       >
@@ -542,7 +542,7 @@ export default function AdminSettingsPage() {
         {/* ── Observability Tab ────────────────────────────────────────── */}
         {activeTab === 'observability' && (
           <div className="space-y-6">
-            <section className="rounded-xl border border-ink/[0.07] bg-slate-900/60 p-6">
+            <section className="border-ink/[0.07] rounded-xl border bg-slate-900/60 p-6">
               <h2 className="mb-5 flex items-center gap-2 text-sm font-semibold text-slate-200">
                 <HeartPulse aria-hidden="true" className="h-4 w-4 text-slate-500" />
                 System Health
@@ -553,10 +553,7 @@ export default function AdminSettingsPage() {
                   already answers all of this on the server. */}
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {healthRows.map(({ label, value, status }) => (
-                  <div
-                    key={label}
-                    className="rounded-lg border border-ink/[0.05] bg-slate-800/40 p-4"
-                  >
+                  <div key={label} className="border-ink/5 rounded-lg border bg-slate-800/40 p-4">
                     <div className="mb-2 flex items-center justify-between">
                       <p className="text-xs font-medium text-slate-400">{label}</p>
                       <StatusBadge status={status} />
@@ -567,12 +564,12 @@ export default function AdminSettingsPage() {
               </div>
             </section>
 
-            <section className="rounded-xl border border-ink/[0.07] bg-slate-900/60 p-6">
+            <section className="border-ink/[0.07] rounded-xl border bg-slate-900/60 p-6">
               <h2 className="mb-5 flex items-center gap-2 text-sm font-semibold text-slate-200">
                 <AlertTriangle aria-hidden="true" className="h-4 w-4 text-slate-500" />
                 Error Logs
               </h2>
-              <div className="h-48 overflow-y-auto rounded-lg border border-ink/[0.05] bg-slate-950/60 p-4 font-mono text-[11px] text-slate-400">
+              <div className="border-ink/5 h-48 overflow-y-auto rounded-lg border bg-slate-950/60 p-4 font-mono text-[11px] text-slate-400">
                 <p className="text-slate-600">No critical errors in the last 24 hours.</p>
                 <p className="mt-1 text-slate-600">
                   Connect Application Insights or Vercel Log Drains for live logs.
@@ -580,7 +577,7 @@ export default function AdminSettingsPage() {
               </div>
             </section>
 
-            <section className="rounded-xl border border-ink/[0.07] bg-slate-900/60 p-6">
+            <section className="border-ink/[0.07] rounded-xl border bg-slate-900/60 p-6">
               <h2 className="mb-5 flex items-center gap-2 text-sm font-semibold text-slate-200">
                 <ToggleLeft aria-hidden="true" className="h-4 w-4 text-slate-500" />
                 Feature Flags
@@ -593,10 +590,10 @@ export default function AdminSettingsPage() {
                 {featureFlags.map(({ label, enabled, desc }) => (
                   <div
                     key={label}
-                    className="flex items-center gap-4 rounded-lg border border-ink/[0.05] bg-slate-800/40 px-4 py-3"
+                    className="border-ink/5 flex items-center gap-4 rounded-lg border bg-slate-800/40 px-4 py-3"
                   >
                     <div
-                      className={`h-2 w-2 flex-shrink-0 rounded-full ${enabled ? 'bg-emerald-400' : 'bg-slate-600'}`}
+                      className={`h-2 w-2 shrink-0 rounded-full ${enabled ? 'bg-emerald-400' : 'bg-slate-600'}`}
                     />
                     <div className="flex-1">
                       <p className="text-sm font-medium text-slate-200">{label}</p>
@@ -612,7 +609,7 @@ export default function AdminSettingsPage() {
               </div>
             </section>
 
-            <section className="rounded-xl border border-ink/[0.07] bg-slate-900/60 p-6">
+            <section className="border-ink/[0.07] rounded-xl border bg-slate-900/60 p-6">
               <div className="mb-5 flex items-center justify-between">
                 <div>
                   <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-slate-200">
@@ -626,7 +623,7 @@ export default function AdminSettingsPage() {
                 <button
                   onClick={loadStravaSync}
                   disabled={loadingStravaSync}
-                  className="flex items-center gap-1.5 rounded-lg border border-ink/[0.08] bg-slate-800/60 px-3 py-1.5 text-xs text-slate-400 transition-colors hover:text-slate-200 disabled:opacity-50"
+                  className="border-ink/8 flex items-center gap-1.5 rounded-lg border bg-slate-800/60 px-3 py-1.5 text-xs text-slate-400 transition-colors hover:text-slate-200 disabled:opacity-50"
                 >
                   <RefreshCw
                     aria-hidden="true"
@@ -644,7 +641,7 @@ export default function AdminSettingsPage() {
                   <p className="text-xs text-slate-500">Loading sync status…</p>
                 </div>
               ) : !stravaSyncStats || stravaSyncStats.total === 0 ? (
-                <div className="rounded-lg border border-dashed border-ink/10 px-4 py-8 text-center">
+                <div className="border-ink/10 rounded-lg border border-dashed px-4 py-8 text-center">
                   <Activity aria-hidden="true" className="mx-auto mb-2 h-6 w-6 text-slate-600" />
                   <p className="text-sm text-slate-500">No users have synced Strava data yet.</p>
                   <p className="mt-1 text-xs text-slate-600">
@@ -652,10 +649,10 @@ export default function AdminSettingsPage() {
                   </p>
                 </div>
               ) : (
-                <div className="overflow-hidden rounded-lg border border-ink/[0.05]">
+                <div className="border-ink/5 overflow-hidden rounded-lg border">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-ink/[0.06] bg-slate-900/80">
+                      <tr className="border-ink/6 border-b bg-slate-900/80">
                         <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-400">
                           User ID
                         </th>
@@ -670,9 +667,9 @@ export default function AdminSettingsPage() {
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-ink/[0.04] bg-slate-900/40">
+                    <tbody className="divide-ink/4 divide-y bg-slate-900/40">
                       {stravaSyncStats.entries.map((entry) => (
-                        <tr key={entry.uid} className="hover:bg-ink/[0.02]">
+                        <tr key={entry.uid} className="hover:bg-ink/2">
                           <td className="max-w-[140px] truncate px-4 py-3 font-mono text-[11px] text-slate-400">
                             {entry.uid}
                           </td>
@@ -705,7 +702,7 @@ export default function AdminSettingsPage() {
           // "$13.25" total under an eleven-pixel disclaimer. An operator cannot
           // tell a made-up dashboard from a real one at a glance, and would act
           // on it. Until a billing API is wired up, say nothing.
-          <div className="rounded-xl border border-dashed border-ink/[0.10] bg-slate-900/40 p-10 text-center">
+          <div className="border-ink/10 rounded-xl border border-dashed bg-slate-900/40 p-10 text-center">
             <BarChart2 aria-hidden="true" className="mx-auto mb-3 h-8 w-8 text-slate-600" />
             <h2 className="text-sm font-semibold text-slate-200">No usage data connected</h2>
             <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-slate-500">
@@ -728,7 +725,7 @@ export default function AdminSettingsPage() {
               </p>
               <button
                 onClick={loadUsers}
-                className="flex items-center gap-1.5 rounded-lg border border-ink/[0.08] bg-slate-800/60 px-3 py-1.5 text-xs text-slate-400 transition-colors hover:text-slate-200"
+                className="border-ink/8 flex items-center gap-1.5 rounded-lg border bg-slate-800/60 px-3 py-1.5 text-xs text-slate-400 transition-colors hover:text-slate-200"
               >
                 <RefreshCw
                   aria-hidden="true"
@@ -739,7 +736,7 @@ export default function AdminSettingsPage() {
             </div>
 
             {users.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-ink/10 bg-slate-900/40 px-6 py-16 text-center">
+              <div className="border-ink/10 rounded-xl border border-dashed bg-slate-900/40 px-6 py-16 text-center">
                 <Users aria-hidden="true" className="mx-auto mb-3 h-8 w-8 text-slate-600" />
                 <p className="text-sm font-medium text-slate-400">No users yet</p>
                 <p className="mt-1 text-xs text-slate-600">
@@ -748,10 +745,10 @@ export default function AdminSettingsPage() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-xl border border-ink/[0.07]">
+              <div className="border-ink/[0.07] overflow-hidden rounded-xl border">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-ink/[0.06] bg-slate-900/80">
+                    <tr className="border-ink/6 border-b bg-slate-900/80">
                       <th className="px-4 py-3 text-left text-xs font-medium text-slate-400">
                         User
                       </th>
@@ -766,9 +763,9 @@ export default function AdminSettingsPage() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-ink/[0.04] bg-slate-900/40">
+                  <tbody className="divide-ink/4 divide-y bg-slate-900/40">
                     {users.map((u) => (
-                      <tr key={u.uid} className="transition-colors hover:bg-ink/[0.02]">
+                      <tr key={u.uid} className="hover:bg-ink/2 transition-colors">
                         <td className="px-4 py-3">
                           <p className="font-medium text-slate-200">{u.displayName ?? '—'}</p>
                           <p className="text-xs text-slate-500">{u.email}</p>
@@ -816,9 +813,9 @@ export default function AdminSettingsPage() {
               ].map(({ label, value, icon: Icon, color }) => (
                 <div
                   key={label}
-                  className="flex items-center gap-4 rounded-xl border border-ink/[0.07] bg-slate-900/60 p-5"
+                  className="border-ink/[0.07] flex items-center gap-4 rounded-xl border bg-slate-900/60 p-5"
                 >
-                  <Icon aria-hidden="true" className={`h-6 w-6 flex-shrink-0 ${color}`} />
+                  <Icon aria-hidden="true" className={`h-6 w-6 shrink-0 ${color}`} />
                   <div>
                     <p className="text-2xl font-bold text-slate-100">{String(value)}</p>
                     <p className="text-xs text-slate-500">{label}</p>
@@ -837,7 +834,7 @@ export default function AdminSettingsPage() {
                 <button
                   onClick={loadCache}
                   disabled={loadingCache}
-                  className="flex items-center gap-1.5 rounded-lg border border-ink/[0.08] bg-slate-800/60 px-3 py-1.5 text-xs text-slate-400 transition-colors hover:text-slate-200 disabled:opacity-50"
+                  className="border-ink/8 flex items-center gap-1.5 rounded-lg border bg-slate-800/60 px-3 py-1.5 text-xs text-slate-400 transition-colors hover:text-slate-200 disabled:opacity-50"
                 >
                   <RefreshCw
                     aria-hidden="true"
@@ -858,7 +855,7 @@ export default function AdminSettingsPage() {
 
             {/* Entry table */}
             {loadingCache && !cacheStats ? (
-              <div className="rounded-xl border border-ink/[0.07] bg-slate-900/60 px-6 py-16 text-center">
+              <div className="border-ink/[0.07] rounded-xl border bg-slate-900/60 px-6 py-16 text-center">
                 <RefreshCw
                   aria-hidden="true"
                   className="mx-auto mb-3 h-6 w-6 animate-spin text-slate-600"
@@ -866,7 +863,7 @@ export default function AdminSettingsPage() {
                 <p className="text-sm text-slate-500">Loading cache entries…</p>
               </div>
             ) : !cacheStats || cacheStats.total === 0 ? (
-              <div className="rounded-xl border border-dashed border-ink/10 bg-slate-900/40 px-6 py-16 text-center">
+              <div className="border-ink/10 rounded-xl border border-dashed bg-slate-900/40 px-6 py-16 text-center">
                 <Database aria-hidden="true" className="mx-auto mb-3 h-8 w-8 text-slate-600" />
                 <p className="text-sm font-medium text-slate-400">Cache is empty</p>
                 <p className="mt-1 text-xs text-slate-600">
@@ -874,10 +871,10 @@ export default function AdminSettingsPage() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-xl border border-ink/[0.07]">
+              <div className="border-ink/[0.07] overflow-hidden rounded-xl border">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-ink/[0.06] bg-slate-900/80">
+                    <tr className="border-ink/6 border-b bg-slate-900/80">
                       <th className="px-4 py-3 text-left text-xs font-medium text-slate-400">
                         Grid cell
                       </th>
@@ -898,9 +895,9 @@ export default function AdminSettingsPage() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-ink/[0.04] bg-slate-900/40">
+                  <tbody className="divide-ink/4 divide-y bg-slate-900/40">
                     {cacheStats.entries.map((entry) => (
-                      <tr key={entry.gridKey} className="transition-colors hover:bg-ink/[0.02]">
+                      <tr key={entry.gridKey} className="hover:bg-ink/2 transition-colors">
                         <td className="px-4 py-3 font-mono text-xs text-slate-400">
                           {entry.gridKey}
                         </td>
@@ -909,7 +906,7 @@ export default function AdminSettingsPage() {
                             <div className="flex items-start gap-1.5">
                               <MapPin
                                 aria-hidden="true"
-                                className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-500"
+                                className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-500"
                               />
                               <div>
                                 <p className="line-clamp-1 text-xs leading-tight text-slate-300">

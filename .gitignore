@@ -114,3 +114,6 @@ deployed-rules.txt
 service-account*.json
 serviceAccount*.json
 *credentials*.json
+
+# Copied from maplibre-gl on dev/build (scripts/copy-maplibre-worker.ts)
+src/frontend/public/maplibre-gl-worker.mjs

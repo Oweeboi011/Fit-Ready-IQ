@@ -27,7 +27,7 @@ export default function CampsiteListItem({
   return (
     <div
       data-place-card
-      className="card-enter group relative w-full rounded-xl border border-ink/[0.07] bg-ink/5 px-3.5 py-3 text-left transition-all hover:border-emerald-500/30 hover:bg-emerald-500/[0.07] active:scale-[0.99]"
+      className="card-enter group border-ink/[0.07] bg-ink/5 relative w-full rounded-xl border px-3.5 py-3 text-left transition-all hover:border-emerald-500/30 hover:bg-emerald-500/[0.07] active:scale-[0.99]"
       style={{ animationDelay: `${index * 30}ms` }}
     >
       <div className="flex items-start justify-between gap-2">
@@ -35,17 +35,17 @@ export default function CampsiteListItem({
           <button
             type="button"
             onClick={onClick}
-            className="text-left after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-blue-400"
+            className="text-left after:absolute after:inset-0 after:rounded-xl focus-visible:outline-hidden focus-visible:after:ring-2 focus-visible:after:ring-blue-400"
           >
             {campsite.name}
           </button>
         </p>
-        <div className="flex flex-shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           {showSave && (
             <button
               type="button"
               onClick={onToggleSave}
-              className="relative z-10 -m-2 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded text-slate-500 transition-colors hover:text-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              className="relative z-10 -m-2 flex h-11 w-11 shrink-0 items-center justify-center rounded text-slate-500 transition-colors hover:text-amber-400 focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-hidden"
               aria-label={isSaved ? 'Unsave campsite' : 'Save campsite'}
             >
               <Bookmark
@@ -60,7 +60,7 @@ export default function CampsiteListItem({
         </div>
       </div>
       <div className="mt-2 flex items-center gap-1.5">
-        <span className="inline-flex items-center rounded-full bg-emerald-900/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-300 ring-1 ring-emerald-500/20">
+        <span className="inline-flex items-center rounded-full bg-emerald-900/50 px-2 py-0.5 text-[10px] font-medium tracking-wide text-emerald-300 uppercase ring-1 ring-emerald-500/20">
           {campsite.type}
         </span>
         {campsite.rating && (

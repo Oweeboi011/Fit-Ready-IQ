@@ -23,8 +23,8 @@ const GRID_DEGREES = 0.5;
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-xl border border-ink/[0.06] bg-slate-800/60 px-4 py-3">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+    <div className="border-ink/6 rounded-xl border bg-slate-800/60 px-4 py-3">
+      <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">{label}</p>
       <p className="font-tabular mt-1.5 text-xl font-bold text-white">{value}</p>
       {hint && <p className="mt-0.5 text-[10px] text-slate-500">{hint}</p>}
     </div>
@@ -33,7 +33,7 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 
 function Unavailable({ what, why }: { what: string; why: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-ink/10 bg-slate-900/40 p-6 text-center">
+    <div className="border-ink/10 rounded-xl border border-dashed bg-slate-900/40 p-6 text-center">
       <p className="text-sm font-semibold text-slate-200">{what}</p>
       <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-slate-500">{why}</p>
     </div>
@@ -69,25 +69,25 @@ export function ActivityTab({ data }: { data: AdminData }) {
       </div>
 
       {sync.entries.length > 0 && (
-        <div className="overflow-hidden rounded-xl border border-ink/[0.06]">
+        <div className="border-ink/6 overflow-hidden rounded-xl border">
           <table className="w-full text-left">
             <thead className="bg-slate-800/60">
               <tr>
-                <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <th className="px-3 py-2 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                   User
                 </th>
-                <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <th className="px-3 py-2 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                   Activities
                 </th>
-                <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <th className="px-3 py-2 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                   Last sync
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-ink/[0.04]">
+            <tbody className="divide-ink/4 divide-y">
               {sync.entries.slice(0, 8).map((entry) => (
                 <tr key={entry.uid}>
-                  <td className="max-w-[10rem] truncate px-3 py-2 font-mono text-[10px] text-slate-400">
+                  <td className="max-w-40 truncate px-3 py-2 font-mono text-[10px] text-slate-400">
                     {entry.uid}
                   </td>
                   <td className="font-tabular px-3 py-2 text-xs text-slate-200">
@@ -120,7 +120,7 @@ export function CostTab({ data }: { data: AdminData }) {
 
       {cache && (
         <div>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-300">
+          <h3 className="mb-2 text-xs font-semibold tracking-wider text-slate-300 uppercase">
             What we can measure
           </h3>
           {/* Cache reuse is the one cost lever the app actually controls, and
@@ -175,12 +175,12 @@ export function GovernanceTab({ data }: { data: AdminData }) {
         {rows.map(({ label, detail, ok }) => (
           <div
             key={label}
-            className="flex items-center gap-3 rounded-lg border border-ink/[0.05] bg-slate-800/40 px-3 py-2.5"
+            className="border-ink/5 flex items-center gap-3 rounded-lg border bg-slate-800/40 px-3 py-2.5"
           >
             {ok ? (
-              <CheckCircle aria-hidden="true" className="h-4 w-4 flex-shrink-0 text-emerald-400" />
+              <CheckCircle aria-hidden="true" className="h-4 w-4 shrink-0 text-emerald-400" />
             ) : (
-              <TriangleAlert aria-hidden="true" className="h-4 w-4 flex-shrink-0 text-amber-400" />
+              <TriangleAlert aria-hidden="true" className="h-4 w-4 shrink-0 text-amber-400" />
             )}
             <div className="min-w-0 flex-1">
               <p className="text-xs font-medium text-slate-200">{label}</p>
@@ -190,8 +190,8 @@ export function GovernanceTab({ data }: { data: AdminData }) {
         ))}
       </div>
 
-      <div className="rounded-xl border border-ink/[0.06] bg-slate-800/40 p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+      <div className="border-ink/6 rounded-xl border bg-slate-800/40 p-4">
+        <h3 className="text-xs font-semibold tracking-wider text-slate-300 uppercase">
           Access control
         </h3>
         <ul className="mt-2 space-y-1.5 text-[11px] leading-relaxed text-slate-400">
@@ -256,7 +256,7 @@ export function CachingTab({ data, onRefresh }: { data: AdminData; onRefresh: ()
         <Stat label="Stale" value={String(cache.stale)} />
       </div>
 
-      <div className="rounded-xl border border-ink/[0.06] bg-slate-800/40 p-4">
+      <div className="border-ink/6 rounded-xl border bg-slate-800/40 p-4">
         <div className="mb-2 flex items-baseline justify-between">
           <p className="text-xs font-medium text-slate-300">Fresh share</p>
           <p className="font-tabular text-xs font-bold text-white">{freshShare}%</p>
@@ -264,7 +264,7 @@ export function CachingTab({ data, onRefresh }: { data: AdminData; onRefresh: ()
         <div
           role="img"
           aria-label={`${freshShare} per cent of cached regions are fresh`}
-          className="h-1.5 w-full overflow-hidden rounded-full bg-ink/10"
+          className="bg-ink/10 h-1.5 w-full overflow-hidden rounded-full"
         >
           <div
             className={`h-full rounded-full ${freshShare >= 70 ? 'bg-emerald-500' : freshShare >= 40 ? 'bg-amber-500' : 'bg-red-500'}`}
@@ -358,8 +358,8 @@ export function EfficiencyTab({ data }: { data: AdminData }) {
         />
       )}
 
-      <div className="rounded-xl border border-ink/[0.06] bg-slate-800/40 p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+      <div className="border-ink/6 rounded-xl border bg-slate-800/40 p-4">
+        <h3 className="text-xs font-semibold tracking-wider text-slate-300 uppercase">
           Request budget
         </h3>
         <ul className="mt-2 space-y-1.5 text-[11px] leading-relaxed text-slate-400">

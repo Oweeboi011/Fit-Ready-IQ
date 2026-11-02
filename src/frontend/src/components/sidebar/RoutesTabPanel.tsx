@@ -37,9 +37,9 @@ function Band({
 }) {
   return (
     <section aria-label={title} className="mb-2">
-      <div className="px-1 pb-1.5 pt-1">
+      <div className="px-1 pt-1 pb-1.5">
         <p
-          className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${tone}`}
+          className={`flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase ${tone}`}
         >
           <Icon aria-hidden="true" className="h-3 w-3" />
           {title}
@@ -88,7 +88,7 @@ export default function RoutesTabPanel({
   if (list.length === 0) {
     const filtersActive = JSON.stringify(filters) !== JSON.stringify(DEFAULT_FILTERS);
     return (
-      <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-ink/10 px-4 py-10 text-center">
+      <div className="border-ink/10 flex flex-col items-center gap-2 rounded-xl border border-dashed px-4 py-10 text-center">
         <Search aria-hidden="true" className="h-6 w-6 text-slate-600" />
         {searchQuery ? (
           <>
@@ -189,7 +189,7 @@ export default function RoutesTabPanel({
       )}
 
       {(ready.length > 0 || stretch.length > 0) && (
-        <p className="px-1 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+        <p className="px-1 pt-3 pb-1 text-[10px] font-semibold tracking-wider text-slate-500 uppercase">
           All routes nearby
         </p>
       )}

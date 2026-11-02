@@ -187,6 +187,12 @@ function writeFirestoreCache(
 
 interface UsePlacesDataParams {
   isLoaded: boolean;
+  /**
+   * The Places script failed to load, or there is no key to load it with.
+   * Discovery then never starts, so it must say so rather than spin: the map
+   * no longer depends on Google and stays up around the failure.
+   */
+  discoveryUnavailable?: boolean;
   userLocation: UserLocation | null;
   locationStatus: LocationStatus;
   locationSource: LocationSource | null;
@@ -201,6 +207,7 @@ interface UsePlacesDataParams {
 // than being owned here.
 export function usePlacesData({
   isLoaded,
+  discoveryUnavailable = false,
   userLocation,
   locationStatus,
   locationSource,
@@ -391,8 +398,12 @@ export function usePlacesData({
     routes,
     mountains,
     campsites,
-    isLoading,
-    error,
+    isLoading: isLoading && !discoveryUnavailable,
+    error:
+      error ??
+      (discoveryUnavailable
+        ? 'Place discovery could not start. Reload the page to try again.'
+        : null),
     setError,
     failedCollections,
     elevationUnavailable,

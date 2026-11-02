@@ -1,8 +1,10 @@
 'use client';
 
 import { Car, Footprints, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import type { Map as MapLibreMap } from 'maplibre-gl';
+import { useEffect, useState } from 'react';
 
+import { boundsOf } from '@/lib/mapStyle';
 import { decodePolyline } from '@/lib/polylineDecoder';
 import { buttonGhost, buttonSize } from '@/lib/ui';
 
@@ -15,10 +17,12 @@ export interface DirectionsTarget {
 export type TravelMode = 'DRIVING' | 'WALKING';
 
 interface MapDirectionsProps {
-  map: google.maps.Map | null;
+  map: MapLibreMap | null;
   origin: { lat: number; lng: number } | null;
   target: DirectionsTarget | null;
   onClear: () => void;
+  /** The routed line, `[lng, lat]`, for the map to draw; empty to clear it. */
+  onPathChange: (path: [number, number][]) => void;
 }
 
 interface Leg {
@@ -37,7 +41,7 @@ function ModeToggle({ mode, onChange }: { mode: TravelMode; onChange: (m: Travel
     <div
       role="radiogroup"
       aria-label="Travel mode"
-      className="flex items-center gap-0.5 rounded-lg border border-ink/10 bg-ink/[0.03] p-0.5"
+      className="border-ink/10 bg-ink/3 flex items-center gap-0.5 rounded-lg border p-0.5"
     >
       {options.map(({ id, label, Icon }) => (
         <button
@@ -52,7 +56,7 @@ function ModeToggle({ mode, onChange }: { mode: TravelMode; onChange: (m: Travel
             e.preventDefault();
             onChange(mode === 'DRIVING' ? 'WALKING' : 'DRIVING');
           }}
-          className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+          className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-hidden ${
             mode === id ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -80,36 +84,14 @@ function ModeToggle({ mode, onChange }: { mode: TravelMode; onChange: (m: Travel
  * `DirectionsService` this used to call is the legacy Directions API, which
  * Google no longer enables on new projects.
  */
-export function MapDirections({ map, origin, target, onClear }: MapDirectionsProps) {
+export function MapDirections({ map, origin, target, onClear, onPathChange }: MapDirectionsProps) {
   const [mode, setMode] = useState<TravelMode>('DRIVING');
   const [leg, setLeg] = useState<Leg | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
-  const lineRef = useRef<google.maps.Polyline | null>(null);
-
-  // One polyline for the lifetime of the map, redrawn per destination.
-  useEffect(() => {
-    if (!map) return;
-    const line = new google.maps.Polyline({
-      map,
-      path: [],
-      strokeColor: '#3b82f6',
-      strokeWeight: 5,
-      strokeOpacity: 0.9,
-      zIndex: 500,
-    });
-    lineRef.current = line;
-    return () => {
-      line.setMap(null);
-      lineRef.current = null;
-    };
-  }, [map]);
 
   useEffect(() => {
-    const line = lineRef.current;
-    if (!line) return;
-
     if (!target || !origin) {
-      line.setPath([]);
+      onPathChange([]);
       // eslint-disable-next-line react-hooks/set-state-in-effect -- resets to idle when the input goes away, after the previous run has been cancelled
       setLeg(null);
       setStatus('idle');
@@ -137,7 +119,7 @@ export function MapDirections({ map, origin, target, onClear }: MapDirectionsPro
         (data: { polyline: string; distanceKm: number | null; durationSeconds: number | null }) => {
           if (cancelled) return;
           const path = decodePolyline(data.polyline);
-          line.setPath(path.map(([lng, lat]) => ({ lat, lng })));
+          onPathChange(path);
 
           // A missing figure reads as a dash; "0 min" to a summit is an answer
           // someone could plan around.
@@ -155,9 +137,8 @@ export function MapDirections({ map, origin, target, onClear }: MapDirectionsPro
           setStatus('idle');
 
           // Frame the route so it is not off-screen.
-          const bounds = new google.maps.LatLngBounds();
-          path.forEach(([lng, lat]) => bounds.extend({ lat, lng }));
-          map?.fitBounds(bounds, 80);
+          const bounds = boundsOf(path);
+          if (bounds) map?.fitBounds(bounds, { padding: 80 });
         }
       )
       .catch((err) => {
@@ -165,14 +146,14 @@ export function MapDirections({ map, origin, target, onClear }: MapDirectionsPro
         // ZERO_RESULTS is meaningful: there is often no drivable route to a
         // summit. Say so rather than showing an empty map.
         console.error('Directions failed:', err);
-        line.setPath([]);
+        onPathChange([]);
         setStatus('error');
       });
 
     return () => {
       cancelled = true;
     };
-  }, [map, origin, target, mode]);
+  }, [map, origin, target, mode, onPathChange]);
 
   if (!target) return null;
 
@@ -182,11 +163,11 @@ export function MapDirections({ map, origin, target, onClear }: MapDirectionsPro
     <div className="pointer-events-none absolute inset-x-0 top-6 z-30 flex justify-center px-4">
       <div
         role="status"
-        className="pointer-events-auto w-[min(26rem,100%)] rounded-2xl border border-ink/10 bg-slate-900/95 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl"
+        className="border-ink/10 pointer-events-auto w-[min(26rem,100%)] rounded-2xl border bg-slate-900/95 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
               Directions to
             </p>
             <p className="truncate text-sm font-semibold text-white">{target.name}</p>
@@ -195,7 +176,7 @@ export function MapDirections({ map, origin, target, onClear }: MapDirectionsPro
             type="button"
             onClick={onClear}
             aria-label="Clear directions"
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-ink/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+            className="hover:bg-ink/10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:text-white focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-hidden"
           >
             <X aria-hidden="true" className="h-3.5 w-3.5" />
           </button>
@@ -220,7 +201,7 @@ export function MapDirections({ map, origin, target, onClear }: MapDirectionsPro
             href={externalUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className={`${buttonGhost} ${buttonSize.sm} ml-auto flex-shrink-0`}
+            className={`${buttonGhost} ${buttonSize.sm} ml-auto shrink-0`}
           >
             Navigate
           </a>

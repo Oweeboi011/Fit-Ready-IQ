@@ -36,12 +36,9 @@ function NoteList({
   return (
     <ul className="space-y-2">
       {notes.map((note) => (
-        <li
-          key={note.title}
-          className="rounded-xl border border-ink/[0.06] bg-slate-800/40 px-4 py-3"
-        >
+        <li key={note.title} className="border-ink/6 rounded-xl border bg-slate-800/40 px-4 py-3">
           <div className="flex items-center gap-2">
-            <Icon aria-hidden="true" className={`h-3.5 w-3.5 flex-shrink-0 ${tone}`} />
+            <Icon aria-hidden="true" className={`h-3.5 w-3.5 shrink-0 ${tone}`} />
             <p className="text-xs font-semibold text-slate-200">{note.title}</p>
           </div>
           <p className="mt-1.5 text-[11px] leading-relaxed text-slate-400">{note.body}</p>
@@ -85,7 +82,7 @@ export default function RoadmapModal({
       maxWidth="max-w-2xl"
       title={
         <div className="flex items-start gap-3">
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-blue-500/15">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/15">
             <Compass aria-hidden="true" className="h-4 w-4 text-blue-400" />
           </div>
           <div>
@@ -103,10 +100,10 @@ export default function RoadmapModal({
           <div
             role="img"
             aria-label={`Roadmap ${percent} per cent complete`}
-            className="h-1.5 w-full overflow-hidden rounded-full bg-ink/10"
+            className="bg-ink/10 h-1.5 w-full overflow-hidden rounded-full"
           >
             <div
-              className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-400 transition-all"
+              className="h-full rounded-full bg-linear-to-r from-blue-500 to-emerald-400 transition-all"
               style={{ width: `${percent}%` }}
             />
           </div>
@@ -115,7 +112,7 @@ export default function RoadmapModal({
         <div
           role="tablist"
           aria-label="Roadmap view"
-          className="mb-5 grid grid-cols-2 gap-1 rounded-xl border border-ink/[0.06] bg-ink/[0.03] p-1"
+          className="border-ink/6 bg-ink/3 mb-5 grid grid-cols-2 gap-1 rounded-xl border p-1"
         >
           {(
             [
@@ -129,10 +126,10 @@ export default function RoadmapModal({
               role="tab"
               aria-selected={view === id}
               onClick={() => setView(id)}
-              className={`min-h-11 rounded-lg px-3 py-1.5 text-[11px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+              className={`min-h-11 rounded-lg px-3 py-1.5 text-[11px] font-medium transition-all focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-hidden ${
                 view === id
-                  ? 'bg-blue-600 text-white shadow'
-                  : 'text-slate-400 hover:bg-ink/5 hover:text-slate-200'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'hover:bg-ink/5 text-slate-400 hover:text-slate-200'
               }`}
             >
               {label}
@@ -153,17 +150,17 @@ export default function RoadmapModal({
                     return (
                       <li
                         key={item.title}
-                        className="flex gap-3 rounded-xl border border-ink/[0.06] bg-slate-800/40 px-3 py-2.5"
+                        className="border-ink/6 flex gap-3 rounded-xl border bg-slate-800/40 px-3 py-2.5"
                       >
                         <span
                           aria-hidden="true"
-                          className={`mt-1.5 h-2 w-2 flex-shrink-0 rounded-full ${meta.dot}`}
+                          className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${meta.dot}`}
                         />
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-baseline gap-2">
                             <p className="text-xs font-medium text-slate-200">{item.title}</p>
                             <span
-                              className={`text-[9px] font-bold uppercase tracking-wider ${meta.text}`}
+                              className={`text-[9px] font-bold tracking-wider uppercase ${meta.text}`}
                             >
                               {meta.label}
                             </span>
