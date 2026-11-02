@@ -174,6 +174,29 @@ function weatherHours(args: Record<string, unknown>): number | null {
   return typeof hours === 'number' && hours > 0 && hours <= 240 ? Math.round(hours) : null;
 }
 
+function redactWeatherReport(report: unknown): unknown {
+  if (!report || typeof report !== 'object') return report;
+
+  const clone = { ...(report as Record<string, unknown>) };
+  const location = clone.location;
+  if (location && typeof location === 'object') {
+    const safeLocation = { ...(location as Record<string, unknown>) };
+    delete safeLocation.lat;
+    delete safeLocation.lng;
+    delete safeLocation.latitude;
+    delete safeLocation.longitude;
+    clone.location = safeLocation;
+  }
+
+  delete clone.lat;
+  delete clone.lng;
+  delete clone.latitude;
+  delete clone.longitude;
+  delete clone.coordinates;
+
+  return clone;
+}
+
 /** Runs one tool call. Never throws: a failure is reported to the model as a result. */
 export async function runTool(
   name: string,
@@ -194,8 +217,9 @@ export async function runTool(
       }
       try {
         const report = await deps.weather(point[1], point[0], weatherHours(args));
+        const safeReport = redactWeatherReport(report);
         return {
-          response: { at: ctx.openPlace?.place.name ?? "the user's location", report },
+          response: { at: ctx.openPlace?.place.name ?? "the user's location", report: safeReport },
         };
       } catch {
         return {
