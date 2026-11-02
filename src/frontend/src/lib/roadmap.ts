@@ -128,9 +128,9 @@ export const ROADMAP: RoadmapPhase[] = [
       },
       {
         title: 'Walking and cycling routing',
-        status: 'partial',
+        status: 'done',
         detail:
-          'Plan on foot or by bike; the line and the distance come from the router for that mode. Where no route exists the planner says so rather than drawing a straight line.',
+          'Plan on foot or by bike on OpenStreetMap paths, with no API key. Where no route exists the planner says so rather than drawing a straight line.',
       },
       {
         title: 'Free map and place data',

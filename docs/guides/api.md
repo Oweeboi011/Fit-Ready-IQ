@@ -134,7 +134,8 @@ key is set and 502 when the provider fails. No Firestore cache exists.
 ### GET /api/health
 
 Public, and checks only that credentials are **present**; it makes no live calls. Services:
-`maps`, `firebase_client`, `firebase_admin`, `gemini`, `weather`, `routing`, `strava`,
+`firebase_client`, `firebase_admin`, `gemini`, `weather`, `routing` (which router, never a failure),
+`strava`,
 `rate_limiting`. Status is `healthy` (0 failing), `degraded` (1–2, HTTP 200) or `unhealthy`
 (3+, HTTP 503). It names no project or client id. `uptime.yml` polls it.
 
@@ -196,10 +197,12 @@ before the Auth account, so the user can retry; the audit record says how far it
 
 ### POST /api/directions
 
-Google Routes proxy. `origin`, `destination` (`{lat,lng}`, range-checked), optional
-`intermediates` (first 25 used), `mode` (`DRIVE` | `WALK` | `BICYCLE`). Returns
-`{ polyline, distanceKm, durationSeconds }`; the two numbers are `null` when Routes did not report
-them. 120/hour.
+OSRM proxy (FOSSGIS's public servers, or `ROUTING_API_URL`). No key. `origin`, `destination`
+(`{lat,lng}`, range-checked), optional `intermediates` (first 25 used), `mode` (`DRIVE` |
+`WALK` | `BICYCLE`, mapped to OSRM's car, foot and bike profiles). Returns
+`{ polyline, distanceKm, durationSeconds }`; the two numbers are `null` when the router did not
+report them. Failures carry a `reason`: `no_route` (404), `busy` (the public server refused for
+load), `upstream`, `timeout`, `bad_request`. CDN-cached a day. 120/hour.
 
 ### GET /api/advisories
 

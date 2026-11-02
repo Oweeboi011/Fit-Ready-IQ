@@ -162,7 +162,8 @@ export default function AdminSettingsPage() {
   }
 
   const HEALTH_LABELS: Record<string, string> = {
-    maps: 'Google Maps',
+    routing: 'Routing',
+    rate_limiting: 'Rate limiting',
     firebase_client: 'Firebase Auth',
     firebase_admin: 'Firebase Admin',
     gemini: 'Gemini API',
@@ -173,7 +174,6 @@ export default function AdminSettingsPage() {
   /** Which env vars the server reports as present, keyed as the table lists them. */
   const envConfigured: Record<string, boolean | undefined> = health
     ? {
-        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: health.maps?.ok,
         NEXT_PUBLIC_FIREBASE_PROJECT_ID: health.firebase_client?.ok,
         GEMINI_API_KEY: health.gemini?.ok,
         FIREBASE_SERVICE_ACCOUNT_KEY_JSON: health.firebase_admin?.ok,
@@ -218,7 +218,6 @@ export default function AdminSettingsPage() {
 
   // General settings state (reads from env for display only — edits go via Vercel dashboard)
   const envVars = [
-    { key: 'NEXT_PUBLIC_GOOGLE_MAPS_API_KEY', label: 'Google Maps API Key', scope: 'Client' },
     { key: 'NEXT_PUBLIC_FIREBASE_PROJECT_ID', label: 'Firebase Project ID', scope: 'Client' },
     { key: 'GEMINI_API_KEY', label: 'Gemini API Key', scope: 'Server' },
     { key: 'FIREBASE_SERVICE_ACCOUNT_KEY_JSON', label: 'Firebase Admin JSON', scope: 'Server' },
