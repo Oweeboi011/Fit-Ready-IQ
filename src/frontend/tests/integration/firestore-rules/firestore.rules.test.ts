@@ -170,7 +170,7 @@ describe('users/{uid}/trips', () => {
     await assertSucceeds(setDoc(doc(alice(), 'users/alice/trips/t1'), trip()));
     await assertSucceeds(
       updateDoc(doc(alice(), 'users/alice/trips/t1'), {
-        checkedInAt: 1_800_000_000_000 + 5 * 3_600_000,
+        checkedInAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
     );
@@ -210,6 +210,31 @@ describe('users/{uid}/trips', () => {
   it('takes the write time from the server, not the client', async () => {
     await assertFails(
       setDoc(doc(alice(), 'users/alice/trips/t'), trip({ updatedAt: new Date(0) }))
+    );
+  });
+
+  it("refuses a check-in stamped by the phone's clock", async () => {
+    await assertSucceeds(setDoc(doc(alice(), 'users/alice/trips/t1'), trip()));
+    await assertFails(
+      updateDoc(doc(alice(), 'users/alice/trips/t1'), {
+        checkedInAt: 1_800_000_000_000,
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  it('refuses a target with coordinates that are not a place', async () => {
+    await assertFails(
+      setDoc(
+        doc(alice(), 'users/alice/trips/t'),
+        trip({ target: { kind: 'mountain', id: 'x', name: 'x', coordinates: ['a', 'b'] } })
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(alice(), 'users/alice/trips/t'),
+        trip({ target: { kind: 'mountain', id: 'x', name: 'x', coordinates: [200, 0] } })
+      )
     );
   });
 });

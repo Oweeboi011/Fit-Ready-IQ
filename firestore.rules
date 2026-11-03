@@ -78,10 +78,17 @@ service cloud.firestore {
         && t.id is string && t.id.size() <= 128
         && t.name is string && t.name.size() > 0 && t.name.size() <= 200
         && t.coordinates is list && t.coordinates.size() == 2
+        && t.coordinates[0] is number && t.coordinates[1] is number
+        && t.coordinates[0] >= -180 && t.coordinates[0] <= 180
+        && t.coordinates[1] >= -90 && t.coordinates[1] <= 90
         && d.startAt is number && d.expectedReturnAt is number
         && d.expectedReturnAt > d.startAt
         && d.expectedReturnAt - d.startAt <= 14 * 86400000
-        && (d.checkedInAt == null || d.checkedInAt is number)
+        // The server's clock, never the phone's: the safety timer will compare
+        // a check-in with the expected return. Unchanged on any other update.
+        && (d.checkedInAt == null
+            || d.checkedInAt == request.time
+            || (resource != null && d.checkedInAt == resource.data.checkedInAt))
         && d.notes is string && d.notes.size() <= 500
         && d.updatedAt == request.time;
     }
