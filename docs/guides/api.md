@@ -38,7 +38,7 @@ flowchart LR
 
 ### POST /api/chat
 
-**Description:** Sends the user's turn to Gemini 2.5 Flash and returns the reply.
+**Description:** Sends the user's turn to Gemini Flash (`gemini-3.6-flash` unless `GEMINI_MODEL` names another) and returns the reply.
 
 **Identity:** optional. A signed-in caller sends `Authorization: Bearer <Firebase ID token>`
 (the widget uses `optionallyAuthedFetch`). Rate-limited to 20/hour per verified uid, or per IP

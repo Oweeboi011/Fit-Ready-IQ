@@ -23,7 +23,7 @@ difficulty or readiness is displayed as unknown.
 ## Stack
 
 Next.js 16 (App Router) on Vercel · Firebase Auth + Firestore · Google Maps, Places,
-Elevation, Routes and Weather · Strava · Gemini 2.5 Flash. A FastAPI backend in
+Elevation, Routes and Weather · Strava · Gemini Flash. A FastAPI backend in
 `src/backend/` follows Clean Architecture and is **not deployed**.
 
 ```mermaid
