@@ -57,6 +57,8 @@ export default defineConfig({
         // Shared UI primitives: every dialog and gallery in the app is built on these.
         'src/components/Modal.tsx',
         'src/components/ConfirmDialog.tsx',
+        'src/components/TripsModal.tsx',
+        'src/lib/trips.ts',
         'src/components/PhotoGallery.tsx',
         'src/components/RouteFilter.tsx',
         'src/components/WeatherWindowPanel.tsx',

@@ -47,6 +47,7 @@ import { computeReadiness } from '@/lib/readiness';
 import type { Activity } from '@/lib/activityTypes';
 import type { RouteDetails, DetailsData } from '@/lib/detailsData';
 import { useMeasuredClimb } from '@/lib/useMeasuredClimb';
+import type { TripDraft } from '@/components/TripsModal';
 import { PhotoGallery } from '@/components/PhotoGallery';
 import { ShareButton } from '@/components/ShareButton';
 import { buttonPrimary, buttonSecondary, buttonSize } from '@/lib/ui';
@@ -142,6 +143,8 @@ interface DetailsModalProps {
   data: DetailsData | null;
   /** Draws the route on our own map instead of handing the user to Google. */
   onGetDirections?: (target: { name: string; coordinates: [number, number] }) => void;
+  /** Opens the trip form for the place on screen (ADR-0003). */
+  onPlanTrip?: (draft: TripDraft) => void;
   /** Training history, for the readiness score. */
   activities?: Activity[];
   onConnectDevices?: () => void;
@@ -152,11 +155,33 @@ export default function DetailsModal({
   onClose,
   data: selected,
   onGetDirections,
+  onPlanTrip,
   activities = [],
   onConnectDevices,
 }: DetailsModalProps) {
   // An unrated route gets its climb measured from terrain when opened (#142).
   const { details: data, climbSource, measuredClimb } = useMeasuredClimb(isOpen ? selected : null);
+  const planTripButton =
+    onPlanTrip && data && data.type !== 'activity' ? (
+      <button
+        type="button"
+        onClick={() => {
+          onPlanTrip({
+            target: {
+              kind: data.type,
+              id: data.id,
+              name: data.name,
+              coordinates: data.coordinates,
+            },
+            elevationGainM: data.type === 'route' ? data.elevation_gain_m : null,
+          });
+          onClose();
+        }}
+        className={`${buttonSecondary} ${buttonSize.md}`}
+      >
+        Plan a trip
+      </button>
+    ) : null;
   const [liveWeather, setLiveWeather] = useState<WeatherResult | null>(null);
   const [weatherStatus, setWeatherStatus] = useState<WeatherStatus>('idle');
   // Bumped by the retry button to re-run the weather effect.
@@ -993,6 +1018,7 @@ export default function DetailsModal({
                   >
                     Get Directions
                   </button>
+                  {planTripButton}
                   <ShareButton
                     kind="route"
                     id={data.id}
@@ -1450,6 +1476,7 @@ export default function DetailsModal({
               >
                 Get Directions
               </button>
+              {planTripButton}
               <ShareButton
                 kind="mountain"
                 id={data.id}
@@ -1717,6 +1744,7 @@ export default function DetailsModal({
               >
                 Get Directions
               </button>
+              {planTripButton}
               <ShareButton kind="campsite" id={data.id} name={data.name} />
             </div>
           </div>

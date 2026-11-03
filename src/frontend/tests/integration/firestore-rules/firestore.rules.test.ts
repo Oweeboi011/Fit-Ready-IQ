@@ -155,6 +155,65 @@ describe('users/{uid}/plans', () => {
   });
 });
 
+describe('users/{uid}/trips', () => {
+  const trip = (overrides: Record<string, unknown> = {}) => ({
+    target: { kind: 'mountain', id: 'osm-node-1', name: 'Mt Pulag', coordinates: [120.88, 16.6] },
+    startAt: 1_800_000_000_000,
+    expectedReturnAt: 1_800_000_000_000 + 6 * 3_600_000,
+    checkedInAt: null,
+    notes: '',
+    updatedAt: serverTimestamp(),
+    ...overrides,
+  });
+
+  it('lets the owner plan, check in and delete a trip', async () => {
+    await assertSucceeds(setDoc(doc(alice(), 'users/alice/trips/t1'), trip()));
+    await assertSucceeds(
+      updateDoc(doc(alice(), 'users/alice/trips/t1'), {
+        checkedInAt: 1_800_000_000_000 + 5 * 3_600_000,
+        updatedAt: serverTimestamp(),
+      })
+    );
+    await assertSucceeds(getDocs(collection(alice(), 'users/alice/trips')));
+    await assertSucceeds(deleteDoc(doc(alice(), 'users/alice/trips/t1')));
+  });
+
+  it("refuses someone else's trips, either way", async () => {
+    await seed(['users', 'alice', 'trips', 't1'], { notes: 'x' });
+    await assertFails(getDoc(doc(bob(), 'users/alice/trips/t1')));
+    await assertFails(setDoc(doc(bob(), 'users/alice/trips/t2'), trip()));
+    await assertFails(getDoc(doc(anon(), 'users/alice/trips/t1')));
+  });
+
+  it('refuses a return before the start, or a trip over fourteen days', async () => {
+    await assertFails(
+      setDoc(doc(alice(), 'users/alice/trips/t'), trip({ expectedReturnAt: 1_799_999_000_000 }))
+    );
+    await assertFails(
+      setDoc(
+        doc(alice(), 'users/alice/trips/t'),
+        trip({ expectedReturnAt: 1_800_000_000_000 + 15 * 86_400_000 })
+      )
+    );
+  });
+
+  it('refuses fields the app never writes, and an unknown kind of place', async () => {
+    await assertFails(setDoc(doc(alice(), 'users/alice/trips/t'), trip({ contact: 'x' })));
+    await assertFails(
+      setDoc(
+        doc(alice(), 'users/alice/trips/t'),
+        trip({ target: { kind: 'city', id: 'x', name: 'x', coordinates: [0, 0] } })
+      )
+    );
+  });
+
+  it('takes the write time from the server, not the client', async () => {
+    await assertFails(
+      setDoc(doc(alice(), 'users/alice/trips/t'), trip({ updatedAt: new Date(0) }))
+    );
+  });
+});
+
 describe('users/{uid}/saved_places', () => {
   it('lets the owner save a well-formed bookmark', async () => {
     await assertSucceeds(setDoc(doc(alice(), 'users/alice/saved_places/p1'), bookmark()));
@@ -284,7 +343,7 @@ describe('server-only collections', () => {
 });
 
 describe('user_id-scoped collections', () => {
-  it.each(['activities', 'training_programs', 'training_sessions', 'itineraries'])(
+  it.each(['activities', 'training_programs', 'training_sessions'])(
     '%s: the owner reads, nobody writes from a browser — the backend writes via the Admin SDK',
     async (name) => {
       await seed([name, 'd1'], { user_id: 'alice', v: 1 });

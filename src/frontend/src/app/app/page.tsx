@@ -9,6 +9,7 @@ import AppHeader from '@/components/AppHeader';
 import PlacesSidebar from '@/components/PlacesSidebar';
 import MapArea from '@/components/MapArea';
 import { DEFAULT_FILTERS, type FilterState } from '@/components/RouteFilter';
+import type { TripDraft } from '@/components/TripsModal';
 import { haversineDistanceKm } from '@/lib/gpxParser';
 import { saveActivities, mergeActivities } from '@/lib/activityTypes';
 import { computeReadiness } from '@/lib/readiness';
@@ -55,6 +56,7 @@ const ProfileModal = dynamic(() => import('@/components/ProfileModal'), { ssr: f
 const AdminModal = dynamic(() => import('@/components/admin/AdminModal'), { ssr: false });
 const RoadmapModal = dynamic(() => import('@/components/RoadmapModal'), { ssr: false });
 const KomootRouteModal = dynamic(() => import('@/components/KomootRouteModal'), { ssr: false });
+const TripsModal = dynamic(() => import('@/components/TripsModal'), { ssr: false });
 /** Not gated on open state — it renders its own launcher button. */
 const ChatBot = dynamic(() => import('@/components/ChatBot'), { ssr: false });
 
@@ -137,6 +139,8 @@ export default function Home() {
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [roadmapOpen, setRoadmapOpen] = useState(false);
   const [komootOpen, setKomootOpen] = useState(false);
+  const [tripsOpen, setTripsOpen] = useState(false);
+  const [tripDraft, setTripDraft] = useState<TripDraft | null>(null);
   const [plannerWaypoints, setPlannerWaypoints] = useState<PlannerWaypoint[]>([]);
 
   /**
@@ -800,6 +804,10 @@ export default function Home() {
           onOpenAdmin={() => setAdminModalOpen(true)}
           onOpenRoadmap={() => setRoadmapOpen(true)}
           onOpenKomoot={() => setKomootOpen(true)}
+          onOpenTrips={() => {
+            setTripDraft(null);
+            setTripsOpen(true);
+          }}
           showLegend={showLegend}
           onToggleLegend={() => setShowLegend((v) => !v)}
           showNativeControls={showNativeControls}
@@ -866,6 +874,14 @@ export default function Home() {
 
       {roadmapOpen && <RoadmapModal isOpen={roadmapOpen} onClose={() => setRoadmapOpen(false)} />}
       {komootOpen && <KomootRouteModal isOpen={komootOpen} onClose={() => setKomootOpen(false)} />}
+      {tripsOpen && (
+        <TripsModal
+          isOpen={tripsOpen}
+          onClose={() => setTripsOpen(false)}
+          uid={authUser?.uid ?? null}
+          draft={tripDraft}
+        />
+      )}
 
       {selectedDetails !== null && (
         <DetailsModal
@@ -874,6 +890,10 @@ export default function Home() {
           onGetDirections={(target) => {
             setDirectionsTarget(target);
             setSidebarOpen(false);
+          }}
+          onPlanTrip={(draft) => {
+            setTripDraft(draft);
+            setTripsOpen(true);
           }}
           activities={activities}
           onConnectDevices={() => {
