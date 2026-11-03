@@ -34,19 +34,19 @@ These rules hold across every feature, and a feature that cannot meet them does 
 4. **User data is exportable and erasable**, through one footprint list.
 5. **Every route is metered and every privileged act audited.**
 
-| Capability                                                      | Status  | Next                                                          |
-| --------------------------------------------------------------- | ------- | ------------------------------------------------------------- |
-| Discover routes, peaks, campsites near you (OpenStreetMap, #86) | Done    | Rate routes in the list, not only when opened                 |
-| Elevation, difficulty (NPS formula), unknown band               | Done    | Climb from terrain for untagged routes, on open (#142)        |
-| Live weather, alerts, **weather window** for a route's duration | Done    | Persona alert thresholds                                      |
-| Readiness score and "routes you're ready for"                   | Done    | Persona weighting                                             |
-| Strava sync (server-held tokens), GPX and Apple Health import   | Done    | Garmin / COROS direct connect                                 |
-| Planner with routing (OSRM), GPX export, plans synced (#23)     | Done    | —                                                             |
-| Lifetime ledger and personal bests                              | Done    | —                                                             |
-| Chat assistant with tools (#26)                                 | Done    | Ground answers in the Trip once it exists                     |
-| Trip, check-in and server-side safety timer (ADR-0003)          | Pending | Needs a notification channel decision first                   |
-| Paywall enforcement (`plans.ts` entitlements)                   | Pending | Owner decision: `hasEntitlement()` is not called anywhere yet |
-| Installable / offline for the current Trip                      | Partial | Offline scope is the Trip only, which does not exist yet      |
+| Capability                                                      | Status  | Next                                                   |
+| --------------------------------------------------------------- | ------- | ------------------------------------------------------ |
+| Discover routes, peaks, campsites near you (OpenStreetMap, #86) | Done    | Rate routes in the list, not only when opened          |
+| Elevation, difficulty (NPS formula), unknown band               | Done    | Climb from terrain for untagged routes, on open (#142) |
+| Live weather, alerts, **weather window** for a route's duration | Done    | Persona alert thresholds                               |
+| Readiness score and "routes you're ready for"                   | Done    | Persona weighting                                      |
+| Strava sync (server-held tokens), GPX and Apple Health import   | Done    | Garmin / COROS direct connect                          |
+| Planner with routing (OSRM), GPX export, plans synced (#23)     | Done    | —                                                      |
+| Lifetime ledger and personal bests                              | Done    | —                                                      |
+| Chat assistant with tools (#26)                                 | Done    | Ground answers in the Trip once it exists              |
+| Trip and check-in (ADR-0003)                                    | Done    | Server-side safety timer: needs a notification channel |
+| Paywall enforcement (`plans.ts` entitlements)                   | Decided | Free until the safety timer ships (ADR-0008)           |
+| Installable / offline for the current Trip                      | Partial | Offline scope is the Trip only; Trip now exists        |
 
 ## Order of work
 
@@ -54,7 +54,7 @@ These rules hold across every feature, and a feature that cannot meet them does 
 flowchart LR
     A["Free providers (#86) ✓<br/>measured route length"] --> B["Climb from terrain<br/>(#142) ✓"]
     B --> C["Persona scoring<br/>+ alert thresholds"]
-    B --> D["Trip + safety timer<br/>ADR-0003"]
+    B --> D["Trip ✓ + safety timer<br/>ADR-0003"]
     D --> E["Grounded, tool-using chat<br/>(grounded in the Trip)"]
     C --> E
 ```
@@ -65,9 +65,9 @@ flowchart LR
 - **The backend stays undeployed** until a use case needs a second runtime. Trip runs in route
   handlers plus a scheduled function.
 - **Field-level schemas are written with the first code that produces them**, not ahead of it.
-- **Billing after Trip.** Pro is sold on readiness. Since #142 a route opened in the details view
-  has a climb, but the list still rates only routes that carry an `ascent` tag, so readiness
-  across the list is still partial.
+- **Billing after the safety timer** (ADR-0008, decided 2026-11-03). Pro is sold on readiness
+  and the Trip. The list still rates only routes that carry an `ascent` tag, and the Trip does
+  not alert anyone yet, so nothing is charged.
 
 Open product questions (owner): is the Guide tier near-term or withdrawn until it exists? Does
 the free tier keep readiness? How close must a track pass a summit before a peak is suggested?

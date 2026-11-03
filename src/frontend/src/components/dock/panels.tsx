@@ -189,6 +189,7 @@ export function LinksPanel({
   onOpenAdmin,
   onOpenRoadmap,
   onOpenKomoot,
+  onOpenTrips,
 }: {
   isAdmin: boolean;
   legendVisible: boolean;
@@ -202,6 +203,7 @@ export function LinksPanel({
   onOpenAdmin: () => void;
   onOpenRoadmap: () => void;
   onOpenKomoot: () => void;
+  onOpenTrips: () => void;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -211,6 +213,13 @@ export function LinksPanel({
         className={`${buttonSecondary} ${buttonSize.sm} justify-start`}
       >
         Connect devices
+      </button>
+      <button
+        type="button"
+        onClick={onOpenTrips}
+        className={`${buttonGhost} ${buttonSize.sm} justify-start`}
+      >
+        Your trips
       </button>
       <button
         type="button"

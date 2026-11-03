@@ -112,6 +112,7 @@ The FastAPI backend is not called by the frontend in production; it is planned f
 ```
 users/{uid}/saved_places/{placeId}
 users/{uid}/plans/{planId}              # browser-written, mirrors the device's planned routes
+users/{uid}/trips/{tripId}              # browser-written; ADR-0003 Trip (no safety timer yet)
 users/{uid}/strava_activities/{actId}   # Admin SDK write-only
 users/{uid}.strava_sync                 # sync manifest — a FIELD on the user doc, not a subcollection
 places_cache/{gridKey}                  # shared, Admin SDK only, 24 h TTL, first writer wins while fresh
@@ -119,7 +120,6 @@ activities/{actId}                      # owner read; Admin SDK write only
 routes/{routeId}
 training_programs/{programId}           # owner read; Admin SDK write only
 training_sessions/{sessionId}           # owner read; Admin SDK write only
-itineraries/{itineraryId}               # owner read; Admin SDK write only
 chat_sessions/{sessionId}/messages/{id} # Admin SDK only; one doc per turn
 rate_limits/{bucketId}                  # Admin SDK only; needs a TTL policy on `expiresAt`
 audit_logs/{entryId}                    # Admin SDK only; append-only, 730-day TTL
@@ -242,6 +242,7 @@ Firebase Admin SDK tries credentials in this order: `FIREBASE_SERVICE_ACCOUNT_KE
 - `src/lib/ledger.ts` — lifetime and year-to-date totals plus personal bests, the record that survives the month rollover `fitnessScore` resets on
 - `src/lib/readinessRecommender.ts` — bands scored routes into "ready" and "stretch". The ready band sorts by demand, not score: everything easy scores 100, so sorting by score surfaces the flattest walk
 - `src/lib/weatherWindow.ts` — the soonest span worth going, scoped to a route's duration. A `warning` hour is disqualifying, never discounted
+- `src/components/TripsModal.tsx` + `src/lib/trips.ts` / `useTrips.ts` — Trip (ADR-0003): plan from a place's details, "I'm back" check-in, overdue shown in-app. **No one is notified yet**, and the UI says so every time; never word it otherwise until the server-side timer exists
 - `src/components/KomootRouteModal.tsx` — Komoot route viewer (dock → More): paste a tour link, get the route explained, the forecast window and a packing checklist
 - `src/lib/komootTour.ts` — Komoot link parsing and tour normalisation; untrusted JSON, unknowns stay `null`
 - `src/lib/routeBriefing.ts` — rule-based route summary and "what to prepare" checklist. No model: every line traces to a number on the route or the forecast, and an unknown surface is never read as firm ground

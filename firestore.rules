@@ -63,6 +63,29 @@ service cloud.firestore {
         && d.updatedAt == request.time;
     }
 
+    // A trip (ADR-0003), written by useTrips.ts. Times are epoch ms from the
+    // browser; the bounds mirror lib/trips.ts so a hand-crafted write cannot
+    // store what the form would refuse.
+    function isValidTrip(tripId) {
+      let d = request.resource.data;
+      let t = d.target;
+      return tripId.size() <= 64
+        && d.keys().hasAll(['target', 'startAt', 'expectedReturnAt', 'checkedInAt', 'notes', 'updatedAt'])
+        && d.keys().hasOnly(['target', 'startAt', 'expectedReturnAt', 'checkedInAt', 'notes', 'updatedAt'])
+        && t is map
+        && t.keys().hasOnly(['kind', 'id', 'name', 'coordinates'])
+        && t.kind in ['route', 'mountain', 'campsite']
+        && t.id is string && t.id.size() <= 128
+        && t.name is string && t.name.size() > 0 && t.name.size() <= 200
+        && t.coordinates is list && t.coordinates.size() == 2
+        && d.startAt is number && d.expectedReturnAt is number
+        && d.expectedReturnAt > d.startAt
+        && d.expectedReturnAt - d.startAt <= 14 * 86400000
+        && (d.checkedInAt == null || d.checkedInAt is number)
+        && d.notes is string && d.notes.size() <= 500
+        && d.updatedAt == request.time;
+    }
+
     function isValidSavedPlace(placeId) {
       let d = request.resource.data;
       return placeId.size() <= 128
@@ -120,6 +143,12 @@ service cloud.firestore {
       match /plans/{planId} {
         allow read, delete: if isOwner(userId);
         allow create, update: if isOwner(userId) && isValidPlan(planId);
+      }
+
+      // Trips (ADR-0003), written by the browser through useTrips.ts.
+      match /trips/{tripId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidTrip(tripId);
       }
 
       // Strava historical activities synced server-side via Admin SDK
@@ -236,12 +265,6 @@ service cloud.firestore {
     // evaluation, and an authenticated-only rule (what this was) let any signed-in
     // user read or write anyone else's sessions.
     match /training_sessions/{sessionId} {
-      allow read: if ownsExisting();
-      allow write: if false; // Admin SDK only
-    }
-
-    // Itineraries — scoped to the owning user
-    match /itineraries/{itineraryId} {
       allow read: if ownsExisting();
       allow write: if false; // Admin SDK only
     }

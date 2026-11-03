@@ -209,13 +209,13 @@ export const ROADMAP: RoadmapPhase[] = [
         title: 'Installable on a phone',
         status: 'partial',
         detail:
-          'A manifest, icons and standalone display make it installable. It still needs the network — offline support is scoped to a Trip, which does not exist yet.',
+          'A manifest, icons and standalone display make it installable. It still needs the network; offline support is scoped to the current Trip and is not built yet.',
       },
       {
         title: 'Trip, check-in and the safety timer',
-        status: 'pending',
+        status: 'partial',
         detail:
-          'The decided spine (ADR-0003): a trip you can file, an expected return, and a server that tells your contact if you do not check in. Not started.',
+          'You can file a trip from any route, peak or campsite, with an expected return, and check in when you are back. The app shows when you are overdue. The server-side timer that tells a contact is not built yet, and the app says so.',
       },
     ],
   },
