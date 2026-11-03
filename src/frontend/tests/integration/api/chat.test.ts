@@ -213,6 +213,23 @@ describe('POST /api/chat — the Gemini call', () => {
     expect((init.headers as Record<string, string>)['x-goog-api-key']).toBe('test-gemini-key');
   });
 
+  it('asks the stable Flash model with minimal thinking, at the default temperature', async () => {
+    await ask();
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/models/gemini-3.6-flash:generateContent');
+    const body = JSON.parse(String(init.body));
+    expect(body.generationConfig.thinkingConfig).toEqual({ thinkingLevel: 'minimal' });
+    expect(body.generationConfig.temperature).toBeUndefined();
+  });
+
+  it('takes the model from GEMINI_MODEL, but only a plain model name', async () => {
+    const { geminiModel } = await import('@/app/api/chat/route');
+    expect(geminiModel('gemini-3.8-flash')).toBe('gemini-3.8-flash');
+    expect(geminiModel('../../files')).toBe('gemini-3.6-flash');
+    expect(geminiModel('')).toBe('gemini-3.6-flash');
+    expect(geminiModel(undefined)).toBe('gemini-3.6-flash');
+  });
+
   it('bounds the call with a deadline', async () => {
     await ask();
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -438,5 +455,36 @@ describe('POST /api/chat — tools', () => {
     });
     expect(res.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('sends the thought signature on a tool call back with the next request', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  role: 'model',
+                  parts: [
+                    {
+                      functionCall: { name: 'analyze_open_place', args: {} },
+                      thoughtSignature: 'sig-1',
+                    },
+                  ],
+                },
+              },
+            ],
+          })
+        )
+      )
+      .mockResolvedValueOnce(textReply('It is 11.7 km.'));
+    await post({
+      messages: [{ role: 'user', content: 'How long?' }],
+      context: { openPlace: OPEN_ROUTE },
+    });
+
+    const second = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(second.contents.at(-2).parts[0].thoughtSignature).toBe('sig-1');
   });
 });

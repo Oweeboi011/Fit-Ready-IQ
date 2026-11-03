@@ -69,6 +69,21 @@ const MAX_BODY_BYTES = 256 * 1024;
 /** How much context goes to the model, in messages (ten exchanges). */
 const MAX_HISTORY = 20;
 
+/**
+ * The model, from `GEMINI_MODEL` when set. Google retires model ids on a
+ * schedule: `gemini-2.5-flash` was closed to new keys in 2026 and every chat
+ * turn answered 404 until the code changed. An env var makes the next
+ * retirement a setting, not a deploy. The default is the current *stable*
+ * Flash, not the newest preview.
+ */
+const DEFAULT_GEMINI_MODEL = 'gemini-3.6-flash';
+
+/** The id goes into the request path, so only a plain model name is accepted. */
+export function geminiModel(configured = process.env.GEMINI_MODEL): string {
+  const id = configured?.trim();
+  return id && /^[a-z0-9][a-z0-9.-]{0,63}$/.test(id) ? id : DEFAULT_GEMINI_MODEL;
+}
+
 /** Upper bound on one Gemini call. The route's own budget is 30 s (vercel.json). */
 const GEMINI_TIMEOUT_MS = 20_000;
 
@@ -386,6 +401,12 @@ export async function POST(request: NextRequest) {
 
 type GeminiPart = {
   text?: string;
+  /**
+   * Gemini 3 signs its reasoning on a function call, and the signature must
+   * come back with the next request. The loop resends the model's turn as
+   * received, which carries it; nothing may rebuild these parts.
+   */
+  thoughtSignature?: string;
   functionCall?: { name: string; args?: Record<string, unknown> };
   functionResponse?: { name: string; response: Record<string, unknown> };
 };
@@ -403,7 +424,7 @@ async function callGemini(
   toolsAllowed: boolean
 ): Promise<GeminiContent | NextResponse> {
   const response = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+    `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel()}:generateContent`,
     {
       method: 'POST',
       // The key rides in a header, not `?key=`: URLs are what proxies, APM
@@ -420,14 +441,14 @@ async function callGemini(
         contents,
         tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
         toolConfig: { functionCallingConfig: { mode: toolsAllowed ? 'AUTO' : 'NONE' } },
+        // No temperature: Gemini 3 models are tuned for the default, and Google
+        // warns that lowering it can make them loop.
         generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 512,
-          // 2.5 Flash thinks by default, and thinking tokens count against
-          // maxOutputTokens: a long think left nothing for the reply, which
-          // came back empty. A short assistant answer does not need it, and
-          // without it a turn is faster and cheaper.
-          thinkingConfig: { thinkingBudget: 0 },
+          // Thinking tokens count against this cap; a long think once left
+          // nothing for the reply. `minimal` keeps a short answer fast and
+          // cheap, and the headroom covers what thinking remains.
+          maxOutputTokens: 1024,
+          thinkingConfig: { thinkingLevel: 'minimal' },
         },
       }),
     }

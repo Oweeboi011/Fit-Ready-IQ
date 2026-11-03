@@ -1,7 +1,7 @@
 // The assistant's tools (#26): what Gemini may call, and what each call does.
 //
 // Decisions, from the issues that asked them:
-// - #27 Gemini 2.5 Flash supports function calling over the REST API already in
+// - #27 Gemini Flash supports function calling over the REST API already in
 //   use. A turn becomes a short loop: the model asks for a tool, we answer with
 //   its result, it either asks again or replies. No SDK needed.
 // - #28 Tools live here, not inline in /api/chat: the declarations, the request
