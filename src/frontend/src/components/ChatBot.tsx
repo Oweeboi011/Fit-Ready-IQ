@@ -3,11 +3,27 @@
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Bot, User, Loader2, Sparkles, Minimize2 } from 'lucide-react';
 
+import { SaveProposalCard, type PendingSave } from '@/components/chat/SaveProposalCard';
+import { savedPlaceFor, type OpenPlace, type SaveProposal } from '@/lib/chatTools';
 import { optionallyAuthedFetch } from '@/lib/firebaseClient';
+import type { SavedPlace } from '@/lib/useSavedPlaces';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  /** A save the assistant offered with this reply; the user confirms it here. */
+  save?: PendingSave;
+}
+
+interface ChatBotProps {
+  /** The place open in the details view, which the assistant's tools can read. */
+  openPlace: OpenPlace | null;
+  /** `[lng, lat]`, for weather when nothing is open. */
+  location: [number, number] | null;
+  /** Whether there is an account to save to. */
+  canSave: boolean;
+  /** Writes a saved place with the user's own sign-in; resolves whether it worked. */
+  onSave: (place: Omit<SavedPlace, 'savedAt'>) => Promise<boolean>;
 }
 
 const WELCOME: Message = {
@@ -48,7 +64,19 @@ const CHAT_CONTEXT_MESSAGES = 20;
 /** Input cap. Surfaced as a counter once it is close, rather than silently biting. */
 const MAX_INPUT = 500;
 
-export default function ChatBot() {
+/**
+ * The save card for a reply, when the assistant proposed saving the place that
+ * is still open. A proposal for a place the user has since closed is dropped:
+ * the card would save something no longer on screen.
+ */
+function offeredSave(proposal: unknown, openPlace: OpenPlace | null): PendingSave | undefined {
+  const p = proposal as SaveProposal | undefined;
+  if (p?.action !== 'save_place' || !openPlace || openPlace.place.id !== p.placeId)
+    return undefined;
+  return { place: savedPlaceFor(openPlace), state: 'offered' };
+}
+
+export default function ChatBot({ openPlace, location, canSave, onSave }: ChatBotProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([WELCOME]);
   const [sessionId, setSessionId] = useState<string>('');
@@ -126,7 +154,14 @@ export default function ChatBot() {
         headers: { 'Content-Type': 'application/json' },
         // The recent turns only: the server uses twenty at most, and for a
         // session it holds it reads its own record rather than this copy.
-        body: JSON.stringify({ messages: next.slice(-CHAT_CONTEXT_MESSAGES), sessionId }),
+        // Only role and text go to the model; a reply's save card is UI state.
+        body: JSON.stringify({
+          messages: next
+            .slice(-CHAT_CONTEXT_MESSAGES)
+            .map(({ role, content }) => ({ role, content })),
+          sessionId,
+          context: { openPlace, location },
+        }),
         signal: controller.signal,
       });
 
@@ -148,6 +183,7 @@ export default function ChatBot() {
           : res.status === 429
             ? "I'm getting a lot of questions right now. Give me a moment and ask again."
             : "I couldn't answer that just now. Please try again in a moment.",
+        save: res.ok ? offeredSave(data.proposal, openPlace) : undefined,
       };
       setMessages((prev) => [...prev, reply]);
     } catch (err: unknown) {
@@ -166,6 +202,16 @@ export default function ChatBot() {
       clearTimeout(timer);
       setIsLoading(false);
     }
+  };
+
+  const setSaveState = (index: number, state: PendingSave['state']) =>
+    setMessages((prev) =>
+      prev.map((m, i) => (i === index && m.save ? { ...m, save: { ...m.save, state } } : m))
+    );
+
+  const confirmSave = async (index: number, place: PendingSave['place']) => {
+    setSaveState(index, 'saving');
+    setSaveState(index, (await onSave(place)) ? 'saved' : 'failed');
   };
 
   return (
@@ -230,36 +276,45 @@ export default function ChatBot() {
             style={{ scrollbarWidth: 'thin' }}
           >
             {messages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`flex items-end gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
-                style={{ animation: 'cardEnter 0.15s ease-out' }}
-              >
-                {/* Avatar */}
+              <div key={idx}>
                 <div
-                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
-                    msg.role === 'assistant'
-                      ? 'border border-blue-500/30 bg-blue-500/15'
-                      : 'border-ink/10 bg-ink/6 border'
-                  }`}
+                  className={`flex items-end gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
+                  style={{ animation: 'cardEnter 0.15s ease-out' }}
                 >
-                  {msg.role === 'assistant' ? (
-                    <Bot aria-hidden="true" className="h-3.5 w-3.5 text-blue-400" />
-                  ) : (
-                    <User aria-hidden="true" className="h-3.5 w-3.5 text-slate-400" />
-                  )}
-                </div>
+                  {/* Avatar */}
+                  <div
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                      msg.role === 'assistant'
+                        ? 'border border-blue-500/30 bg-blue-500/15'
+                        : 'border-ink/10 bg-ink/6 border'
+                    }`}
+                  >
+                    {msg.role === 'assistant' ? (
+                      <Bot aria-hidden="true" className="h-3.5 w-3.5 text-blue-400" />
+                    ) : (
+                      <User aria-hidden="true" className="h-3.5 w-3.5 text-slate-400" />
+                    )}
+                  </div>
 
-                {/* Bubble */}
-                <div
-                  className={`max-w-[76%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
-                    msg.role === 'user'
-                      ? 'rounded-br-sm bg-blue-600 text-white'
-                      : 'border-ink/6 bg-ink/6 rounded-bl-sm border text-slate-200'
-                  }`}
-                >
-                  {msg.content}
+                  {/* Bubble */}
+                  <div
+                    className={`max-w-[76%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
+                      msg.role === 'user'
+                        ? 'rounded-br-sm bg-blue-600 text-white'
+                        : 'border-ink/6 bg-ink/6 rounded-bl-sm border text-slate-200'
+                    }`}
+                  >
+                    {msg.content}
+                  </div>
                 </div>
+                {msg.save && (
+                  <SaveProposalCard
+                    proposal={msg.save}
+                    canSave={canSave}
+                    onConfirm={() => confirmSave(idx, msg.save!.place)}
+                    onDecline={() => setSaveState(idx, 'declined')}
+                  />
+                )}
               </div>
             ))}
 

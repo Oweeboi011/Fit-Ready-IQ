@@ -125,8 +125,8 @@ export default function RoutesTabPanel({
   // Readiness, asked the other way round. The scores are already computed for
   // the badges; banding them turns "am I ready for this?" into "what can I do?"
   // without another pass over the scorer. Silent when nothing can be scored —
-  // no training data, or routes of unknown length, which every Google Places
-  // result is — because then every score is `unknown` and both bands are empty.
+  // no training data, or routes of unknown length or climb — because then every
+  // score is `unknown` and both bands are empty.
   // Silent is right: an empty "Ready for you" would read as "nothing is".
   const { ready, stretch } = bandRecommendations(
     list.map((route) => ({

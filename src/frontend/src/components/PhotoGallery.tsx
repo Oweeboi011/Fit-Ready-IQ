@@ -7,9 +7,10 @@ import { buttonSecondary, buttonSize } from '@/lib/ui';
 
 interface PhotoGalleryProps {
   photos: string[];
-  loading: boolean;
+  /** Set by a caller that fetches photos itself; discovery delivers them with the place. */
+  loading?: boolean;
   /** True only when the request itself failed, not when a place has no photos. */
-  failed: boolean;
+  failed?: boolean;
   /** Used for alt text. */
   placeName: string;
   /** Offered when the request failed. */
@@ -32,7 +33,13 @@ function Frame({ children }: { children: React.ReactNode }) {
  * "No photos available" as a place that genuinely has none. Those are different
  * facts and now read differently.
  */
-export function PhotoGallery({ photos, loading, failed, placeName, onRetry }: PhotoGalleryProps) {
+export function PhotoGallery({
+  photos,
+  loading = false,
+  failed = false,
+  placeName,
+  onRetry,
+}: PhotoGalleryProps) {
   return (
     <div>
       <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold tracking-wider text-slate-300 uppercase">
@@ -60,6 +67,9 @@ export function PhotoGallery({ photos, loading, failed, placeName, onRetry }: Ph
                 src={photo}
                 alt={`${placeName} — photo ${index + 1}`}
                 fill
+                // Commons already serves the size asked for, and optimising
+                // through Vercel would spend a metered quota to resize it again.
+                unoptimized
                 className="object-cover transition-transform duration-300 group-hover:scale-105"
                 sizes="(max-width: 768px) 50vw, 33vw"
               />

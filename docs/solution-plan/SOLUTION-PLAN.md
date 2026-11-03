@@ -6,7 +6,7 @@
 `src/frontend/src/lib/roadmap.ts`, which drives the in-app roadmap, so this page names
 outcomes and order rather than restating every ticket.
 
-Revised 2026-10-05. Every earlier revision drifted from the code within weeks, so this one is
+Revised 2026-11-02. Every earlier revision drifted from the code within weeks, so this one is
 deliberately short.
 
 ## Problem
@@ -34,38 +34,40 @@ These rules hold across every feature, and a feature that cannot meet them does 
 4. **User data is exportable and erasable**, through one footprint list.
 5. **Every route is metered and every privileged act audited.**
 
-| Capability                                                      | Status                           | Next                                                                     |
-| --------------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------ |
-| Discover routes, peaks, campsites near you                      | Done                             | Real route geometry (ADR-0004)                                           |
-| Elevation, difficulty (NPS formula), unknown band               | Done                             | Along-route elevation once geometry lands                                |
-| Live weather, alerts, **weather window** for a route's duration | Done                             | Persona alert thresholds                                                 |
-| Readiness score and "routes you're ready for"                   | Done                             | Persona weighting, after ADR-0004                                        |
-| Strava sync (server-held tokens), GPX and Apple Health import   | Done                             | Garmin / COROS direct connect                                            |
-| Planner with routing, GPX export, saved plans                   | Partial                          | Plans synced to the account                                              |
-| Lifetime ledger and personal bests                              | Done                             | —                                                                        |
-| Chat assistant                                                  | Partial (no tools, no grounding) | Tool use: save a route, analyse a route, read the weather window         |
-| Trip, check-in and server-side safety timer (ADR-0003)          | Pending                          | Needs a notification channel decision first                              |
-| Paywall enforcement (`plans.ts` entitlements)                   | Pending                          | `hasEntitlement()` is not called anywhere yet                            |
-| Installable / offline for the current Trip                      | Partial                          | Offline scope is the Trip only; map tiles are excluded by Google's terms |
+| Capability                                                      | Status  | Next                                                   |
+| --------------------------------------------------------------- | ------- | ------------------------------------------------------ |
+| Discover routes, peaks, campsites near you (OpenStreetMap, #86) | Done    | Rate routes in the list, not only when opened          |
+| Elevation, difficulty (NPS formula), unknown band               | Done    | Climb from terrain for untagged routes, on open (#142) |
+| Live weather, alerts, **weather window** for a route's duration | Done    | Persona alert thresholds                               |
+| Readiness score and "routes you're ready for"                   | Done    | Persona weighting                                      |
+| Strava sync (server-held tokens), GPX and Apple Health import   | Done    | Garmin / COROS direct connect                          |
+| Planner with routing (OSRM), GPX export, plans synced (#23)     | Done    | —                                                      |
+| Lifetime ledger and personal bests                              | Done    | —                                                      |
+| Chat assistant with tools (#26)                                 | Done    | Ground answers in the Trip once it exists              |
+| Trip and check-in (ADR-0003)                                    | Done    | Server-side safety timer: needs a notification channel |
+| Paywall enforcement (`plans.ts` entitlements)                   | Decided | Free until the safety timer ships (ADR-0008)           |
+| Installable / offline for the current Trip                      | Partial | Offline scope is the Trip only; Trip now exists        |
 
 ## Order of work
 
 ```mermaid
 flowchart LR
-    A["Land the audit stack<br/>(PR #83, then phases 2–5)"] --> B["Real route geometry<br/>ADR-0004"]
+    A["Free providers (#86) ✓<br/>measured route length"] --> B["Climb from terrain<br/>(#142) ✓"]
     B --> C["Persona scoring<br/>+ alert thresholds"]
-    B --> D["Trip + safety timer<br/>ADR-0003"]
+    B --> D["Trip ✓ + safety timer<br/>ADR-0003"]
     D --> E["Grounded, tool-using chat<br/>(grounded in the Trip)"]
     C --> E
 ```
 
-- **Geometry before Trip.** A Trip references a Route. Building it on pin-based metrics would
-  carry the fabricated-numbers problem into the new feature.
+- **Geometry before Trip.** A Trip references a Route. Routes now carry a measured length
+  (ADR-0004's first half, via OpenStreetMap), and the climb along them is measured from terrain
+  when a route is opened (#142).
 - **The backend stays undeployed** until a use case needs a second runtime. Trip runs in route
   handlers plus a scheduled function.
 - **Field-level schemas are written with the first code that produces them**, not ahead of it.
-- **Billing after Trip.** Pro is sold on readiness, which is scored on pin metrics until
-  ADR-0004 lands; wiring `hasEntitlement()` before then charges for the problem ADR-0004 fixes.
+- **Billing after the safety timer** (ADR-0008, decided 2026-11-03). Pro is sold on readiness
+  and the Trip. The list still rates only routes that carry an `ascent` tag, and the Trip does
+  not alert anyone yet, so nothing is charged.
 
 Open product questions (owner): is the Guide tier near-term or withdrawn until it exists? Does
 the free tier keep readiness? How close must a track pass a summit before a peak is suggested?
@@ -90,15 +92,14 @@ by the change are updated in the same PR, and a new user-scoped collection is in
 
 ## Risks
 
-| Risk                                                         | Mitigation                                                                  |
-| ------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| Fixes sit on unmerged branches; CI only runs on PRs          | Land work in order through PRs. Don't stack more on an unreviewed branch    |
-| E2E (a required check) blocked by billing on the CI Maps key | Owner enables billing on that GCP project                                   |
-| Production unmonitored                                       | Set `PRODUCTION_URL` and `RATE_LIMIT_SALT`; `uptime.yml` then alerts        |
-| Google Maps / Places spend                                   | Two-tier places cache, batching, rate limits, billing alerts                |
-| ADR-0003/0004 rewrite regresses discovery                    | Land geometry alongside the pin path, not as a replacement in one PR        |
-| Docs drift                                                   | `lint:docs` gate, same-PR rule (ADR-0005), three-folder taxonomy (ADR-0007) |
-| `/privacy` lacks legal review and a contact address          | Owner action before launch                                                  |
+| Risk                                                       | Mitigation                                                                  |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Fixes sit on unmerged branches; CI only runs on PRs        | Land work in order through PRs. Don't stack more on an unreviewed branch    |
+| Production unmonitored                                     | Set `PRODUCTION_URL` and `RATE_LIMIT_SALT`; `uptime.yml` then alerts        |
+| Free upstreams (Waymarked Trails, Photon, OSRM) are shared | Edge-cached per cell; `ROUTING_API_URL` / `ELEVATION_API_URL` to self-host  |
+| Terrain service quota (OpenTopoData, 1 000 calls/day)      | Climb measured per opened route and CDN-cached a month; `ELEVATION_API_URL` |
+| Docs drift                                                 | `lint:docs` gate, same-PR rule (ADR-0005), three-folder taxonomy (ADR-0007) |
+| `/privacy` lacks legal review and a contact address        | Owner action before launch                                                  |
 
 ## Success measures
 

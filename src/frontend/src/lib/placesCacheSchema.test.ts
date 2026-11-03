@@ -8,7 +8,7 @@ import {
   parseRoute,
 } from './placesCacheSchema';
 
-/** Shapes copied from what placesFetchers.ts actually builds. */
+/** Shapes copied from what osmDiscovery.ts actually builds. */
 const route = {
   id: 'r1',
   name: 'Dipsea Trail',

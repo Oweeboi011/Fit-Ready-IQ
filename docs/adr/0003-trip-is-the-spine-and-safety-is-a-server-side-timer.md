@@ -12,3 +12,5 @@ The safety feature is a **server-side dead-man's switch**, not location tracking
 - Offline support is scoped to the current Trip only — route line, elevation profile, gear, contacts, queued Check-in. Explicitly **not** map tiles: Google Maps' terms forbid caching them, so tiles would mean migrating off Google Maps entirely. That is a separate bet, deferred until people are demonstrably filing Trips.
 
 > Note 2026-10-06: the dormant `Itinerary` entity was deleted as dead code (vulture). The `itineraries` collection rule remains until Trip replaces it.
+
+> Note 2026-11-03: Trip is built without the timer. It lives in `users/{uid}/trips`, written by the browser (`lib/useTrips.ts`), and it carries the place, the start and the expected return. Check-in is an "I'm back" tap. The `itineraries` rule and footprint entry are removed. When a trip is overdue the app says so, and it states every time that nobody is notified. The scheduled function, the emergency contact and the notification channel are still to come, and so is attaching an Activity at check-in.

@@ -62,7 +62,7 @@ describe('recommendRoutes', () => {
   });
 
   it('leaves a route of unknown length out of both bands', () => {
-    // Every Google Places route has no length. Placing one in "ready" would be
+    // A route with no measured length. Placing one in "ready" would be
     // a claim about whether you can walk a distance nobody has measured.
     const result = recommendRoutes(
       [{ id: 'pin', distanceKm: null, ascentM: 200 }],

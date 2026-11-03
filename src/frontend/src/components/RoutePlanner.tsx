@@ -16,7 +16,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useElevationProfile, type ElevationProfileState } from '@/lib/useElevationProfile';
 import { buildGpx, gpxFilename, type PlannerWaypoint } from '@/lib/gpxBuilder';
-import { deletePlan, loadPlans, savePlan, type SavedPlan } from '@/lib/savedPlans';
+import type { SavedPlan } from '@/lib/savedPlans';
+import { usePlanSync, type PlanSyncStatus } from '@/lib/usePlanSync';
 import type { PlannerRoute, PlannerTravelMode } from '@/lib/usePlannerRoute';
 import { buttonGhost, buttonPrimary, buttonSecondary, buttonSize } from '@/lib/ui';
 
@@ -34,6 +35,8 @@ interface RoutePlannerProps {
   route: PlannerRoute;
   travelMode: PlannerTravelMode;
   onTravelModeChange: (mode: PlannerTravelMode) => void;
+  /** Signed in, saved plans sync to the account; signed out, they stay on the device. */
+  uid: string | null;
 }
 
 /** Sum of the positive elevation steps we know about. */
@@ -211,12 +214,22 @@ function WaypointList({
 }
 
 /** Collapsible list of saved plans, with its own open/closed state. */
+/** Where the plans live, said plainly — including when syncing failed. */
+const SYNC_NOTE: Record<PlanSyncStatus, string> = {
+  device: 'Plans stay on this device. Sign in to keep them on every device.',
+  syncing: 'Syncing plans with your account…',
+  synced: 'Plans are saved to your account.',
+  failed: "Couldn't sync plans with your account. They're safe on this device.",
+};
+
 function SavedPlansDrawer({
   plans,
+  syncStatus,
   onOpen,
   onDelete,
 }: {
   plans: SavedPlan[];
+  syncStatus: PlanSyncStatus;
   onOpen: (plan: SavedPlan) => void;
   onDelete: (id: string) => void;
 }) {
@@ -243,7 +256,12 @@ function SavedPlansDrawer({
           onDelete={onDelete}
         />
       )}
-      <p className="mt-2 px-2 text-[10px] text-slate-600">Plans stay on this device.</p>
+      <p
+        role={syncStatus === 'failed' ? 'alert' : undefined}
+        className={`mt-2 px-2 text-[10px] ${syncStatus === 'failed' ? 'text-amber-300' : 'text-slate-600'}`}
+      >
+        {SYNC_NOTE[syncStatus]}
+      </p>
     </div>
   );
 }
@@ -325,19 +343,13 @@ export function RoutePlanner({
   route,
   travelMode,
   onTravelModeChange,
+  uid,
 }: RoutePlannerProps) {
   const [name, setName] = useState('');
-  const [plans, setPlans] = useState<SavedPlan[]>([]);
+  const { plans, status: syncStatus, save, remove } = usePlanSync(uid, isOpen);
   const [justSaved, setJustSaved] = useState(false);
   /** Set when editing a saved plan, so Save updates it rather than duplicating. */
   const [editingId, setEditingId] = useState<string | null>(null);
-
-  // Read after mount, never during render — storage reads during render make
-  // the server and client disagree on first paint.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- browser state is read after mount; reading it during render breaks hydration
-    if (isOpen) setPlans(loadPlans());
-  }, [isOpen]);
 
   useEffect(() => {
     if (!justSaved) return;
@@ -358,24 +370,24 @@ export function RoutePlanner({
   const handleSave = useCallback(() => {
     if (waypoints.length === 0) return;
     const id = editingId ?? `plan-${Date.now()}`;
-    setPlans(
-      savePlan({
-        id,
-        name: name.trim() || 'Untitled route',
-        waypoints,
-        savedAt: Date.now(),
-        distanceKm: distance,
-      })
-    );
+    void save({
+      id,
+      name: name.trim() || 'Untitled route',
+      waypoints,
+      savedAt: Date.now(),
+      distanceKm: distance,
+    });
     setEditingId(id);
     setJustSaved(true);
-  }, [editingId, name, waypoints, distance]);
+  }, [editingId, name, waypoints, distance, save]);
 
   if (!isOpen) return null;
 
   function handleExport() {
     const routeName = name.trim() || 'Fit Ready IQ route';
-    const xml = buildGpx({ name: routeName, waypoints });
+    // The routed line only once it is measured; a guide line is not a route.
+    const path = route.status === 'ready' ? route.path : undefined;
+    const xml = buildGpx({ name: routeName, waypoints, path });
     const blob = new Blob([xml], { type: 'application/gpx+xml' });
     const url = URL.createObjectURL(blob);
 
@@ -469,13 +481,14 @@ export function RoutePlanner({
 
         <SavedPlansDrawer
           plans={plans}
+          syncStatus={syncStatus}
           onOpen={(plan) => {
             onLoadPlan(plan.waypoints);
             setName(plan.name);
             setEditingId(plan.id);
           }}
           onDelete={(id) => {
-            setPlans(deletePlan(id));
+            void remove(id);
             if (editingId === id) setEditingId(null);
           }}
         />

@@ -62,6 +62,14 @@ export default function PrivacyPage() {
               you bookmark.
             </li>
             <li>
+              <strong className="text-white">Planned routes</strong>, if you are signed in when you
+              save one: its name, waypoints and routed distance.
+            </li>
+            <li>
+              <strong className="text-white">Trips</strong>, if you plan one: the place, when you
+              leave, when you expect to be back, any notes you add, and when you checked in.
+            </li>
+            <li>
               <strong className="text-white">Strava</strong>, if you connect it: your activities
               (name, date, distance, elevation, time, heart rate, start and end points and route
               line) and the credentials that let us fetch them. The credentials are held only on our

@@ -279,3 +279,164 @@ describe('POST /api/chat — whose history reaches the model', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+const weather = vi.hoisted(() => ({ calls: [] as string[], ok: true }));
+vi.mock('@/app/api/weather/route', () => ({
+  GET: async (req: Request) => {
+    weather.calls.push(req.url);
+    return weather.ok
+      ? Response.json({
+          location: { lat: 45.98, lng: 7.79 },
+          current: { condition: 'CLEAR' },
+          window: { status: 'found' },
+        })
+      : Response.json({ error: 'down' }, { status: 502 });
+  },
+}));
+
+/** A Gemini reply asking for one tool. */
+const toolCall = (name: string, args: Record<string, unknown> = {}) =>
+  new Response(
+    JSON.stringify({
+      candidates: [{ content: { role: 'model', parts: [{ functionCall: { name, args } }] } }],
+    })
+  );
+const textReply = (text: string) =>
+  new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }));
+
+const OPEN_ROUTE = {
+  kind: 'route',
+  place: {
+    id: 'wmt-hiking-77',
+    name: '5-Seenweg',
+    coordinates: [7.79, 46.01],
+    distance_km: 11.7,
+    elevation_gain_m: null,
+    difficulty: 'unknown',
+    activity_type: 'hike',
+  },
+};
+
+/** The parts sent back to the model on its second call. */
+function toolResults(call = 1) {
+  const body = JSON.parse(fetchMock.mock.calls[call][1].body);
+  return body.contents.at(-1).parts.map((p: { functionResponse: unknown }) => p.functionResponse);
+}
+
+describe('POST /api/chat — tools', () => {
+  beforeEach(() => {
+    weather.calls = [];
+    weather.ok = true;
+  });
+
+  it('declares its tools to the model', async () => {
+    await ask();
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.tools[0].functionDeclarations.map((d: { name: string }) => d.name)).toEqual([
+      'analyze_open_place',
+      'analyze_weather',
+      'propose_save_open_place',
+    ]);
+  });
+
+  it('answers a tool call with the open place, naming what is unknown', async () => {
+    fetchMock
+      .mockReset()
+      .mockResolvedValueOnce(toolCall('analyze_open_place'))
+      .mockResolvedValueOnce(textReply('11.7 km; the climb is not known.'));
+
+    const res = await post({
+      messages: [{ role: 'user', content: 'How hard is this route?' }],
+      context: { openPlace: OPEN_ROUTE },
+    });
+
+    expect((await res.json()).message).toBe('11.7 km; the climb is not known.');
+    const [result] = toolResults();
+    expect(result.name).toBe('analyze_open_place');
+    expect(result.response).toMatchObject({ length_km: 11.7, climb_m: null });
+    expect(result.response.unknown).toEqual(['climb', 'climb time', 'difficulty']);
+  });
+
+  it('checks the weather at the open place through the weather route', async () => {
+    fetchMock
+      .mockReset()
+      .mockResolvedValueOnce(toolCall('analyze_weather', { hours: 5 }))
+      .mockResolvedValueOnce(textReply('Clear.'));
+
+    await post({
+      messages: [{ role: 'user', content: 'Can I go tomorrow?' }],
+      context: { openPlace: OPEN_ROUTE },
+    });
+
+    expect(weather.calls).toHaveLength(1);
+    const url = new URL(weather.calls[0]);
+    expect(url.searchParams.get('lat')).toBe('46.01');
+    expect(url.searchParams.get('lng')).toBe('7.79');
+    expect(url.searchParams.get('hours')).toBe('5');
+    // Only the fields the model needs: the coordinates stay out.
+    expect(toolResults()[0].response.report).toEqual({
+      current: { condition: 'CLEAR' },
+      summary: null,
+      window: { status: 'found' },
+      alerts: [],
+    });
+  });
+
+  it('tells the model weather failed rather than letting it guess', async () => {
+    weather.ok = false;
+    fetchMock
+      .mockReset()
+      .mockResolvedValueOnce(toolCall('analyze_weather'))
+      .mockResolvedValueOnce(textReply('Weather is unavailable.'));
+
+    await post({
+      messages: [{ role: 'user', content: 'Weather?' }],
+      context: { location: [7.75, 46.02] },
+    });
+    expect(toolResults()[0].response.error).toBe('weather_unavailable');
+  });
+
+  it('never saves: a save request comes back as a proposal to confirm', async () => {
+    state.user = { uid: 'alice', email: null };
+    fetchMock
+      .mockReset()
+      .mockResolvedValueOnce(toolCall('propose_save_open_place'))
+      .mockResolvedValueOnce(textReply('Tap Save to keep it.'));
+
+    const res = await post({
+      messages: [{ role: 'user', content: 'Save this route' }],
+      context: { openPlace: OPEN_ROUTE },
+    });
+
+    expect((await res.json()).proposal).toEqual({
+      action: 'save_place',
+      placeId: 'wmt-hiking-77',
+      name: '5-Seenweg',
+    });
+    // Only the transcript is written — the tool touches no saved_places.
+    expect(state.updates.some((u) => JSON.stringify(u).includes('saved_places'))).toBe(false);
+  });
+
+  it('drops a malformed open place instead of trusting it', async () => {
+    fetchMock
+      .mockReset()
+      .mockResolvedValueOnce(toolCall('analyze_open_place'))
+      .mockResolvedValueOnce(textReply('Open a place first.'));
+
+    await post({
+      messages: [{ role: 'user', content: 'This route?' }],
+      context: { openPlace: { kind: 'route', place: { id: 'x', name: 'Fake', distance_km: -5 } } },
+    });
+    expect(toolResults()[0].response.error).toBe('nothing_open');
+  });
+
+  it('stops after three model calls, so one turn cannot loop on the bill', async () => {
+    fetchMock.mockReset().mockImplementation(async () => toolCall('analyze_open_place'));
+    const res = await post({
+      messages: [{ role: 'user', content: 'Loop' }],
+      context: { openPlace: OPEN_ROUTE },
+    });
+    expect(res.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+});

@@ -22,6 +22,7 @@ npm run test:e2e     # Playwright (E2E tests)
 ```
 
 Run a single Vitest test file:
+
 ```bash
 npx vitest run src/lib/gpxParser.test.ts
 ```
@@ -82,32 +83,36 @@ The FastAPI backend is not called by the frontend in production; it is planned f
 
 ### API routes and timeouts (set in `vercel.json`)
 
-| Route | Purpose | Timeout |
-|---|---|---|
-| `/api/chat` | Gemini 2.5 Flash conversation. Signed-in turns are persisted and, for a session the server holds, the model context is rebuilt from Firestore — the client's copy of the history is never trusted. Signed-out conversations are not stored. Context capped at 20 messages; body capped at 256 KB. Rate-limited to 20/hour per caller. | 30 s |
-| `/api/strava/exchange` | Server-side OAuth token exchange (keeps secret off client) | — |
-| `/api/strava/activities` | Fetch the caller's activities from Strava. The Strava token is held server-side in `strava_tokens/{uid}` (`lib/stravaTokens.ts`); the browser sends only its Firebase ID token. 409 means not connected. | — |
-| `/api/strava/connection` | GET connection status (athlete, never a token); DELETE disconnects. | — |
-| `/api/strava/sync` | Sync the caller's Strava activities → Firestore. **Requires a Firebase ID token**; the destination `uid` comes from that token, never the body. | 60 s |
-| `/api/places/cache` | Grid-based places cache (0.5° cells, 24 h TTL). GET is public; **POST requires a Firebase ID token** and caps each kind at 200 items. | 15 s |
-| `/api/weather` | Google Weather first; on failure falls over to OpenWeather when its key is set (logged as `weather_google_failed_using_openweather`), plus the route's weather window. Rate-limited to 200/hour per caller. | 15 s |
-| `/api/health` | Credential-presence checks only (no live API calls), including `rate_limiting` (degraded without `RATE_LIMIT_SALT`). Public, so it names no project or client ids. `s-maxage=30, stale-while-revalidate=10`. | 15 s |
-| `/api/admin/cache` | Inspect / purge places cache (batch 400 docs). Admin-gated. DELETE needs `?gridKey=<key>`, or `?all=true` **plus** body `{"confirm":"PURGE"}` for everything; anything else is a 400. | 30 s |
-| `/api/admin/strava-sync` | Strava sync status across users. Admin-gated. | — |
-| `/api/admin/users` | Lists accounts from **Firebase Auth** (not Firestore, which omits anyone who has not yet synced or saved). Admin-gated, audited, capped at 1 000 with a `truncated` flag | — |
-| `/api/admin/whoami` | Returns `{ isAdmin, role }` for the bearer token; lets the UI hide admin affordances without shipping the allowlist | — |
-| `/api/account/export` | GDPR Art. 15 — every collection the caller owns, as one JSON document. Rate-limited to 5/hour | — |
-| `/api/account/delete` | GDPR Art. 17 — erases the caller's data, then the Auth account. Requires `{"confirm":"DELETE"}`. Rate-limited to 5/hour | — |
-| `/api/integrations/firebase` | Deep Firebase probe — actually writes to Firestore. Admin-gated; use `/api/health` for uptime monitoring. | 15 s |
-| `/api/directions` | Google Routes API proxy for the planner (12 s upstream timeout). Rate-limited to 120/hour per caller. | — |
-| `/api/advisories` | Scraped `data/advisories.json`, then `ADVISORY_FEED_URL`; never invents a closure | — |
-| `/api/elevation` | Ground elevation for up to 100 points, proxied to OpenTopoData (`ELEVATION_API_URL` overrides; no key). CDN-cached a month. A `null` stays a `null`; a 429 upstream is reported as `reason: "quota"`. Rate-limited to 150/hour per caller. | — |
-| `/api/komoot/tour` | A Komoot tour from a pasted share link, read from Komoot's **undocumented** `api.komoot.de/v007/tours/{id}` (no public API exists, so it can break without notice). Public tours CDN-cached an hour; a link with a `share_token` is `private, no-store`. Every failure carries a `reason` (`invalid`, `smarttour`, `private`, `not_found`, `unreadable`, `upstream`). Rate-limited to 60/hour per caller. | — |
+| Route                        | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Timeout |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `/api/chat`                  | Gemini 2.5 Flash conversation. Signed-in turns are persisted and, for a session the server holds, the model context is rebuilt from Firestore — the client's copy of the history is never trusted. Signed-out conversations are not stored. Context capped at 20 messages; body capped at 256 KB. Rate-limited to 20/hour per caller. Has tools (`lib/chatTools.ts`): it reads the open place and the weather, and may only _propose_ a save, which the user confirms in the widget — no tool writes. | 30 s    |
+| `/api/strava/exchange`       | Server-side OAuth token exchange (keeps secret off client)                                                                                                                                                                                                                                                                                                                                                                                                                                            | —       |
+| `/api/strava/activities`     | Fetch the caller's activities from Strava. The Strava token is held server-side in `strava_tokens/{uid}` (`lib/stravaTokens.ts`); the browser sends only its Firebase ID token. 409 means not connected.                                                                                                                                                                                                                                                                                              | —       |
+| `/api/strava/connection`     | GET connection status (athlete, never a token); DELETE disconnects.                                                                                                                                                                                                                                                                                                                                                                                                                                   | —       |
+| `/api/strava/sync`           | Sync the caller's Strava activities → Firestore. **Requires a Firebase ID token**; the destination `uid` comes from that token, never the body.                                                                                                                                                                                                                                                                                                                                                       | 60 s    |
+| `/api/discover`              | Routes (Waymarked Trails, with measured length), peaks and campsites (Photon, heights from OpenTopoData) near a point, rounded to the 0.1° cell. Each collection fails on its own and is named in `failed`; a complete answer is CDN-cached a week, a partial one `no-store`. Rate-limited to 60/hour per caller.                                                                                                                                                                                     | 45 s    |
+| `/api/places/cache`          | Grid-based places cache (0.5° cells, 24 h TTL). GET is public; **POST requires a Firebase ID token** and caps each kind at 200 items.                                                                                                                                                                                                                                                                                                                                                                 | 15 s    |
+| `/api/weather`               | Google Weather first; on failure falls over to OpenWeather when its key is set (logged as `weather_google_failed_using_openweather`), plus the route's weather window. Rate-limited to 200/hour per caller.                                                                                                                                                                                                                                                                                           | 15 s    |
+| `/api/health`                | Credential-presence checks only (no live API calls), including `rate_limiting` (degraded without `RATE_LIMIT_SALT`). Public, so it names no project or client ids. `s-maxage=30, stale-while-revalidate=10`.                                                                                                                                                                                                                                                                                          | 15 s    |
+| `/api/admin/cache`           | Inspect / purge places cache (batch 400 docs). Admin-gated. DELETE needs `?gridKey=<key>`, or `?all=true` **plus** body `{"confirm":"PURGE"}` for everything; anything else is a 400.                                                                                                                                                                                                                                                                                                                 | 30 s    |
+| `/api/admin/strava-sync`     | Strava sync status across users. Admin-gated.                                                                                                                                                                                                                                                                                                                                                                                                                                                         | —       |
+| `/api/admin/users`           | Lists accounts from **Firebase Auth** (not Firestore, which omits anyone who has not yet synced or saved). Admin-gated, audited, capped at 1 000 with a `truncated` flag                                                                                                                                                                                                                                                                                                                              | —       |
+| `/api/admin/whoami`          | Returns `{ isAdmin, role }` for the bearer token; lets the UI hide admin affordances without shipping the allowlist                                                                                                                                                                                                                                                                                                                                                                                   | —       |
+| `/api/account/export`        | GDPR Art. 15 — every collection the caller owns, as one JSON document. Rate-limited to 5/hour                                                                                                                                                                                                                                                                                                                                                                                                         | —       |
+| `/api/account/delete`        | GDPR Art. 17 — erases the caller's data, then the Auth account. Requires `{"confirm":"DELETE"}`. Rate-limited to 5/hour                                                                                                                                                                                                                                                                                                                                                                               | —       |
+| `/api/integrations/firebase` | Deep Firebase probe — actually writes to Firestore. Admin-gated; use `/api/health` for uptime monitoring.                                                                                                                                                                                                                                                                                                                                                                                             | 15 s    |
+| `/api/directions`            | OSRM proxy for the planner and directions (FOSSGIS public servers, or `ROUTING_API_URL`; no key; 12 s upstream timeout). Failures carry a `reason` the planner turns into advice. Rate-limited to 120/hour per caller.                                                                                                                                                                                                                                                                                | —       |
+| `/api/advisories`            | Scraped `data/advisories.json`, then `ADVISORY_FEED_URL`; never invents a closure                                                                                                                                                                                                                                                                                                                                                                                                                     | —       |
+| `/api/route-climb`           | A discovered route's climb, measured from terrain along its Waymarked Trails path (`lib/routeClimb.ts`), when its details open. Over ~45 km it answers `too_long` rather than under-measure. CDN-cached a month. Rate-limited to 40/hour per caller.                                                                                                                                                                                                                                                  | 45 s    |
+| `/api/elevation`             | Ground elevation for up to 100 points, proxied to OpenTopoData (`ELEVATION_API_URL` overrides; no key). CDN-cached a month. A `null` stays a `null`; a 429 upstream is reported as `reason: "quota"`. Rate-limited to 150/hour per caller.                                                                                                                                                                                                                                                            | —       |
+| `/api/komoot/tour`           | A Komoot tour from a pasted share link, read from Komoot's **undocumented** `api.komoot.de/v007/tours/{id}` (no public API exists, so it can break without notice). Public tours CDN-cached an hour; a link with a `share_token` is `private, no-store`. Every failure carries a `reason` (`invalid`, `smarttour`, `private`, `not_found`, `unreadable`, `upstream`). Rate-limited to 60/hour per caller.                                                                                             | —       |
 
 ### Firestore data model
 
 ```
 users/{uid}/saved_places/{placeId}
+users/{uid}/plans/{planId}              # browser-written, mirrors the device's planned routes
+users/{uid}/trips/{tripId}              # browser-written; ADR-0003 Trip (no safety timer yet)
 users/{uid}/strava_activities/{actId}   # Admin SDK write-only
 users/{uid}.strava_sync                 # sync manifest — a FIELD on the user doc, not a subcollection
 places_cache/{gridKey}                  # shared, Admin SDK only, 24 h TTL, first writer wins while fresh
@@ -115,7 +120,6 @@ activities/{actId}                      # owner read; Admin SDK write only
 routes/{routeId}
 training_programs/{programId}           # owner read; Admin SDK write only
 training_sessions/{sessionId}           # owner read; Admin SDK write only
-itineraries/{itineraryId}               # owner read; Admin SDK write only
 chat_sessions/{sessionId}/messages/{id} # Admin SDK only; one doc per turn
 rate_limits/{bucketId}                  # Admin SDK only; needs a TTL policy on `expiresAt`
 audit_logs/{entryId}                    # Admin SDK only; append-only, 730-day TTL
@@ -124,7 +128,7 @@ _health/                                # health check documents
 
 **Three collections need a Firestore TTL policy on `expiresAt` or they grow for
 ever**: `rate_limits`, `chat_sessions` (plus its `messages` subcollection, at
-*collection-group* scope — deleting a parent never touches a subcollection), and
+_collection-group_ scope — deleting a parent never touches a subcollection), and
 `audit_logs`. The field is inert without the policy. See
 `docs/guides/runbooks/firestore-ttl.md`.
 
@@ -154,7 +158,7 @@ body or a query parameter.
 To avoid redundant paid API calls:
 
 - **Weather + photos** (`DetailsModal.tsx`): module-level `weatherCache` (30 min TTL) and `photosCache` (session lifetime).
-- **Reverse geocode** (`usePlacesData.ts`): `sessionStorage` with 24 h TTL and 0.1° coordinate grid (`fri_geocode_*` key).
+- **Reverse geocode** (`usePlacesData.ts`): Nominatim, `sessionStorage` with 24 h TTL and 0.1° coordinate grid (`fri_geocode_*` key) — its usage policy asks for one request a second and caching.
 - **Last user location** (`useUserLocation.ts`): persisted to `localStorage` (`fri_last_location`) and restored on page load so the map focuses instantly. Restore it in an effect, never in a `useState` initializer — reading storage during render makes the server and client disagree on first paint and React discards the server tree.
 - **Places** (`usePlacesData.ts`): `localStorage` (`fri_places_cache`), 24 h, **keyed on the 0.1° location** — it used to be read regardless of where the user was.
 - **Sign-out clears personal storage.** Every `fri_*` key is classified in `lib/personalStorage.ts` (cleared on sign-out) or as a plain preference in its test; `personalStorage.test.ts` fails on an unclassified key.
@@ -207,6 +211,8 @@ Firebase Admin SDK tries credentials in this order: `FIREBASE_SERVICE_ACCOUNT_KE
 - `src/lib/userDataFootprint.ts` — the single list of where user data lives; export and erasure both walk it
 - `src/lib/useAdminGate.ts` — client hook that asks the server whether the user is an admin
 - `src/components/MapView.tsx` — the map: MapLibre on OpenFreeMap vector tiles with hillshading, no key. Markers, lines and camera live in `src/components/map/` (`MapMarkers`, `MapLines`, `useMapCamera`)
+- `src/lib/osmDiscovery.ts` — what `/api/discover` asks Waymarked Trails and Photon, and how answers become places. Pure, so every rule about what a number means is tested
+- `src/lib/usePlaceSearch.ts` — the map search box, on Photon (built for search-as-you-type, unlike Nominatim)
 - `src/lib/mapStyle.ts` — base style, terrain source and the bounds maths, pure so it tests without WebGL
 - `scripts/copy-maplibre-worker.ts` — runs before `dev` and `build`; MapLibre's worker must be served from `public/` because bundling breaks the path it looks for. The copy is gitignored
 - `src/components/NavDock.tsx` + `src/components/dock/` — the floating dock over the map: content tabs, weather, terrain, advisories, alerts, layers, quick links
@@ -216,7 +222,8 @@ Firebase Admin SDK tries credentials in this order: `FIREBASE_SERVICE_ACCOUNT_KE
 - `src/components/PhotoGallery.tsx` — place photos, with loading / empty / failed kept distinct
 - `src/components/RoadmapModal.tsx` — in-app release roadmap, driven by `src/lib/roadmap.ts`
 - `src/components/admin/` — admin modal: activity, cost, governance, caching, efficiency
-- `src/components/ChatBot.tsx` — floating chat widget with Firestore session persistence
+- `src/components/ChatBot.tsx` — floating chat widget with Firestore session persistence; shows the assistant's save proposals as Save / Not now (`components/chat/SaveProposalCard.tsx`)
+- `src/lib/chatTools.ts` — the assistant's tool declarations and executors. Tools read the open place and public weather only; a save is a proposal the browser confirms
 - `src/components/ConnectDevicesModal.tsx` — Strava OAuth + GPX/Apple Health file import
 - `src/components/DetailsModal.tsx` — route/mountain/campsite/activity details and live weather
 - `src/components/ProfileModal.tsx` — user profile display
@@ -228,19 +235,21 @@ Firebase Admin SDK tries credentials in this order: `FIREBASE_SERVICE_ACCOUNT_KE
 - `src/lib/polylineDecoder.ts` — precision-5 polyline decode → `[lng, lat]` pairs (test file is `decodePolyline.test.ts`)
 - `src/lib/activityTypes.ts` — activity interfaces, localStorage persistence (`fri_activities` key), dedup. Sources: `strava | coros | garmin | komoot | apple_health`
 - `src/lib/useSavedPlaces.ts` — real-time Firestore listener hook for saved places
-- `src/lib/useUserLocation.ts` — the *only* geolocation call in the app. Reports `source` so a fallback is never drawn as the user's position
+- `src/lib/useUserLocation.ts` — the _only_ geolocation call in the app. Reports `source` so a fallback is never drawn as the user's position
+- `src/lib/routeClimb.ts` + `useMeasuredClimb.ts` — a route's climb from terrain along its path (#142); difficulty is rated the harder way round, since a mapped route has no direction
 - `src/lib/routeDifficulty.ts` — difficulty from distance and ascent (NPS formula), with an `unknown` band
 - `src/lib/fitnessScore.ts` — month-to-date fitness score, targets pro-rated across days elapsed
 - `src/lib/ledger.ts` — lifetime and year-to-date totals plus personal bests, the record that survives the month rollover `fitnessScore` resets on
 - `src/lib/readinessRecommender.ts` — bands scored routes into "ready" and "stretch". The ready band sorts by demand, not score: everything easy scores 100, so sorting by score surfaces the flattest walk
 - `src/lib/weatherWindow.ts` — the soonest span worth going, scoped to a route's duration. A `warning` hour is disqualifying, never discounted
+- `src/components/TripsModal.tsx` + `src/lib/trips.ts` / `useTrips.ts` — Trip (ADR-0003): plan from a place's details, "I'm back" check-in, overdue shown in-app. **No one is notified yet**, and the UI says so every time; never word it otherwise until the server-side timer exists
 - `src/components/KomootRouteModal.tsx` — Komoot route viewer (dock → More): paste a tour link, get the route explained, the forecast window and a packing checklist
 - `src/lib/komootTour.ts` — Komoot link parsing and tour normalisation; untrusted JSON, unknowns stay `null`
 - `src/lib/routeBriefing.ts` — rule-based route summary and "what to prepare" checklist. No model: every line traces to a number on the route or the forecast, and an unknown surface is never read as firm ground
 - `src/lib/routeDuration.ts` — Naismith ascent estimate, shared by the details view and the weather window so the two cannot disagree
 - `src/lib/mapLayers.ts` — map layer vocabulary and persistence
 - `src/lib/gpxBuilder.ts` — planner → GPX (round-trips through `gpxParser`)
-- `src/lib/savedPlans.ts` — device-local planned routes
+- `src/lib/savedPlans.ts` — planned routes on the device; `planSync.ts` / `usePlanSync.ts` mirror them to `users/{uid}/plans` when signed in. A local `synced` flag tells "deleted on another device" from "made here signed out"
 - `src/lib/usePlannerRoute.ts` — snaps planner waypoints to walking paths via `/api/directions`
 - `src/lib/placeUrl.ts` — `?place=` deep links, used by Share and by reload restore
 - `src/lib/roadmap.ts` — roadmap content, kept beside the code it describes
@@ -284,33 +293,21 @@ changed meaning will otherwise feed every visitor to that region for 24 hours.
 
 ### Google APIs actually required
 
-Legacy Places is enough for discovery, but these are separate enablements and
-the app degrades honestly without them. Elevation is no longer one of them — it
-moved to `/api/elevation` (OpenTopoData, free) as the first step of #86, which
-replaces the rest. Nor is the map: it is MapLibre on OpenFreeMap tiles, and
-renders with no Google key at all. The Maps JavaScript script still loads, but
-only to carry Places, Geocoding and Distance Matrix until discovery moves too:
+None, unless you use Google for weather. #86 moved everything else to free
+providers: the map is MapLibre on OpenFreeMap tiles, discovery is
+`/api/discover` (OpenStreetMap), search is Photon, the area label is Nominatim,
+elevation is OpenTopoData and routing is OSRM. No Google script loads in the
+browser, and there is no browser Maps key.
 
-| API | Powers | Without it |
-|---|---|---|
-| Maps JavaScript | Loads the three client-side services below | "Place discovery could not start" with the map still up |
-| Places (legacy) | Route/peak/campsite discovery | Empty lists with a retry |
-| Geocoding | The "near <place>" label | Falls back to whatever label the place carries |
-| Distance Matrix (legacy) | Walking distance to each result | Distance omitted |
-| **Routes** (not legacy Directions) | Directions, planner path snapping | Straight lines, labelled as such |
+`GOOGLE_WEATHER_API_KEY` is called _server-to-server_, which sends no referer,
+so a referrer-restricted key is rejected with "Requests from referer
+&lt;empty&gt; are blocked" — it needs a key with **no referrer restriction**.
 
-**Two keys are required, of two different kinds.** The browser key is
-HTTP-referrer restricted and needs the client-side APIs above plus
-Geocoding and Distance Matrix. `/api/directions` and `/api/weather` call Google
-*server-to-server*, which sends no referer, so a referrer-restricted key is
-rejected with "Requests from referer &lt;empty&gt; are blocked" — they need their
-own key with **no referrer restriction**, in `GOOGLE_ROUTES_API_KEY` and
-`GOOGLE_WEATHER_API_KEY`.
-
-`GOOGLE_ROUTES_API_KEY` falling back to `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is a
-trap for that reason: the fallback looks configured and can never work. The
-route now detects the referer rejection and says so rather than sending you to
-check billing, which is the answer that wastes an afternoon.
+The free services are shared and volunteer-run, so each is proxied and cached
+at the edge (`/api/discover` a week per 0.1° cell, `/api/elevation` a month;
+`/api/directions` is a POST, which the CDN does not cache) and sends an identifying User-Agent. `ROUTING_API_URL`
+and `ELEVATION_API_URL` point at self-hosted instances when the public ones are
+not enough.
 
 ### Advisories
 
@@ -335,13 +332,13 @@ Presentation → Application → Domain ← Infrastructure
 Infrastructure implements the domain's ports; nothing in domain or application
 imports it.
 
-| Layer | Path | Contains |
-|---|---|---|
-| Domain | `src/domain/` | Entities, value objects, interfaces (ports), domain services |
-| Application | `src/application/` | Use cases (e.g. `match_routes_use_case.py`) |
-| Presentation | `src/presentation/` | API routers, request/response models, dependency providers |
-| Infrastructure | `src/infrastructure/` | Database adapters, external API clients |
-| Config | `src/config/` | Pydantic settings via `settings.py` |
+| Layer          | Path                  | Contains                                                     |
+| -------------- | --------------------- | ------------------------------------------------------------ |
+| Domain         | `src/domain/`         | Entities, value objects, interfaces (ports), domain services |
+| Application    | `src/application/`    | Use cases (e.g. `match_routes_use_case.py`)                  |
+| Presentation   | `src/presentation/`   | API routers, request/response models, dependency providers   |
+| Infrastructure | `src/infrastructure/` | Database adapters, external API clients                      |
+| Config         | `src/config/`         | Pydantic settings via `settings.py`                          |
 
 Do not import from outer layers into inner ones (domain has zero external imports).
 **import-linter enforces this** — contracts in `pyproject.toml` `[tool.importlinter]`, run in
@@ -377,14 +374,14 @@ feature/* → develop → main
 
 ### Workflows
 
-| File | Triggers | What it does |
-|---|---|---|
-| `ci.yml` | PR to `main`/`develop`, push to `main`/`develop` | `npm run quality` gates + unit tests + build (frontend); ruff + mypy + import-linter + vulture + pytest (backend) |
-| `e2e.yml` | PR to `main`/`develop` | Playwright E2E (uses real secrets from GitHub Secrets). Skipped for Dependabot and fork PRs, which get no secrets |
-| `mutation.yml` | PR to `main`/`develop` when `src/lib/` changed | Stryker mutation tests |
-| `security.yml` | PRs + push to `main`/`develop` + weekly Monday | npm audit (`--audit-level=high`) + gitleaks secret scan + CodeQL |
-| `agent-review.yml` | PR open/synchronize | Posts AI review comment via Claude Haiku. Needs `ANTHROPIC_API_KEY` secret. Add `[skip review]` to PR title to suppress. |
-| `uptime.yml` | Every 15 min, manual dispatch | Curls `{PRODUCTION_URL}/api/health` (10 s timeout, 2 retries); fails on non-2xx, warns on `degraded`. Needs the `PRODUCTION_URL` repo variable — **unset until 2026-09-28, so it never passed**. |
+| File               | Triggers                                         | What it does                                                                                                                                                                                     |
+| ------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ci.yml`           | PR to `main`/`develop`, push to `main`/`develop` | `npm run quality` gates + unit tests + build (frontend); ruff + mypy + import-linter + vulture + pytest (backend)                                                                                |
+| `e2e.yml`          | PR to `main`/`develop`                           | Playwright E2E (uses real secrets from GitHub Secrets). Skipped for Dependabot and fork PRs, which get no secrets                                                                                |
+| `mutation.yml`     | PR to `main`/`develop` when `src/lib/` changed   | Stryker mutation tests                                                                                                                                                                           |
+| `security.yml`     | PRs + push to `main`/`develop` + weekly Monday   | npm audit (`--audit-level=high`) + gitleaks secret scan + CodeQL                                                                                                                                 |
+| `agent-review.yml` | PR open/synchronize                              | Posts AI review comment via Claude Haiku. Needs `ANTHROPIC_API_KEY` secret. Add `[skip review]` to PR title to suppress.                                                                         |
+| `uptime.yml`       | Every 15 min, manual dispatch                    | Curls `{PRODUCTION_URL}/api/health` (10 s timeout, 2 retries); fails on non-2xx, warns on `degraded`. Needs the `PRODUCTION_URL` repo variable — **unset until 2026-09-28, so it never passed**. |
 
 The AI review workflow uses `claude-haiku-4-5-20251001`, trims diffs to 10 KB, and caps output at 1 024 tokens (~$0.004/PR).
 
@@ -392,18 +389,18 @@ The AI review workflow uses `claude-haiku-4-5-20251001`, trims diffs to 10 KB, a
 
 Add these in **Settings → Secrets and variables → Actions**:
 
-| Secret | Used by |
-|---|---|
-| `ANTHROPIC_API_KEY` | `agent-review.yml` |
-| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | `e2e.yml` |
-| `NEXT_PUBLIC_FIREBASE_*` (4: `API_KEY`, `AUTH_DOMAIN`, `PROJECT_ID`, `APP_ID`) | `e2e.yml` |
-| `GEMINI_API_KEY` | `e2e.yml` |
-| `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | `e2e.yml` |
-| `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` | `e2e.yml` |
+| Secret                                                                         | Used by            |
+| ------------------------------------------------------------------------------ | ------------------ |
+| `ANTHROPIC_API_KEY`                                                            | `agent-review.yml` |
+| `NEXT_PUBLIC_FIREBASE_*` (4: `API_KEY`, `AUTH_DOMAIN`, `PROJECT_ID`, `APP_ID`) | `e2e.yml`          |
+| `GEMINI_API_KEY`                                                               | `e2e.yml`          |
+| `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`         | `e2e.yml`          |
+| `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`                                     | `e2e.yml`          |
 
 ### Branch protection setup (one-time, GitHub UI)
 
 **`main` and `develop` branches (same rules on both):**
+
 - Require status checks: `Frontend Quality`, `Backend Quality`, `Playwright E2E`, `Secret Scan`
 - Enable merge queue (Settings → Branches → Edit → Merge queue)
 - Require 1 approving review
@@ -413,6 +410,7 @@ Add these in **Settings → Secrets and variables → Actions**:
 ### Pre-commit hooks (Husky)
 
 After cloning, run once from `src/frontend/`:
+
 ```bash
 npm install   # installs husky, lint-staged, commitlint, secretlint
 ```
@@ -460,7 +458,6 @@ Both runtimes read that one file:
 
 Required keys that will break functionality if missing:
 
-- `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
 - `GEMINI_API_KEY`
 - `NEXT_PUBLIC_FIREBASE_*` — **4 keys**, not 6: `API_KEY`, `AUTH_DOMAIN`,
   `PROJECT_ID`, `APP_ID`. `STORAGE_BUCKET` and `MESSAGING_SENDER_ID` were
@@ -474,9 +471,9 @@ Required keys that will break functionality if missing:
   entirely. The **secret** must never gain a `NEXT_PUBLIC_` prefix.
 
 Optional (graceful degradation): `GOOGLE_WEATHER_API_KEY` and
-`OPENWEATHER_API_KEY` — two *different* providers, not aliases; Google is used
+`OPENWEATHER_API_KEY` — two _different_ providers, not aliases; Google is used
 when its key is set; a Google failure falls over to OpenWeather if that key is
-set, else 502. Also `GOOGLE_ROUTES_API_KEY`,
+set, else 502. Also `ROUTING_API_URL`, `ELEVATION_API_URL`,
 `OPENWEATHER_BASE_URL`, `ADVISORY_FEED_URL`, `LOG_LEVEL`, `CSP_ENFORCE_RESOURCES`,
 `CSP_REPORT_URI`.
 
@@ -487,21 +484,21 @@ either direction, and if a secret-looking name gains a `NEXT_PUBLIC_` prefix.
 
 Firebase Auth supports two sign-in methods. Both require the provider to be enabled in Firebase Console → Authentication → Sign-in method.
 
-| Provider | Firebase | Setup note |
-|---|---|---|
-| Google | `GoogleAuthProvider` | Works on any domain in Firebase authorised-domain list |
-| Apple | `OAuthProvider("apple.com")` | Also requires Apple Developer account with Sign in with Apple entitlement; add Firebase callback URL to Apple service ID |
+| Provider | Firebase                     | Setup note                                                                                                               |
+| -------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Google   | `GoogleAuthProvider`         | Works on any domain in Firebase authorised-domain list                                                                   |
+| Apple    | `OAuthProvider("apple.com")` | Also requires Apple Developer account with Sign in with Apple entitlement; add Firebase callback URL to Apple service ID |
 
 ## Activity sources
 
 All sources are typed in `src/lib/activityTypes.ts`:
 
-| Source key | Origin | Parser |
-|---|---|---|
-| `strava` | Strava OAuth sync | `/api/strava/activities` |
-| `coros` | GPX file upload | `gpxParser.ts` |
-| `garmin` | GPX file upload | `gpxParser.ts` |
-| `komoot` | GPX file upload | `gpxParser.ts` |
-| `apple_health` | Apple Health `export.xml` | `appleHealthParser.ts` |
+| Source key     | Origin                    | Parser                   |
+| -------------- | ------------------------- | ------------------------ |
+| `strava`       | Strava OAuth sync         | `/api/strava/activities` |
+| `coros`        | GPX file upload           | `gpxParser.ts`           |
+| `garmin`       | GPX file upload           | `gpxParser.ts`           |
+| `komoot`       | GPX file upload           | `gpxParser.ts`           |
+| `apple_health` | Apple Health `export.xml` | `appleHealthParser.ts`   |
 
 Apple Health export: iPhone → Health → profile photo → Export All Health Data → extract zip → upload `export.xml` in the Connect Devices modal.

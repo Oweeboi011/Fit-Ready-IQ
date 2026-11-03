@@ -128,14 +128,21 @@ export const ROADMAP: RoadmapPhase[] = [
       },
       {
         title: 'Walking and cycling routing',
-        status: 'partial',
+        status: 'done',
         detail:
-          'Plan on foot or by bike; the line and the distance come from the router for that mode. Where no route exists the planner says so rather than drawing a straight line.',
+          'Plan on foot or by bike on OpenStreetMap paths, with no API key. Where no route exists the planner says so rather than drawing a straight line.',
+      },
+      {
+        title: 'Free map and place data',
+        status: 'done',
+        detail:
+          'The map is MapLibre on OpenFreeMap tiles, and routes, peaks and campsites come from OpenStreetMap. Routes now carry their measured length instead of none.',
       },
       {
         title: 'Plans synced to an account',
-        status: 'pending',
-        detail: 'Plans are device-local, so they do not follow you to a phone.',
+        status: 'done',
+        detail:
+          'Signed in, saved plans follow you to every device; signed out, they stay on this one. A plan deleted on one device stays deleted on the others.',
       },
     ],
   },
@@ -168,6 +175,12 @@ export const ROADMAP: RoadmapPhase[] = [
           'Routes are scored against the last eight weeks of training, gated by the limiting factor so the answer names what to train.',
       },
       {
+        title: 'An assistant that checks before it answers',
+        status: 'done',
+        detail:
+          'Ask about the place you have open and the assistant reads its real length, climb and forecast instead of guessing. It can offer to save the place; you press Save.',
+      },
+      {
         title: 'A weather window, not just conditions',
         status: 'done',
         detail:
@@ -196,13 +209,13 @@ export const ROADMAP: RoadmapPhase[] = [
         title: 'Installable on a phone',
         status: 'partial',
         detail:
-          'A manifest, icons and standalone display make it installable. It still needs the network — offline support is scoped to a Trip, which does not exist yet.',
+          'A manifest, icons and standalone display make it installable. It still needs the network; offline support is scoped to the current Trip and is not built yet.',
       },
       {
         title: 'Trip, check-in and the safety timer',
-        status: 'pending',
+        status: 'partial',
         detail:
-          'The decided spine (ADR-0003): a trip you can file, an expected return, and a server that tells your contact if you do not check in. Not started.',
+          'You can file a trip from any route, peak or campsite, with an expected return, and check in when you are back. The app shows when you are overdue. The server-side timer that tells a contact is not built yet, and the app says so.',
       },
     ],
   },
@@ -230,31 +243,27 @@ export const CONSIDERATIONS: RoadmapNote[] = [
 
 export const CHALLENGES: RoadmapNote[] = [
   {
-    title: 'Trail data is not in Google',
-    body: 'Directions knows roads and mapped paths. Real trails often are not in it, which caps how good routing and distance can be without a dedicated trail dataset.',
+    title: 'Few routes are tagged with their climb',
+    body: 'OpenStreetMap gives every route a measured length, but only some carry an ascent tag, and difficulty needs both. So the climb is measured from terrain along the route when you open it; the list still rates only routes that carry the tag.',
   },
   {
-    title: 'Places search ignores radius',
-    body: 'textSearch treats radius as a bias, so results arrive from other continents. We filter client-side at 80 km, which costs calls we cannot avoid making.',
+    title: 'Free services are shared',
+    body: 'Waymarked Trails, Photon and OpenTopoData are run for everyone. Discovery is cached at the edge for a week per 0.1° cell so each region costs them one visit, not one per visitor.',
   },
   {
     title: 'Advisories have no standard',
     body: 'Every authority publishes differently. The scraper is declarative per source, so each new region is configuration plus verification, not code.',
   },
   {
-    title: 'Cost scales with cold regions',
-    body: 'A new area costs roughly forty Places queries plus elevation batches. Cache hit rate is the main lever, and it is only as good as the traffic distribution.',
+    title: 'Cold regions are slow, not costly',
+    body: 'A new area takes a few seconds of upstream lookups the first time anyone opens it, and is then served from the edge. Nothing in discovery is billed per call any more.',
   },
 ];
 
 export const RECOMMENDATIONS: RoadmapNote[] = [
   {
-    title: 'Enable the Routes and Elevation APIs',
-    body: 'Both return REQUEST_DENIED on the current project. That is why relief reads "unknown", difficulty reads "Unrated", and planned routes fall back to straight lines. The code is in place; these are console toggles.',
-  },
-  {
-    title: 'Add a trail data source',
-    body: 'OpenStreetMap trail geometry would fix routing, distance and elevation profiles in one move. The planner now refuses to guess when the router cannot join two points, so on unmapped trails it correctly shows nothing — trail data is what would let it show something true instead.',
+    title: 'Measure the climb along each route',
+    body: 'Routes now arrive with a measured length. Sampling terrain along their mapped geometry would give the climb as well, and with it a difficulty and readiness score for every route rather than the few tagged with one.',
   },
   {
     title: 'Instrument before optimising',

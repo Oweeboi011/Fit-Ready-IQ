@@ -24,7 +24,8 @@ export interface SavedPlace {
 }
 
 // Lazy-load Firestore only in the browser to avoid SSR/prerender failures.
-async function getFirestoreDb() {
+// Shared with planSync.ts, the other browser writer.
+export async function getFirestoreDb() {
   if (typeof window === 'undefined') return null;
   if (!isFirebaseAuthConfigured()) return null;
   const { getApps, getApp } = await import('firebase/app');
@@ -170,8 +171,9 @@ export function useSavedPlaces(uid: string | null) {
    * old list — so "undo" of a save saved it again rather than removing it.
    */
   const setSaved = useCallback(
-    async (place: Omit<SavedPlace, 'savedAt'>, saved: boolean) => {
-      if (!uid) return;
+    /** Resolves true once written, false when it was not — the reason is in `saveError`. */
+    async (place: Omit<SavedPlace, 'savedAt'>, saved: boolean): Promise<boolean> => {
+      if (!uid) return false;
       const wasSaved = !saved;
       setSaveError(null);
 
@@ -179,7 +181,7 @@ export function useSavedPlaces(uid: string | null) {
         const db = await getFirestoreDb();
         if (!db) {
           setSaveError('Saving is unavailable right now.');
-          return;
+          return false;
         }
         const { doc, setDoc, deleteDoc, serverTimestamp } = await import('firebase/firestore');
         const ref = doc(db, 'users', uid, 'saved_places', place.id);
@@ -189,6 +191,7 @@ export function useSavedPlaces(uid: string | null) {
         } else {
           await deleteDoc(ref);
         }
+        return true;
       } catch (err) {
         // Previously an unhandled rejection: the write failed and the bookmark
         // simply never filled, with nothing anywhere to explain why.
@@ -196,6 +199,7 @@ export function useSavedPlaces(uid: string | null) {
         setSaveError(
           wasSaved ? "We couldn't remove that place." : "We couldn't save that place. Try again."
         );
+        return false;
       }
     },
     [uid]

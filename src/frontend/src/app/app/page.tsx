@@ -2,7 +2,6 @@
 
 // Fit Ready IQ - Main Page
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useJsApiLoader } from '@react-google-maps/api';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -10,6 +9,7 @@ import AppHeader from '@/components/AppHeader';
 import PlacesSidebar from '@/components/PlacesSidebar';
 import MapArea from '@/components/MapArea';
 import { DEFAULT_FILTERS, type FilterState } from '@/components/RouteFilter';
+import type { TripDraft } from '@/components/TripsModal';
 import { haversineDistanceKm } from '@/lib/gpxParser';
 import { saveActivities, mergeActivities } from '@/lib/activityTypes';
 import { computeReadiness } from '@/lib/readiness';
@@ -31,6 +31,7 @@ import { isPlanId, rememberSelectedPlan } from '@/lib/plans';
 import { decodePlaceRef, encodePlaceRef, type PlaceRef } from '@/lib/placeUrl';
 import { locationProblemMessage, useUserLocation } from '@/lib/useUserLocation';
 import type { Route as RouteData, Mountain as MountainData, Campsite } from '@/lib/placesTypes';
+import type { OpenPlace } from '@/lib/chatTools';
 import { toDetailsModalData, type SelectedDetails } from '@/lib/detailsModalMapper';
 import { fetchElevations } from '@/lib/mapsGeometry';
 import { useFirebaseAuth } from '@/lib/useFirebaseAuth';
@@ -55,10 +56,9 @@ const ProfileModal = dynamic(() => import('@/components/ProfileModal'), { ssr: f
 const AdminModal = dynamic(() => import('@/components/admin/AdminModal'), { ssr: false });
 const RoadmapModal = dynamic(() => import('@/components/RoadmapModal'), { ssr: false });
 const KomootRouteModal = dynamic(() => import('@/components/KomootRouteModal'), { ssr: false });
+const TripsModal = dynamic(() => import('@/components/TripsModal'), { ssr: false });
 /** Not gated on open state — it renders its own launcher button. */
 const ChatBot = dynamic(() => import('@/components/ChatBot'), { ssr: false });
-
-const libraries: ('places' | 'geometry')[] = ['places', 'geometry'];
 
 type TabId = 'routes' | 'mountains' | 'campsites' | 'history' | 'saved';
 
@@ -106,21 +106,6 @@ export default function Home() {
   } = useUserLocation();
   const isLocating = locationStatus === 'locating';
 
-  const googleMapsApiKey = (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '').trim();
-
-  const googleMapsLoaderOptions = useMemo(
-    () => ({ googleMapsApiKey, libraries }),
-    [googleMapsApiKey]
-  );
-
-  const { isLoaded, loadError } = useJsApiLoader(googleMapsLoaderOptions);
-
-  // The Google script now serves discovery only (#86): the map itself is
-  // MapLibre on free tiles and renders with or without it. `useJsApiLoader`
-  // reports `loadError` only when the script fails to fetch — a blank key loads
-  // fine and then fails every call — so the absence is checked directly.
-  const discoveryUnavailable = Boolean(loadError) || !googleMapsApiKey;
-
   const {
     routes,
     mountains,
@@ -129,11 +114,8 @@ export default function Home() {
     error,
     setError,
     failedCollections,
-    elevationUnavailable,
     retryPlacesFetch,
   } = usePlacesData({
-    isLoaded,
-    discoveryUnavailable,
     userLocation,
     locationStatus,
     locationSource,
@@ -157,6 +139,8 @@ export default function Home() {
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [roadmapOpen, setRoadmapOpen] = useState(false);
   const [komootOpen, setKomootOpen] = useState(false);
+  const [tripsOpen, setTripsOpen] = useState(false);
+  const [tripDraft, setTripDraft] = useState<TripDraft | null>(null);
   const [plannerWaypoints, setPlannerWaypoints] = useState<PlannerWaypoint[]>([]);
 
   /**
@@ -394,6 +378,20 @@ export default function Home() {
    * feedback at all beyond a fill state that is easy to miss, and an accidental
    * unsave was silent and unrecoverable.
    */
+  // What the assistant's tools may read: the place open in the details view.
+  // An activity is the user's own record, not a place, so it is not offered.
+  const chatOpenPlace = useMemo<OpenPlace | null>(
+    () =>
+      selectedDetails && selectedDetails.type !== 'activity'
+        ? ({ kind: selectedDetails.type, place: selectedDetails.data } as OpenPlace)
+        : null,
+    [selectedDetails]
+  );
+  const saveFromChat = useCallback(
+    (place: Parameters<typeof setSaved>[0]) => setSaved(place, true),
+    [setSaved]
+  );
+
   const handleToggleSave = useCallback(
     async (place: Parameters<typeof toggleSave>[0]) => {
       const wasSaved = isSaved(place.id);
@@ -435,13 +433,6 @@ export default function Home() {
         message: locationProblemMessage(locationProblem, locationSource),
       });
     }
-    if (elevationUnavailable) {
-      list.push({
-        id: 'elevation',
-        tone: 'warning',
-        message: 'Elevation data is unavailable, so climbs and gains are shown as unknown.',
-      });
-    }
     if (failedCollections.length > 0) {
       list.push({
         id: 'collections',
@@ -459,15 +450,7 @@ export default function Home() {
     if (error) list.push({ id: 'places', tone: 'warning', message: error });
     if (saveError) list.push({ id: 'save', tone: 'warning', message: saveError });
     return list;
-  }, [
-    locationProblem,
-    locationSource,
-    elevationUnavailable,
-    failedCollections,
-    stravaSyncState,
-    error,
-    saveError,
-  ]);
+  }, [locationProblem, locationSource, failedCollections, stravaSyncState, error, saveError]);
 
   /** A read on the terrain around the user, from data already loaded. */
   const terrainPulse = useMemo(() => {
@@ -780,7 +763,6 @@ export default function Home() {
           isLoading={isLoading}
           error={error}
           onRetryPlaces={retryPlacesFetch}
-          elevationUnavailable={elevationUnavailable}
           failedCollections={failedCollections}
           collectionLabels={COLLECTION_LABELS}
           isSaved={isSaved}
@@ -822,6 +804,10 @@ export default function Home() {
           onOpenAdmin={() => setAdminModalOpen(true)}
           onOpenRoadmap={() => setRoadmapOpen(true)}
           onOpenKomoot={() => setKomootOpen(true)}
+          onOpenTrips={() => {
+            setTripDraft(null);
+            setTripsOpen(true);
+          }}
           showLegend={showLegend}
           onToggleLegend={() => setShowLegend((v) => !v)}
           showNativeControls={showNativeControls}
@@ -860,6 +846,7 @@ export default function Home() {
           plannerRoute={plannerRoute}
           plannerTravelMode={plannerTravelMode}
           onPlannerTravelModeChange={setPlannerTravelMode}
+          uid={authUser?.uid ?? null}
           onClearPlanner={() => setPlannerWaypoints([])}
           onLoadPlan={setPlannerWaypoints}
           onMapClick={plannerOpen ? addWaypoint : undefined}
@@ -887,6 +874,14 @@ export default function Home() {
 
       {roadmapOpen && <RoadmapModal isOpen={roadmapOpen} onClose={() => setRoadmapOpen(false)} />}
       {komootOpen && <KomootRouteModal isOpen={komootOpen} onClose={() => setKomootOpen(false)} />}
+      {tripsOpen && (
+        <TripsModal
+          isOpen={tripsOpen}
+          onClose={() => setTripsOpen(false)}
+          uid={authUser?.uid ?? null}
+          draft={tripDraft}
+        />
+      )}
 
       {selectedDetails !== null && (
         <DetailsModal
@@ -896,6 +891,10 @@ export default function Home() {
             setDirectionsTarget(target);
             setSidebarOpen(false);
           }}
+          onPlanTrip={(draft) => {
+            setTripDraft(draft);
+            setTripsOpen(true);
+          }}
           activities={activities}
           onConnectDevices={() => {
             setSelectedDetails(null);
@@ -904,7 +903,12 @@ export default function Home() {
           data={toDetailsModalData(selectedDetails)}
         />
       )}
-      <ChatBot />
+      <ChatBot
+        openPlace={chatOpenPlace}
+        location={userLocation ? [userLocation.lng, userLocation.lat] : null}
+        canSave={Boolean(authUser)}
+        onSave={saveFromChat}
+      />
     </main>
   );
 }

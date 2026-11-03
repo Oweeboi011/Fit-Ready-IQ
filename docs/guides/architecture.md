@@ -12,18 +12,18 @@ flowchart TB
     subgraph Browser
         L["/ landing page (static)"]
         M["/app map product"]
-        GM["Google Maps JS SDK<br/>Places · Elevation · Geocoding · Distance Matrix"]
+        OSM["OpenFreeMap tiles · Photon search ·<br/>Nominatim reverse geocoding"]
     end
     subgraph Vercel["Vercel — Next.js 16 App Router"]
         API["Route handlers<br/>src/app/api/**"]
     end
     FS[("Firestore")]
     FA["Firebase Auth<br/>Google · Apple"]
-    EXT["Gemini 2.5 Flash · Strava ·<br/>Google Routes · Google Weather / OpenWeather"]
+    EXT["Gemini 2.5 Flash · Strava · Google Routes ·<br/>Google Weather / OpenWeather ·<br/>Waymarked Trails · Photon · OpenTopoData"]
 
-    M --> GM
+    M --> OSM
     M -->|ID token| API
-    M -->|saved_places only| FS
+    M -->|saved_places, plans| FS
     M --> FA
     API -->|Admin SDK| FS
     API --> FA
@@ -32,7 +32,9 @@ flowchart TB
 
 - **`/` is static and fast.** It is the only page that converts visitors, so it ships no
   Firebase in its first bundle. The product lives at `/app`.
-- **The browser talks to Google directly** for discovery, using a referrer-restricted key.
+- **Map and discovery are keyless and free.** The browser loads OpenFreeMap tiles, searches
+  with Photon and labels the area with Nominatim directly; routes, peaks and campsites come
+  from `/api/discover`, which asks OpenStreetMap services and is cached at the edge for a week.
   Everything that needs a secret goes through a route handler.
 - **The backend in `src/backend/` is not deployed.** Nothing in production calls it (see
   [Backend](#backend-not-deployed)).
@@ -67,7 +69,7 @@ Rules the UI holds to (from [`.claude/CLAUDE.md`](../../.claude/CLAUDE.md)):
 ```mermaid
 flowchart TD
     A["Open /app"] --> B["useUserLocation<br/>gps · restored · fallback (never drawn as 'you')"]
-    B --> C["usePlacesData<br/>localStorage → /api/places/cache → live Google fetch"]
+    B --> C["usePlacesData<br/>localStorage → /api/places/cache → /api/discover (OSM)"]
     C --> D["Sidebar: Routes · Peaks · Camps · History · Saved"]
     D --> E["DetailsModal"]
     E --> E1["Elevation profile"]
@@ -135,15 +137,17 @@ erDiagram
     }
 ```
 
-| Collection                                          | Written by               | Notes                                                                                      |
-| --------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------ |
-| `users/{uid}/saved_places`                          | Browser                  | The only browser write. Rules do not cascade, so every subcollection needs its own `match` |
-| `users/{uid}/strava_activities`                     | `/api/strava/sync`       | Upsert by Strava id. Each page is a transaction that re-checks the connection              |
-| `strava_tokens/{uid}`                               | `/api/strava/exchange`   | Never readable by any client                                                               |
-| `places_cache/{gridKey}`                            | `/api/places/cache` POST | Shared and public-read. The first writer wins while fresh (24 h)                           |
-| `chat_sessions/…/messages`                          | `/api/chat`              | Signed-in only                                                                             |
-| `rate_limits`, `audit_logs`                         | Server                   | Append-only audit trail                                                                    |
-| `activities`, `routes`, `training_*`, `itineraries` | No live writer           | Rules and erasure cover them ahead of ADR-0003 (Trip) and ADR-0004 (geometry)              |
+| Collection                           | Written by               | Notes                                                                               |
+| ------------------------------------ | ------------------------ | ----------------------------------------------------------------------------------- |
+| `users/{uid}/saved_places`           | Browser                  | A browser write. Rules do not cascade, so every subcollection needs its own `match` |
+| `users/{uid}/plans`                  | Browser (`planSync.ts`)  | Mirrors the device's planned routes. Waypoint list bounded at 27 by the rule        |
+| `users/{uid}/strava_activities`      | `/api/strava/sync`       | Upsert by Strava id. Each page is a transaction that re-checks the connection       |
+| `strava_tokens/{uid}`                | `/api/strava/exchange`   | Never readable by any client                                                        |
+| `places_cache/{gridKey}`             | `/api/places/cache` POST | Shared and public-read. The first writer wins while fresh (24 h)                    |
+| `chat_sessions/…/messages`           | `/api/chat`              | Signed-in only                                                                      |
+| `rate_limits`, `audit_logs`          | Server                   | Append-only audit trail                                                             |
+| `users/{uid}/trips`                  | Browser (`useTrips.ts`)  | Owner-only, shape-checked; ADR-0003 without the timer                               |
+| `activities`, `routes`, `training_*` | No live writer           | Rules and erasure cover them ahead of ADR-0004 (geometry)                           |
 
 - **TTL.** `rate_limits`, `chat_sessions` (plus `messages` at collection-group scope) and
   `audit_logs` need a Firestore TTL policy on `expiresAt`; see

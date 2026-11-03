@@ -57,8 +57,8 @@ export interface Readiness {
 
 export interface RouteDemand {
   /**
-   * Null when the route's length is unknown — true of every Google Places
-   * result, which is a pin with no trail geometry. Readiness is then unknown:
+   * Null when the route's length is unknown — a climbing area, or a route with
+   * no mapped geometry. Readiness is then unknown:
    * there is no honest answer to "can I walk this far?" without a distance.
    */
   distanceKm: number | null;

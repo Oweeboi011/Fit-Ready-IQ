@@ -49,6 +49,15 @@ rebuilt from `chat_sessions/{id}/messages` and only the client's final turn is u
 could otherwise write the assistant's side of the conversation. For a new session, the client's
 last 20 messages are used (trimmed to start on a user turn).
 
+**Tools** (`lib/chatTools.ts`, #26). The model may call `analyze_open_place` (the open place's
+length, climb, difficulty and time estimate, with every unknown named), `analyze_weather` (the
+weather route, called with the caller's own headers, at the open place or the user's location)
+and `propose_save_open_place`. No tool writes anything: a save comes back as `proposal`
+(`{ action: "save_place", placeId, name }`) and the widget asks the user, who saves with their
+own sign-in. The optional `context` (`{ openPlace: { kind, place }, location: [lng, lat] }`) is
+rebuilt through the places-cache schema; a malformed place is dropped. A turn makes at most
+three model calls.
+
 **Persistence:** signed-in conversations only. The owner is written once, at create; a
 `sessionId` that is unknown, malformed or someone else's gets a fresh server-minted id instead.
 Signed-out conversations are not stored — there would be no owner to export or erase them for —
@@ -71,6 +80,7 @@ Authorization: Bearer <Firebase ID token>   (optional)
 | ----------- | ------------- | -------- | ----------------------------------------------------------------------------------- |
 | `sessionId` | string (UUID) | No       | A session this caller owns. Anything else is replaced by a new id.                  |
 | `messages`  | array         | Yes      | 1–200 messages; the **last must be `role: "user"`**. Each at most 8,000 characters. |
+| `context`   | object        | No       | The open place and the user's location, for tools. Untrusted; validated.            |
 
 **Responses:**
 
@@ -134,9 +144,29 @@ key is set and 502 when the provider fails. No Firestore cache exists.
 ### GET /api/health
 
 Public, and checks only that credentials are **present**; it makes no live calls. Services:
-`maps`, `firebase_client`, `firebase_admin`, `gemini`, `weather`, `routing`, `strava`,
+`firebase_client`, `firebase_admin`, `gemini`, `weather`, `routing` (which router, never a failure),
+`strava`,
 `rate_limiting`. Status is `healthy` (0 failing), `degraded` (1–2, HTTP 200) or `unhealthy`
 (3+, HTTP 503). It names no project or client id. `uptime.yml` polls it.
+
+### GET /api/discover
+
+`?lat=&lng=`, rounded to the 0.1° cell. Public and rate-limited. Routes come from Waymarked
+Trails with their measured length; peaks and campsites from Photon, with summit heights from
+OpenTopoData; route photos from Wikidata. Returns `{ routes, mountains, campsites, failed }`,
+where `failed` names any collection whose source did not answer. A complete answer is cached at
+the edge for a week; one with a failure is `no-store`. Parsing is in `lib/osmDiscovery.ts`.
+
+### GET /api/route-climb
+
+`?site=hiking|mtb&id=<relation>`, a route `/api/discover` returned (`wmt-{site}-{id}`). Reads
+the route's path from Waymarked Trails, samples it at least every 150 m (50 m minimum spacing,
+300 points at most), asks OpenTopoData for the heights a batch a second, and returns
+`{ climbM, descentM, spacingM, samples }` in the direction the route is mapped. Changes under
+5 m are terrain-model noise and are not counted. With no number it returns `{ climbM: null,
+reason }`: `too_long` (over about 45 km, too long to sample closely) and `no_geometry` are
+answers, cached a month; `upstream` and `quota` are 502 and `no-store`. The details view calls
+it only for a route with no `ascent` tag. 40/hour. Maths in `lib/routeClimb.ts`.
 
 ### /api/places/cache
 
@@ -188,10 +218,13 @@ before the Auth account, so the user can retry; the audit record says how far it
 
 ### POST /api/directions
 
-Google Routes proxy. `origin`, `destination` (`{lat,lng}`, range-checked), optional
-`intermediates` (first 25 used), `mode` (`DRIVE` | `WALK` | `BICYCLE`). Returns
-`{ polyline, distanceKm, durationSeconds }`; the two numbers are `null` when Routes did not report
-them. 120/hour.
+OSRM proxy (FOSSGIS's public servers, or `ROUTING_API_URL`). No key. `origin`, `destination`
+(`{lat,lng}`, range-checked), optional `intermediates` (first 25 used), `mode` (`DRIVE` |
+`WALK` | `BICYCLE`, mapped to OSRM's car, foot and bike profiles). Returns
+`{ polyline, distanceKm, durationSeconds }`; the two numbers are `null` when the router did not
+report them. Failures carry a `reason`: `no_route` (404), `busy` (the public server refused for
+load), `upstream`, `timeout`, `bad_request`. Not CDN-cached: the CDN caches only GET and HEAD.
+120/hour.
 
 ### GET /api/advisories
 

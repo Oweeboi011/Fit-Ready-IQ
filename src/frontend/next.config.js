@@ -56,17 +56,19 @@ const CSP_BASELINE = [
 const CSP_RESOURCE_POLICY = [
   "default-src 'self'",
   // 'unsafe-inline'/'unsafe-eval': Next's hydration bootstrap is an inline
-  // script and the Maps SDK evaluates generated code. Removing them needs
-  // per-request nonces, which is a separate change from introducing CSP at all.
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com https://maps.gstatic.com",
-  // Tailwind is compiled, but both Next and the Maps SDK inject style tags.
+  // script. Removing them needs per-request nonces, which is a separate change
+  // from introducing CSP at all.
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  // Tailwind is compiled, but Next and MapLibre inject style tags.
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  // Places photos, Google avatars, the radar overlay, and map tiles.
-  "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://*.ggpht.com https://lh3.googleusercontent.com https://images.unsplash.com https://tilecache.rainviewer.com https://tiles.openfreemap.org https://s3.amazonaws.com",
-  // Our own API routes, Firebase Auth/Firestore, Places, the radar, and the
+  // Place photos (Wikimedia Commons, which redirects to upload.wikimedia.org),
+  // Google avatars, the radar overlay, and map tiles.
+  "img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://lh3.googleusercontent.com https://images.unsplash.com https://tilecache.rainviewer.com https://tiles.openfreemap.org https://s3.amazonaws.com",
+  // Our own API routes, Firebase Auth/Firestore (*.googleapis.com), the
+  // radar, place search (Photon) and reverse geocoding (Nominatim), and the
   // map: MapLibre fetches its style, vector tiles, glyphs, sprites and the
   // terrain tiles (AWS open data) rather than loading them as images.
-  "connect-src 'self' https://*.googleapis.com https://maps.gstatic.com https://api.rainviewer.com https://tilecache.rainviewer.com https://tiles.openfreemap.org https://s3.amazonaws.com",
+  "connect-src 'self' https://*.googleapis.com https://api.rainviewer.com https://tilecache.rainviewer.com https://tiles.openfreemap.org https://s3.amazonaws.com https://photon.komoot.io https://nominatim.openstreetmap.org",
   "font-src 'self' data: https://fonts.gstatic.com",
   // Firebase Auth sign-in popups for Google and Apple.
   "frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://appleid.apple.com",
@@ -120,7 +122,6 @@ const nextConfig = {
   // Environment variables available to the browser
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4790',
-    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || 'Fit-Ready-IQ',
   },
 
@@ -183,39 +184,10 @@ const nextConfig = {
   // Image optimization
   images: {
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'maps.googleapis.com',
-        pathname: '/maps/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'maps.gstatic.com',
-        pathname: '/**',
-      },
+      // Google account avatars.
       {
         protocol: 'https',
         hostname: 'lh3.googleusercontent.com',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'geo0.ggpht.com',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'geo1.ggpht.com',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'geo2.ggpht.com',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'geo3.ggpht.com',
         pathname: '/**',
       },
       {

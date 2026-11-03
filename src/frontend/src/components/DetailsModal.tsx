@@ -34,7 +34,6 @@ import {
 
 // Module-level caches — survive modal open/close cycles within the same page session
 const weatherCache = new Map<string, WeatherResult>();
-const photosCache = new Map<string, string[]>();
 const WEATHER_TTL_MS = 30 * 60 * 1000; // 30 min, matches server Cache-Control
 const weatherCacheTs = new Map<string, number>();
 import { useState, useEffect } from 'react';
@@ -47,6 +46,8 @@ import { ReadinessPanel } from '@/components/ReadinessPanel';
 import { computeReadiness } from '@/lib/readiness';
 import type { Activity } from '@/lib/activityTypes';
 import type { RouteDetails, DetailsData } from '@/lib/detailsData';
+import { useMeasuredClimb } from '@/lib/useMeasuredClimb';
+import type { TripDraft } from '@/components/TripsModal';
 import { PhotoGallery } from '@/components/PhotoGallery';
 import { ShareButton } from '@/components/ShareButton';
 import { buttonPrimary, buttonSecondary, buttonSize } from '@/lib/ui';
@@ -142,6 +143,8 @@ interface DetailsModalProps {
   data: DetailsData | null;
   /** Draws the route on our own map instead of handing the user to Google. */
   onGetDirections?: (target: { name: string; coordinates: [number, number] }) => void;
+  /** Opens the trip form for the place on screen (ADR-0003). */
+  onPlanTrip?: (draft: TripDraft) => void;
   /** Training history, for the readiness score. */
   activities?: Activity[];
   onConnectDevices?: () => void;
@@ -150,15 +153,35 @@ interface DetailsModalProps {
 export default function DetailsModal({
   isOpen,
   onClose,
-  data,
+  data: selected,
   onGetDirections,
+  onPlanTrip,
   activities = [],
   onConnectDevices,
 }: DetailsModalProps) {
-  const [runtimePhotos, setRuntimePhotos] = useState<string[]>([]);
-  const [loadingPhotos, setLoadingPhotos] = useState(false);
-  const [photosFailed, setPhotosFailed] = useState(false);
-  const [photosAttempt, setPhotosAttempt] = useState(0);
+  // An unrated route gets its climb measured from terrain when opened (#142).
+  const { details: data, climbSource, measuredClimb } = useMeasuredClimb(isOpen ? selected : null);
+  const planTripButton =
+    onPlanTrip && data && data.type !== 'activity' ? (
+      <button
+        type="button"
+        onClick={() => {
+          onPlanTrip({
+            target: {
+              kind: data.type,
+              id: data.id,
+              name: data.name,
+              coordinates: data.coordinates,
+            },
+            elevationGainM: data.type === 'route' ? data.elevation_gain_m : null,
+          });
+          onClose();
+        }}
+        className={`${buttonSecondary} ${buttonSize.md}`}
+      >
+        Plan a trip
+      </button>
+    ) : null;
   const [liveWeather, setLiveWeather] = useState<WeatherResult | null>(null);
   const [weatherStatus, setWeatherStatus] = useState<WeatherStatus>('idle');
   // Bumped by the retry button to re-run the weather effect.
@@ -266,70 +289,11 @@ export default function DetailsModal({
     };
   }, [isOpen, data, weatherAttempt]);
 
-  // Lazily fetch photos from Google Places when the modal opens
-  useEffect(() => {
-    if (!isOpen || !data) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets to idle when the input goes away, after the previous run has been cancelled
-      setRuntimePhotos([]);
-      return;
-    }
-
-    if (data.type === 'activity') {
-      return;
-    }
-
-    const placeId = data.place_id;
-    const existingPhotos = data.photos;
-    if (!placeId || (existingPhotos && existingPhotos.length > 0)) return;
-    if (typeof window === 'undefined' || !window.google?.maps?.places) return;
-
-    // Return cached photos without hitting Places API again
-    if (photosCache.has(placeId)) {
-      setRuntimePhotos(photosCache.get(placeId)!);
-      return;
-    }
-
-    // Cleared first and guarded after: the modal is reused, so a slow response
-    // for the previous place would otherwise show its photos on this one.
-    let cancelled = false;
-    setRuntimePhotos([]);
-    setLoadingPhotos(true);
-    setPhotosFailed(false);
-    const service = new google.maps.places.PlacesService(document.createElement('div'));
-    service.getDetails({ placeId, fields: ['photos'] }, (place, status) => {
-      if (cancelled) return;
-      setLoadingPhotos(false);
-      const { OK, ZERO_RESULTS } = google.maps.places.PlacesServiceStatus;
-
-      if (status === OK && place?.photos) {
-        const urls = place.photos
-          .slice(0, 6)
-          .map((p) => p.getUrl({ maxWidth: 800, maxHeight: 600 }));
-        photosCache.set(placeId, urls);
-        setRuntimePhotos(urls);
-        return;
-      }
-
-      // A place genuinely without photos and a failed request used to look
-      // identical — both fell through to "No photos available".
-      if (status !== OK && status !== ZERO_RESULTS) {
-        setPhotosFailed(true);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-      // The cancelled callback will not clear it, and a cached next place
-      // never sets it — so a spinner would otherwise outlive its request.
-      setLoadingPhotos(false);
-    };
-  }, [isOpen, data, photosAttempt]);
-
   if (!isOpen || !data) return null;
 
-  // Merge pre-fetched photos with any runtime-loaded ones
-  const resolvedPhotos =
-    data.type !== 'activity' && data.photos?.length ? data.photos : runtimePhotos;
+  // Photos arrive with the place from discovery (Wikimedia Commons, via OSM
+  // and Wikidata); there is nothing further to fetch.
+  const resolvedPhotos = data.type !== 'activity' ? (data.photos ?? []) : [];
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -356,7 +320,7 @@ export default function DetailsModal({
     const elevationGain = route.elevation_gain_m;
     const distance = route.distance_km;
     // A grade needs a length to spread the climb over. Without one there is
-    // no grade — dividing relief by the old user-to-trailhead distance gave a
+    // no grade — dividing a climb by the old user-to-trailhead distance gave a
     // gradient that changed with where the visitor happened to be.
     const averageGrade =
       elevationGain == null || distance == null || distance <= 0
@@ -478,11 +442,20 @@ export default function DetailsModal({
                   <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
                     <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                       <TrendingUp aria-hidden="true" className="h-3 w-3" />
-                      Relief
+                      Climb
                     </p>
                     <p className="font-tabular mt-1.5 text-xl font-bold text-white">
-                      {data.elevation_gain_m == null ? '—' : `${data.elevation_gain_m} m`}
+                      {data.elevation_gain_m != null
+                        ? `${data.elevation_gain_m} m`
+                        : climbSource === 'measuring'
+                          ? 'Measuring…'
+                          : '—'}
                     </p>
+                    {measuredClimb && (
+                      <p className="mt-0.5 text-[10px] text-slate-400">
+                        from terrain · {measuredClimb.descentM} m down
+                      </p>
+                    )}
                   </div>
                   <div className="border-ink/6 rounded-lg border bg-slate-800/60 px-4 py-3">
                     <p className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
@@ -514,13 +487,7 @@ export default function DetailsModal({
                   onConnectDevices={onConnectDevices}
                 />
 
-                <PhotoGallery
-                  photos={resolvedPhotos}
-                  loading={loadingPhotos}
-                  failed={photosFailed}
-                  onRetry={() => setPhotosAttempt((n) => n + 1)}
-                  placeName={data.name}
-                />
+                <PhotoGallery photos={resolvedPhotos} placeName={data.name} />
 
                 {/* Strava Segment Records */}
                 {data.strava_segment && (
@@ -1051,16 +1018,17 @@ export default function DetailsModal({
                   >
                     Get Directions
                   </button>
+                  {planTripButton}
                   <ShareButton
                     kind="route"
                     id={data.id}
                     name={data.name}
                     summary={
-                      // Only what is known, and relief called relief: it is
-                      // sampled near the trailhead, not climbed along the trail.
+                      // Only what is known: the climb is the route's own
+                      // `ascent` tag, absent far more often than present.
                       [
                         data.distance_km == null ? null : `${data.distance_km.toFixed(1)} km`,
-                        data.elevation_gain_m == null ? null : `${data.elevation_gain_m} m relief`,
+                        data.elevation_gain_m == null ? null : `${data.elevation_gain_m} m climb`,
                       ]
                         .filter(Boolean)
                         .join(' · ') || DIFFICULTY_LABELS[data.difficulty]
@@ -1116,13 +1084,7 @@ export default function DetailsModal({
               </div>
             </div>
 
-            <PhotoGallery
-              photos={resolvedPhotos}
-              loading={loadingPhotos}
-              failed={photosFailed}
-              onRetry={() => setPhotosAttempt((n) => n + 1)}
-              placeName={data.name}
-            />
+            <PhotoGallery photos={resolvedPhotos} placeName={data.name} />
 
             {/* Strava Segment Records */}
             {data.strava_segment && (
@@ -1514,6 +1476,7 @@ export default function DetailsModal({
               >
                 Get Directions
               </button>
+              {planTripButton}
               <ShareButton
                 kind="mountain"
                 id={data.id}
@@ -1572,13 +1535,7 @@ export default function DetailsModal({
               </div>
             </div>
 
-            <PhotoGallery
-              photos={resolvedPhotos}
-              loading={loadingPhotos}
-              failed={photosFailed}
-              onRetry={() => setPhotosAttempt((n) => n + 1)}
-              placeName={data.name}
-            />
+            <PhotoGallery photos={resolvedPhotos} placeName={data.name} />
 
             {/* Amenities */}
             {data.amenities && data.amenities.length > 0 && (
@@ -1787,6 +1744,7 @@ export default function DetailsModal({
               >
                 Get Directions
               </button>
+              {planTripButton}
               <ShareButton kind="campsite" id={data.id} name={data.name} />
             </div>
           </div>
@@ -1827,8 +1785,8 @@ export default function DetailsModal({
             })()}
 
             {/* Elevation profile of the recorded track.
-                Only an activity reaches this: routes and peaks come from the
-                Places API, which answers with a point, and a profile drawn
+                Only an activity reaches this: discovered routes arrive as a
+                pin and a length, without their geometry, and a profile drawn
                 between two points is invented terrain. */}
             {activityProfilePath && (
               <div className="border-ink/8 bg-ink/3 rounded-lg border px-4 py-3">
