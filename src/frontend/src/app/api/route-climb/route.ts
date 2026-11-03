@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { createLogger, serializeError } from '@/lib/logger';
 import { WAYMARKED_SITES, type WaymarkedSite } from '@/lib/osmDiscovery';
-import { fetchOsmJson } from '@/lib/osmFetch';
+import { OsmHttpError, fetchOsmJson } from '@/lib/osmFetch';
 import { rateLimit, tooManyRequests } from '@/lib/rateLimit';
 import { ROUTE_CLIMB_RATE_LIMIT } from '@/lib/rateLimitRules';
 import { climbFrom, routeSegments, samplePoints, type WaymarkedRouteNode } from '@/lib/routeClimb';
@@ -21,7 +21,7 @@ export const runtime = 'nodejs';
  *
  * `reason` says why there is no number: `too_long` (the samples would be too
  * far apart to see the climbs between them), `no_geometry`, `upstream` or
- * `quota`. Only the last two are worth retrying.
+ * `quota` (a 429 from either service). Only the last two are worth retrying.
  */
 
 const ELEVATION_URL = process.env.ELEVATION_API_URL || 'https://api.opentopodata.org/v1/mapzen';
@@ -43,8 +43,6 @@ function unmeasured(reason: Reason, status = 200) {
   );
 }
 
-class QuotaError extends Error {}
-
 /** Heights for `points` (`[lng, lat]`), in order, a batch at a time. */
 async function fetchHeights(points: [number, number][]): Promise<(number | null)[]> {
   const heights: (number | null)[] = [];
@@ -56,9 +54,7 @@ async function fetchHeights(points: [number, number][]): Promise<(number | null)
       .join('|');
     const data = await fetchOsmJson<{ results?: { elevation?: number | null }[] }>(
       `${ELEVATION_URL}?locations=${encodeURIComponent(query)}`
-    ).catch((err: unknown) => {
-      throw /HTTP 429/.test(String(err)) ? new QuotaError(String(err)) : err;
-    });
+    );
     for (const r of data.results ?? []) {
       heights.push(
         typeof r.elevation === 'number' && Number.isFinite(r.elevation) ? r.elevation : null
@@ -103,7 +99,8 @@ export async function GET(request: NextRequest) {
       { headers: { 'Cache-Control': MONTH } }
     );
   } catch (err) {
-    const quota = err instanceof QuotaError;
+    // A 429 from either service is a quota: retry later, unlike an outage.
+    const quota = err instanceof OsmHttpError && err.status === 429;
     log.warn(quota ? 'route_climb_quota' : 'route_climb_failed', {
       site,
       id,
