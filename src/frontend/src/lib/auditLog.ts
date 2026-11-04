@@ -17,8 +17,8 @@ import { createLogger } from './logger';
  * written to prove — so a deletion record names the uid and counts the
  * documents, and holds none of their contents.
  *
- * Retention is enforced by a Firestore TTL policy on `expiresAt` (see
- * AUDIT_RETENTION_DAYS). Writes are Admin-SDK only and the collection denies
+ * Retention is enforced by the daily expiry sweep on `expiresAt` (see
+ * AUDIT_RETENTION_DAYS and lib/expirySweep.ts). Writes are Admin-SDK only and the collection denies
  * all client access in firestore.rules; there is no update or delete path in
  * this module, which is what makes it append-only in practice.
  */

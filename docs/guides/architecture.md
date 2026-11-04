@@ -149,9 +149,10 @@ erDiagram
 | `users/{uid}/trips`                  | Browser (`useTrips.ts`)  | Owner-only, shape-checked; ADR-0003 without the timer                               |
 | `activities`, `routes`, `training_*` | No live writer           | Rules and erasure cover them ahead of ADR-0004 (geometry)                           |
 
-- **TTL.** `rate_limits`, `chat_sessions` (plus `messages` at collection-group scope) and
-  `audit_logs` need a Firestore TTL policy on `expiresAt`; see
-  [runbooks/firestore-ttl.md](runbooks/firestore-ttl.md).
+- **Expiry.** `rate_limits`, `chat_sessions` (plus `messages` at collection-group scope),
+  `audit_logs` and `places_cache` carry `expiresAt`, which a daily cron (`/api/cron/expire`)
+  sweeps in place of Firestore TTL, which needs the Blaze plan; see
+  [runbooks/expiry-sweep.md](runbooks/expiry-sweep.md).
 - **User data.** Every user-scoped collection is listed in `lib/userDataFootprint.ts`. Export
   and erasure both walk that list, so a new collection goes there in the same change.
 - **Polylines.** They are stored as `[lng, lat]` (GeoJSON order).

@@ -154,12 +154,30 @@ describe('overall status', () => {
     process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID = '260217';
     process.env.STRAVA_CLIENT_SECRET = 'secret';
     process.env.RATE_LIMIT_SALT = 'salt';
+    process.env.CRON_SECRET = 'cron';
 
     vi.resetModules();
     const { GET } = await import('@/app/api/health/route');
     const res = GET() as Response;
     expect(res.status).toBe(200);
     expect((await res.json()).status).toBe('healthy');
+  });
+});
+
+describe('expiry_sweep', () => {
+  it('fails without CRON_SECRET, because then nothing ever expires', async () => {
+    delete process.env.CRON_SECRET;
+    expect((await health()).expiry_sweep.ok).toBe(false);
+  });
+
+  it('treats a blank CRON_SECRET as unset', async () => {
+    process.env.CRON_SECRET = '   ';
+    expect((await health()).expiry_sweep.ok).toBe(false);
+  });
+
+  it('passes once the secret is present', async () => {
+    process.env.CRON_SECRET = 'cron';
+    expect((await health()).expiry_sweep.ok).toBe(true);
   });
 });
 

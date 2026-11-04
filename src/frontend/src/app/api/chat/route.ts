@@ -200,9 +200,9 @@ async function persistConversation(
       assistantReply,
       createdAt: now,
       user_id: uid,
-      // On the message too, not only the session: a Firestore TTL policy acts
-      // on one collection, and deleting a parent document does not touch its
-      // subcollection. Without this the messages outlive the session forever.
+      // On the message too, not only the session: deleting a parent document
+      // does not touch its subcollection, so the expiry sweep finds messages
+      // by their own field. Without it they outlive the session forever.
       expiresAt: chatExpiry(),
     });
   } catch (error) {
@@ -221,10 +221,10 @@ async function persistConversation(
  * while bounding how much free-text health information sits in the database —
  * the least any of this is worth is the retention limit on it.
  *
- * Enforced by a Firestore TTL policy on `expiresAt` for both `chat_sessions`
- * and `chat_sessions/{id}/messages` (collection-group scope). See
- * docs/guides/runbooks/firestore-ttl.md — without the policy configured this field is
- * inert and nothing is ever deleted.
+ * Enforced by the daily expiry sweep (`lib/expirySweep.ts`) on `expiresAt`, for
+ * both `chat_sessions` and `chat_sessions/{id}/messages` (collection-group
+ * scope). See docs/guides/runbooks/expiry-sweep.md — without `CRON_SECRET` the
+ * sweep never runs and nothing is deleted.
  */
 const CHAT_RETENTION_DAYS = 90;
 

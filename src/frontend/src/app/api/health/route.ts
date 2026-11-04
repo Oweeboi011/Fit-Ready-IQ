@@ -31,6 +31,7 @@ interface HealthReport {
     routing: ServiceStatus;
     strava: ServiceStatus;
     rate_limiting: ServiceStatus;
+    expiry_sweep: ServiceStatus;
   };
 }
 
@@ -145,6 +146,18 @@ function checkRateLimiting(): ServiceStatus {
   return { ok: true, message: 'Salt present' };
 }
 
+/**
+ * Without `CRON_SECRET` the daily sweep refuses Vercel Cron too, and expired
+ * transcripts, audit entries and counters are never deleted — the retention the
+ * privacy page promises quietly stops being true.
+ */
+function checkExpirySweep(): ServiceStatus {
+  if (!process.env.CRON_SECRET?.trim()) {
+    return { ok: false, message: 'CRON_SECRET not set — nothing expires' };
+  }
+  return { ok: true, message: 'Cron secret present' };
+}
+
 export function GET() {
   const firebaseAdmin = checkFirebaseAdmin();
   const weather = checkWeather();
@@ -171,6 +184,7 @@ export function GET() {
     routing,
     strava,
     rate_limiting: checkRateLimiting(),
+    expiry_sweep: checkExpirySweep(),
   };
 
   const values = Object.values(services);

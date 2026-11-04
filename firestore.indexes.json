@@ -115,32 +115,56 @@
     {
       "collectionGroup": "rate_limits",
       "fieldPath": "expiresAt",
-      "ttl": true,
-      "indexes": []
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        }
+      ]
     },
     {
       "collectionGroup": "chat_sessions",
       "fieldPath": "expiresAt",
-      "ttl": true,
-      "indexes": []
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        }
+      ]
     },
     {
       "collectionGroup": "messages",
       "fieldPath": "expiresAt",
-      "ttl": true,
-      "indexes": []
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
     },
     {
       "collectionGroup": "audit_logs",
       "fieldPath": "expiresAt",
-      "ttl": true,
-      "indexes": []
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        }
+      ]
     },
     {
       "collectionGroup": "places_cache",
       "fieldPath": "expiresAt",
-      "ttl": true,
-      "indexes": []
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        }
+      ]
     }
   ]
 }
