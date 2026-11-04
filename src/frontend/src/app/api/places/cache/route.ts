@@ -22,7 +22,7 @@ export const runtime = 'nodejs';
  *
  * TTL: 24 hours. After that the client falls through to live API calls.
  *
- * Entries carry `expiresAt` so a Firestore TTL policy (firestore.indexes.json)
+ * Entries carry `expiresAt` so the daily expiry sweep (lib/expirySweep.ts)
  * deletes them. Freshness used to be checked only on read, which kept stale
  * cells from being served but never removed one — the collection grew by a
  * document for every half-degree cell anyone ever opened the map in.
