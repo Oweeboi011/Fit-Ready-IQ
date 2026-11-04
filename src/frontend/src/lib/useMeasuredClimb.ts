@@ -33,8 +33,12 @@ function toMeasure(data: DetailsData | null) {
 /** Answers for this session. The CDN holds them for a month; this saves the round trip. */
 const measured = new Map<string, MeasuredClimb | null>();
 
-async function fetchClimb(site: string, id: string): Promise<MeasuredClimb | null> {
-  const res = await fetch(`/api/route-climb?site=${site}&id=${id}`);
+async function fetchClimb(
+  site: string,
+  id: string,
+  signal: AbortSignal
+): Promise<MeasuredClimb | null> {
+  const res = await fetch(`/api/route-climb?site=${site}&id=${id}`, { signal });
   const body = (await res.json().catch(() => null)) as Partial<MeasuredClimb> | null;
   const climb =
     typeof body?.climbM === 'number' && typeof body.descentM === 'number'
@@ -67,14 +71,13 @@ export function useMeasuredClimb(data: DetailsData | null): {
     if (!site || !relation) return;
     const asked = `${site}/${relation}`;
     if (measured.has(asked)) return;
-    let cancelled = false;
-    fetchClimb(site, relation).then(
-      (climb) => !cancelled && setResult({ key: asked, climb }),
-      () => !cancelled && setResult({ key: asked, climb: null })
+    // Aborted when the route closes or changes: no answer arrives for a view that has gone.
+    const controller = new AbortController();
+    fetchClimb(site, relation, controller.signal).then(
+      (climb) => setResult({ key: asked, climb }),
+      () => !controller.signal.aborted && setResult({ key: asked, climb: null })
     );
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, [site, relation]);
 
   if (!key || data?.type !== 'route') return { details: data, climbSource: 'tagged' };

@@ -22,6 +22,13 @@ describe('tripFromDocument', () => {
     });
   });
 
+  it('reads a check-in as the server stamped it', () => {
+    const stamped = { ...raw, checkedInAt: { toMillis: () => 1_800_000_000_000 } };
+    expect(tripFromDocument('t1', stamped)?.checkedInAt).toBe(1_800_000_000_000);
+    // A bare number is what an old client clock would have written; it is not trusted.
+    expect(tripFromDocument('t1', { ...raw, checkedInAt: 5 })?.checkedInAt).toBeNull();
+  });
+
   it('drops a document that is not a trip we wrote', () => {
     expect(tripFromDocument('x', { ...raw, startAt: 'soon' })).toBeNull();
     expect(tripFromDocument('x', { ...raw, target: { ...raw.target, kind: 'city' } })).toBeNull();

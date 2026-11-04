@@ -19,7 +19,7 @@ flowchart TB
     end
     FS[("Firestore")]
     FA["Firebase Auth<br/>Google · Apple"]
-    EXT["Gemini 2.5 Flash · Strava · Google Routes ·<br/>Google Weather / OpenWeather ·<br/>Waymarked Trails · Photon · OpenTopoData"]
+    EXT["Gemini Flash · Strava · Google Routes ·<br/>Google Weather / OpenWeather ·<br/>Waymarked Trails · Photon · OpenTopoData"]
 
     M --> OSM
     M -->|ID token| API

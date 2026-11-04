@@ -41,7 +41,9 @@ describe('useMeasuredClimb', () => {
     // Rated on 600 m, not 15: someone may walk it the other way. 15 m alone is easy.
     expect(details.difficulty).toBe('moderate');
     expect(result.current.measuredClimb).toEqual({ climbM: 15, descentM: 600 });
-    expect(fetchMock).toHaveBeenCalledWith('/api/route-climb?site=hiking&id=101');
+    expect(fetchMock).toHaveBeenCalledWith('/api/route-climb?site=hiking&id=101', {
+      signal: expect.any(AbortSignal),
+    });
   });
 
   it('leaves a tagged climb alone and asks nothing', () => {

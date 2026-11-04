@@ -36,10 +36,25 @@ export function tripFromDocument(id: string, raw: Record<string, unknown>): Trip
     target: { kind: t.kind, id: t.id, name: t.name, coordinates: [coords[0], coords[1]] },
     startAt: raw.startAt,
     expectedReturnAt: raw.expectedReturnAt,
-    checkedInAt: typeof raw.checkedInAt === 'number' ? raw.checkedInAt : null,
+    checkedInAt: checkInMillis(raw.checkedInAt),
     notes: typeof raw.notes === 'string' ? raw.notes : '',
   };
 }
+
+/**
+ * The check-in is the server's timestamp, never the phone's clock: the safety
+ * timer will compare it with the expected return on the server, and a device
+ * set to the wrong day must not be able to close a trip it never finished.
+ */
+function checkInMillis(value: unknown): number | null {
+  if (value && typeof (value as { toMillis?: unknown }).toMillis === 'function') {
+    return (value as { toMillis: () => number }).toMillis();
+  }
+  return null;
+}
+
+/** Enough for a season of trips; older ones are history, not something to act on. */
+const MAX_TRIPS_LISTED = 100;
 
 export type TripsStatus = 'signed_out' | 'loading' | 'ready' | 'failed';
 
@@ -68,14 +83,20 @@ export function useTrips(uid: string | null) {
         setStatus('failed');
         return;
       }
-      const { collection, onSnapshot } = await import('firebase/firestore');
+      const { collection, limit, onSnapshot, orderBy, query } = await import('firebase/firestore');
       if (cancelled) return;
       unsubscribe = onSnapshot(
-        collection(db, 'users', uid, 'trips'),
+        // Bounded: every change re-reads the result, and each read is billed.
+        query(
+          collection(db, 'users', uid, 'trips'),
+          orderBy('startAt', 'desc'),
+          limit(MAX_TRIPS_LISTED)
+        ),
         (snapshot) => {
           setTrips(
             snapshot.docs.flatMap((d) => {
-              const trip = tripFromDocument(d.id, d.data());
+              // A pending check-in shows at once, as the local estimate of the server's time.
+              const trip = tripFromDocument(d.id, d.data({ serverTimestamps: 'estimate' }));
               return trip ? [trip] : [];
             })
           );
@@ -138,7 +159,10 @@ export function useTrips(uid: string | null) {
       write(
         id,
         (ref, fs) =>
-          fs.updateDoc(ref, { checkedInAt: Date.now(), updatedAt: fs.serverTimestamp() }),
+          fs.updateDoc(ref, {
+            checkedInAt: fs.serverTimestamp(),
+            updatedAt: fs.serverTimestamp(),
+          }),
         "We couldn't record your check-in. Try again."
       ),
     [write]
