@@ -150,9 +150,9 @@ export async function rateLimit(
       if (current >= rule.limit) return next;
       tx.set(ref, {
         count: next,
-        // Firestore TTL policies delete on a timestamp field. Configure one on
-        // `expiresAt` for this collection, or these documents accumulate for
-        // ever — one per caller per window is a lot of garbage over a year.
+        // The daily expiry sweep (lib/expirySweep.ts) deletes on this field;
+        // without it these accumulate for ever — one per caller per window is
+        // a lot of garbage over a year.
         expiresAt: new Date(windowStart + windowMs * 2),
       });
       return next;

@@ -33,6 +33,10 @@ const EXEMPT: Record<string, string> = {
     'credential-presence checks only — no upstream calls, no database reads — ' +
     'so there is no cost to meter. Mirrors the backend, where /health is ' +
     'explicitly @limiter.exempt.',
+  'cron/expire/route.ts':
+    'Refuses every caller without the CRON_SECRET bearer, and the one caller ' +
+    'holding it is Vercel Cron, once a day. A limiter would only add a ' +
+    'Firestore write to a job whose purpose is deleting them.',
   'admin/cache/route.ts': 'Behind requireRole; admins are few, named and audited.',
   'admin/strava-sync/route.ts': 'Behind requireRole; admins are few, named and audited.',
   'admin/users/route.ts': 'Behind requireRole; admins are few, named and audited.',

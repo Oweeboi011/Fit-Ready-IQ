@@ -77,7 +77,8 @@ export default function PrivacyPage() {
             </li>
             <li>
               <strong className="text-white">Assistant conversations</strong>: kept for{' '}
-              {RETENTION.chatDays} days so you can resume them, then deleted automatically.
+              {RETENTION.chatDays} days so you can resume them, then deleted automatically within a
+              day.
             </li>
             <li>
               <strong className="text-white">Shared map cache</strong>: when your visit fetches
@@ -124,7 +125,8 @@ export default function PrivacyPage() {
           </p>
           <p>
             To limit abuse, we count requests per account or network address for{' '}
-            {RETENTION.rateLimitHours} hours. The key is a one-way hash, not the address itself.
+            {RETENTION.rateLimitHours} hours, and delete the counts within a day after that. The key
+            is a one-way hash, not the address itself.
           </p>
         </Section>
 

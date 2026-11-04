@@ -88,7 +88,8 @@ export const RETAINED_ON_DELETE: Record<string, string> = {
   rate_limits:
     'Keyed on a hash of the uid or client IP — an HMAC under RATE_LIMIT_SALT ' +
     'when that is set, a plain SHA-256 when it is not — and holding only a ' +
-    'counter. Self-expires within two windows (two hours) via TTL.',
+    'counter. Expires after two windows (two hours) and is deleted by the daily ' +
+    'expiry sweep within a day after that.',
 };
 
 /**
@@ -96,7 +97,7 @@ export const RETAINED_ON_DELETE: Record<string, string> = {
  * identity, so erasure cannot match them to an account. They are not retained
  * by choice — they are unreachable, which is a different and worse thing.
  *
- * The 90-day TTL on `expiresAt` clears them regardless of identity, so the
+ * The 90-day expiry on `expiresAt` clears them regardless of identity, so the
  * backlog drains on its own; this note exists so nobody reads the gap as a
  * decision.
  *
@@ -110,4 +111,4 @@ export const RETAINED_ON_DELETE: Record<string, string> = {
 export const UNATTRIBUTED_LEGACY_DATA =
   'chat_sessions documents with user_id null — every conversation before 2026-09-26, and signed-out ones ' +
   'until 2026-09-28 — cannot be matched to an account. None are written now; the rest expire via the ' +
-  '90-day TTL on expiresAt.';
+  '90-day expiry on expiresAt.';

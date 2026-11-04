@@ -31,6 +31,15 @@
     },
     "src/app/api/health/route.ts": {
       "maxDuration": 15
+    },
+    "src/app/api/cron/expire/route.ts": {
+      "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/expire",
+      "schedule": "0 19 * * *"
+    }
+  ]
 }
