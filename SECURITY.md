@@ -36,8 +36,9 @@ than quietly downgrading it.
 In scope: this repository, and the production deployment it builds.
 
 Out of scope, because they are not ours to fix — report these to the vendor:
-Google Maps, Places, Routes, Weather and Elevation; Firebase Auth and Firestore;
-Strava; Gemini; Vercel's platform.
+Google Weather; OpenWeather; the OpenStreetMap services (OpenFreeMap, Photon,
+Nominatim, Waymarked Trails, OSRM, OpenTopoData); Komoot; Firebase Auth and
+Firestore; Strava; Gemini; Vercel's platform.
 
 Also out of scope:
 
