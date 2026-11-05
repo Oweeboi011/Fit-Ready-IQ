@@ -2,6 +2,10 @@
 
 **Am I ready for this route, and when should I go?**
 
+[Homepage](https://www.metropolitanms.org/) ·
+[Live app](https://frontend-sigma-tan-81.vercel.app) ·
+[Releases](https://github.com/Oweeboi011/Fit-Ready-IQ/releases)
+
 Fit-Ready-IQ finds routes, peaks and campsites near you. It scores each one against your
 recorded activities from Strava, GPX or Apple Health, and shows the weather window for that
 route's duration. It never shows a number the data doesn't support: unknown elevation,
@@ -20,19 +24,42 @@ difficulty or readiness is displayed as unknown.
 
 </details>
 
+## What it does
+
+- **Discover**: hiking routes with measured length and climb, peaks and campsites near any
+  point, from OpenStreetMap.
+- **Readiness**: each route rated against your own recent activities, split into "ready"
+  and "stretch".
+- **Weather window**: the soonest span worth going, sized to the route's duration.
+- **Plan**: a waypoint planner snapped to walking paths, with GPX export and sync across
+  devices.
+- **Trips**: plan a trip and check in when you're back. Nobody is alerted yet, and the app
+  says so.
+- **Assistant**: Gemini chat that reads the open place and its forecast, and proposes saves
+  for you to confirm.
+- **Imports**: Strava, GPX (Garmin, COROS, Komoot), Apple Health, and Komoot share links.
+
 ## Stack
 
-Next.js 16 (App Router) on Vercel · Firebase Auth + Firestore · Google Maps, Places,
-Elevation, Routes and Weather · Strava · Gemini Flash. A FastAPI backend in
-`src/backend/` follows Clean Architecture and is **not deployed**.
+Next.js 16 (App Router) on Vercel · Firebase Auth + Firestore (free Spark plan) ·
+MapLibre on OpenFreeMap tiles · OpenStreetMap services for discovery, search, routing and
+elevation · Google Weather with an OpenWeather fallback · Strava · Gemini Flash. No Google
+Maps key, and no Google script in the browser. A FastAPI backend in `src/backend/` follows
+Clean Architecture and is **not deployed**. Its image is published with each release.
 
 ```mermaid
 flowchart LR
     B[Browser] --> N["Next.js on Vercel<br/>/ landing · /app map · /api routes"]
-    B --> G[Google Maps SDK]
+    B --> T["OpenFreeMap tiles · Photon · Nominatim"]
     N --> F[(Firestore · Auth)]
-    N --> X[Strava · Gemini · Google Routes/Weather]
+    N --> O["Waymarked Trails · OSRM · OpenTopoData"]
+    N --> X["Strava · Gemini · Google Weather / OpenWeather · Komoot"]
+    C[Vercel Cron, daily] --> N
 ```
+
+The free OpenStreetMap services are proxied and cached at the edge. A daily cron deletes
+expired data in place of Firestore TTL, which would need a paid plan
+([runbook](docs/guides/runbooks/expiry-sweep.md)).
 
 ## Quick start
 
@@ -48,6 +75,13 @@ Optional: `docker-compose up -d` starts the Firestore and Auth emulators. Backen
 
 Before you push, run the gates in [harness.md](docs/guides/harness.md#running-it).
 
+## Releases
+
+`feature/*` → `develop` → `main`. Each merge to `main` is a production release: Vercel
+deploys it, and [`release.yml`](.github/workflows/release.yml) tags it `vYYYY.MM.DD`,
+publishes generated release notes, and pushes the backend image to
+`ghcr.io/oweeboi011/fit-ready-iq-backend`. See [deployment](docs/guides/deployment.md).
+
 ## Layout
 
 ```
@@ -56,7 +90,7 @@ src/backend/         FastAPI (presentation → application → domain ← infras
 docs/guides/         what it is
 docs/solution-plan/  how we deliver it, and what it should do
 docs/adr/            why it is this way
-.github/workflows/   CI (GitHub Actions)
+.github/workflows/   CI, E2E, security, mutation, uptime, release
 ```
 
 ## Documentation

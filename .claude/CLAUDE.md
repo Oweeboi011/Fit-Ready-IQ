@@ -379,14 +379,15 @@ feature/* → develop → main
 
 ### Workflows
 
-| File               | Triggers                                         | What it does                                                                                                                                                                                     |
-| ------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ci.yml`           | PR to `main`/`develop`, push to `main`/`develop` | `npm run quality` gates + unit tests + build (frontend); ruff + mypy + import-linter + vulture + pytest (backend)                                                                                |
-| `e2e.yml`          | PR to `main`/`develop`                           | Playwright E2E (uses real secrets from GitHub Secrets). Skipped for Dependabot and fork PRs, which get no secrets                                                                                |
-| `mutation.yml`     | PR to `main`/`develop` when `src/lib/` changed   | Stryker mutation tests                                                                                                                                                                           |
-| `security.yml`     | PRs + push to `main`/`develop` + weekly Monday   | npm audit (`--audit-level=high`) + gitleaks secret scan + CodeQL                                                                                                                                 |
-| `agent-review.yml` | PR open/synchronize                              | Posts AI review comment via Claude Haiku. Needs `ANTHROPIC_API_KEY` secret. Add `[skip review]` to PR title to suppress.                                                                         |
-| `uptime.yml`       | Every 15 min, manual dispatch                    | Curls `{PRODUCTION_URL}/api/health` (10 s timeout, 2 retries); fails on non-2xx, warns on `degraded`. Needs the `PRODUCTION_URL` repo variable — **unset until 2026-09-28, so it never passed**. |
+| File               | Triggers                                         | What it does                                                                                                                                                                      |
+| ------------------ | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ci.yml`           | PR to `main`/`develop`, push to `main`/`develop` | `npm run quality` gates + unit tests + build (frontend); ruff + mypy + import-linter + vulture + pytest (backend)                                                                 |
+| `e2e.yml`          | PR to `main`/`develop`                           | Playwright E2E (uses real secrets from GitHub Secrets). Skipped for Dependabot and fork PRs, which get no secrets                                                                 |
+| `mutation.yml`     | PR to `main`/`develop` when `src/lib/` changed   | Stryker mutation tests                                                                                                                                                            |
+| `security.yml`     | PRs + push to `main`/`develop` + weekly Monday   | npm audit (`--audit-level=high`) + gitleaks secret scan + CodeQL                                                                                                                  |
+| `agent-review.yml` | PR open/synchronize                              | Posts AI review comment via Claude Haiku. Needs `ANTHROPIC_API_KEY` secret. Add `[skip review]` to PR title to suppress.                                                          |
+| `uptime.yml`       | Every 15 min, manual dispatch                    | Curls `{PRODUCTION_URL}/api/health` (10 s timeout, 2 retries); fails on non-2xx, warns on `degraded`. `PRODUCTION_URL` is the Vercel app URL, not the homepage.                   |
+| `release.yml`      | Push to `main`, manual dispatch                  | Tags `vYYYY.MM.DD` (`.2`… same day), GitHub Release with generated notes, backend image to `ghcr.io/oweeboi011/fit-ready-iq-backend`. Reuses the tag on an already-tagged commit. |
 
 The AI review workflow uses `claude-haiku-4-5-20251001`, trims diffs to 10 KB, and caps output at 1 024 tokens (~$0.004/PR).
 

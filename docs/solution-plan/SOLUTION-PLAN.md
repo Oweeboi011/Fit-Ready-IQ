@@ -108,7 +108,7 @@ Measured at each release, not estimated:
 | Measure                                | Target  |
 | -------------------------------------- | ------- |
 | Time to first map render (p75, mobile) | < 2 s   |
-| Places API calls per session           | < 25    |
+| `/api/discover` calls per session      | < 25    |
 | Chat p95 latency                       | < 1.5 s |
 | Lighthouse performance, `/`            | > 90    |
 | Mutation score, `src/lib`              | ≥ 80%   |
