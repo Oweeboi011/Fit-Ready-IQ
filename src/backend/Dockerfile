@@ -5,7 +5,7 @@
 # (written by Poetry 2.x, format 2.1) and predates `package-mode = false`, so
 # the image did not build at all. 3.11 matches CI and `python = "^3.11"`.
 
-FROM python:3.11-slim AS build
+FROM python:3.15-slim AS build
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends gcc \
@@ -21,7 +21,7 @@ RUN poetry config virtualenvs.in-project true \
     && poetry install --no-interaction --no-ansi --no-root --only main
 
 
-FROM python:3.11-slim
+FROM python:3.15-slim
 
 WORKDIR /app
 
