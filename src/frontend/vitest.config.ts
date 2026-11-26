@@ -55,6 +55,15 @@ export default defineConfig({
         'src/lib/komootTour.ts',
         'src/lib/routeBriefing.ts',
 
+        // Decide what a person is told is safe or doable. They had tests but sat
+        // outside the gate, so a regression here could not fail the build.
+        'src/lib/weatherWindow.ts',
+        'src/lib/routeDuration.ts',
+        'src/lib/readinessRecommender.ts',
+        'src/lib/ledger.ts',
+        'src/lib/mountainMetrics.ts',
+        'src/lib/elevationProfile.ts',
+
         // Shared UI primitives: every dialog and gallery in the app is built on these.
         'src/components/Modal.tsx',
         'src/components/ConfirmDialog.tsx',
