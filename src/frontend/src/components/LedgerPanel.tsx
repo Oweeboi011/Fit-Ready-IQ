@@ -62,7 +62,7 @@ function RecordRow({
         </span>
       ) : (
         // No activity carried this field — say so rather than showing a zero.
-        <span className="text-[11px] text-slate-600">Not recorded</span>
+        <span className="text-[11px] text-slate-500">Not recorded</span>
       )}
     </div>
   );

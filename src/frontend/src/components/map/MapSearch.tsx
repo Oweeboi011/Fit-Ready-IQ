@@ -113,8 +113,10 @@ export default function MapSearch({ near, onGoTo, onAddToPlan, plannerOpen }: Ma
           // A plain search field, not an ARIA combobox: each result carries two
           // actions (show it, add it), and a listbox option may not contain
           // interactive children. The results are an ordinary list of buttons
-          // instead, reachable by Tab as well as the arrow keys below.
-          aria-controls="map-search-results"
+          // instead, reachable by Tab as well as the arrow keys below. The
+          // reference is only set while the list exists: pointing at an id that
+          // is not in the DOM is an invalid ARIA value.
+          aria-controls={showPanel ? 'map-search-results' : undefined}
           aria-label="Search for a place to add to your plan"
           placeholder={near ? 'Search a peak, trail or town…' : 'Waiting for your location…'}
           disabled={!near}

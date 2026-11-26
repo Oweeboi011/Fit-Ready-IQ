@@ -51,7 +51,7 @@ export function ReadinessPanel({
         <div className="flex items-center gap-4">
           {readiness.score == null ? (
             <div className="border-ink/15 flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-dashed">
-              <ActivityIcon aria-hidden="true" className="h-5 w-5 text-slate-600" />
+              <ActivityIcon aria-hidden="true" className="h-5 w-5 text-slate-500" />
             </div>
           ) : (
             <div
@@ -96,7 +96,7 @@ export function ReadinessPanel({
                 <div className="mb-1 flex items-baseline justify-between gap-2">
                   <dt className="text-[11px] text-slate-400">{factor.label}</dt>
                   <dd className="font-tabular text-[11px] text-slate-300">
-                    {factor.capacity} <span className="text-slate-600">of</span> {factor.demand}
+                    {factor.capacity} <span className="text-slate-500">of</span> {factor.demand}
                   </dd>
                 </div>
                 <div className="bg-ink/10 h-1 w-full overflow-hidden rounded-full">
@@ -229,7 +229,7 @@ function TrainingPlanPanel({ readiness }: { readiness: Readiness }) {
 
           {/* We know their recorded distances and nothing else — not their
               history, injuries or age. Say what this is. */}
-          <p className="mt-2 text-[10px] leading-relaxed text-slate-600">
+          <p className="mt-2 text-[10px] leading-relaxed text-slate-500">
             A 10%-per-week progression from your own recorded training. A guideline, not coaching —
             adjust it to how you actually feel.
           </p>

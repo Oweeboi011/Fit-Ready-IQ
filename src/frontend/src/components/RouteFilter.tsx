@@ -263,7 +263,7 @@ export default function RouteFilter({ filters, onFilterChange }: RouteFilterProp
                 }}
               />
             </div>
-            <div className="mt-1.5 flex justify-between text-[10px] text-slate-600">
+            <div className="mt-1.5 flex justify-between text-[10px] text-slate-500">
               <span>1 km</span>
               <span>10,000 km</span>
             </div>
@@ -281,7 +281,7 @@ export default function RouteFilter({ filters, onFilterChange }: RouteFilterProp
             </div>
             <div className="space-y-2">
               <div>
-                <div className="mb-1 flex justify-between text-[10px] text-slate-600">
+                <div className="mb-1 flex justify-between text-[10px] text-slate-500">
                   <span>Min</span>
                   <span>{filters.minElevation} m</span>
                 </div>
@@ -300,7 +300,7 @@ export default function RouteFilter({ filters, onFilterChange }: RouteFilterProp
                 />
               </div>
               <div>
-                <div className="mb-1 flex justify-between text-[10px] text-slate-600">
+                <div className="mb-1 flex justify-between text-[10px] text-slate-500">
                   <span>Max</span>
                   <span>{filters.maxElevation} m</span>
                 </div>

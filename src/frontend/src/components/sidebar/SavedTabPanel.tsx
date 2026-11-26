@@ -37,9 +37,9 @@ export default function SavedTabPanel({
   if (list.length === 0) {
     return (
       <div className="border-ink/10 flex flex-col items-center gap-2 rounded-xl border border-dashed px-4 py-10 text-center">
-        <Bookmark aria-hidden="true" className="h-6 w-6 text-slate-600" />
+        <Bookmark aria-hidden="true" className="h-6 w-6 text-slate-500" />
         <p className="text-xs font-medium text-slate-500">No saved places yet</p>
-        <p className="text-[10px] text-slate-600">
+        <p className="text-[10px] text-slate-500">
           Tap the bookmark icon on any route, peak, or campsite
         </p>
       </div>

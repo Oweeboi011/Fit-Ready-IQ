@@ -325,7 +325,7 @@ export default function AdminSettingsPage() {
           </div>
         ) : (
           <div className="border-ink/6 w-full max-w-sm rounded-2xl border bg-slate-900/60 p-8 text-center">
-            <Shield aria-hidden="true" className="mx-auto mb-4 h-8 w-8 text-slate-600" />
+            <Shield aria-hidden="true" className="mx-auto mb-4 h-8 w-8 text-slate-500" />
             <h1 className="text-base font-semibold text-slate-200">
               {isSignedIn ? 'Admin access required' : 'Sign in to continue'}
             </h1>
@@ -516,7 +516,7 @@ export default function AdminSettingsPage() {
                       {scope}
                     </span>
                     {envConfigured[key] === undefined ? (
-                      <span className="shrink-0 text-[10px] text-slate-600">
+                      <span className="shrink-0 text-[10px] text-slate-500">
                         Open Observability to check
                       </span>
                     ) : (
@@ -569,8 +569,8 @@ export default function AdminSettingsPage() {
                 Error Logs
               </h2>
               <div className="border-ink/5 h-48 overflow-y-auto rounded-lg border bg-slate-950/60 p-4 font-mono text-[11px] text-slate-400">
-                <p className="text-slate-600">No critical errors in the last 24 hours.</p>
-                <p className="mt-1 text-slate-600">
+                <p className="text-slate-500">No critical errors in the last 24 hours.</p>
+                <p className="mt-1 text-slate-500">
                   Connect Application Insights or Vercel Log Drains for live logs.
                 </p>
               </div>
@@ -635,15 +635,15 @@ export default function AdminSettingsPage() {
                 <div className="py-8 text-center">
                   <RefreshCw
                     aria-hidden="true"
-                    className="mx-auto mb-2 h-5 w-5 animate-spin text-slate-600"
+                    className="mx-auto mb-2 h-5 w-5 animate-spin text-slate-500"
                   />
                   <p className="text-xs text-slate-500">Loading sync status…</p>
                 </div>
               ) : !stravaSyncStats || stravaSyncStats.total === 0 ? (
                 <div className="border-ink/10 rounded-lg border border-dashed px-4 py-8 text-center">
-                  <Activity aria-hidden="true" className="mx-auto mb-2 h-6 w-6 text-slate-600" />
+                  <Activity aria-hidden="true" className="mx-auto mb-2 h-6 w-6 text-slate-500" />
                   <p className="text-sm text-slate-500">No users have synced Strava data yet.</p>
-                  <p className="mt-1 text-xs text-slate-600">
+                  <p className="mt-1 text-xs text-slate-500">
                     Sync runs automatically after the user connects Strava and is signed in.
                   </p>
                 </div>
@@ -702,7 +702,7 @@ export default function AdminSettingsPage() {
           // tell a made-up dashboard from a real one at a glance, and would act
           // on it. Until a billing API is wired up, say nothing.
           <div className="border-ink/10 rounded-xl border border-dashed bg-slate-900/40 p-10 text-center">
-            <BarChart2 aria-hidden="true" className="mx-auto mb-3 h-8 w-8 text-slate-600" />
+            <BarChart2 aria-hidden="true" className="mx-auto mb-3 h-8 w-8 text-slate-500" />
             <h2 className="text-sm font-semibold text-slate-200">No usage data connected</h2>
             <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-slate-500">
               Call volumes and spend live in Google Cloud Billing, the Firebase console and the
@@ -736,9 +736,9 @@ export default function AdminSettingsPage() {
 
             {users.length === 0 ? (
               <div className="border-ink/10 rounded-xl border border-dashed bg-slate-900/40 px-6 py-16 text-center">
-                <Users aria-hidden="true" className="mx-auto mb-3 h-8 w-8 text-slate-600" />
+                <Users aria-hidden="true" className="mx-auto mb-3 h-8 w-8 text-slate-500" />
                 <p className="text-sm font-medium text-slate-400">No users yet</p>
-                <p className="mt-1 text-xs text-slate-600">
+                <p className="mt-1 text-xs text-slate-500">
                   Nobody has signed up on this Firebase project. Accounts appear here as soon as
                   they do.
                 </p>
@@ -857,15 +857,15 @@ export default function AdminSettingsPage() {
               <div className="border-ink/[0.07] rounded-xl border bg-slate-900/60 px-6 py-16 text-center">
                 <RefreshCw
                   aria-hidden="true"
-                  className="mx-auto mb-3 h-6 w-6 animate-spin text-slate-600"
+                  className="mx-auto mb-3 h-6 w-6 animate-spin text-slate-500"
                 />
                 <p className="text-sm text-slate-500">Loading cache entries…</p>
               </div>
             ) : !cacheStats || cacheStats.total === 0 ? (
               <div className="border-ink/10 rounded-xl border border-dashed bg-slate-900/40 px-6 py-16 text-center">
-                <Database aria-hidden="true" className="mx-auto mb-3 h-8 w-8 text-slate-600" />
+                <Database aria-hidden="true" className="mx-auto mb-3 h-8 w-8 text-slate-500" />
                 <p className="text-sm font-medium text-slate-400">Cache is empty</p>
-                <p className="mt-1 text-xs text-slate-600">
+                <p className="mt-1 text-xs text-slate-500">
                   Entries are written after the first live map load in a region.
                 </p>
               </div>
@@ -917,7 +917,7 @@ export default function AdminSettingsPage() {
                               </div>
                             </div>
                           ) : (
-                            <span className="text-xs text-slate-600">—</span>
+                            <span className="text-xs text-slate-500">—</span>
                           )}
                         </td>
                         <td className="flex items-center gap-3 px-4 py-3 text-[11px] text-slate-400">
@@ -948,7 +948,7 @@ export default function AdminSettingsPage() {
                             // refetch for that region, so it is confirmed.
                             onClick={() => setPendingPurge({ gridKey: entry.gridKey })}
                             disabled={purgingKey === entry.gridKey}
-                            className="rounded p-1 text-slate-600 transition-colors hover:text-red-400 disabled:opacity-40"
+                            className="rounded p-1 text-slate-500 transition-colors hover:text-red-400 disabled:opacity-40"
                             aria-label="Purge this entry"
                           >
                             {purgingKey === entry.gridKey ? (
