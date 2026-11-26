@@ -89,7 +89,7 @@ export default function RoutesTabPanel({
     const filtersActive = JSON.stringify(filters) !== JSON.stringify(DEFAULT_FILTERS);
     return (
       <div className="border-ink/10 flex flex-col items-center gap-2 rounded-xl border border-dashed px-4 py-10 text-center">
-        <Search aria-hidden="true" className="h-6 w-6 text-slate-600" />
+        <Search aria-hidden="true" className="h-6 w-6 text-slate-500" />
         {searchQuery ? (
           <>
             <p className="text-xs font-medium text-slate-400">No routes match “{searchQuery}”</p>
@@ -115,7 +115,7 @@ export default function RoutesTabPanel({
         ) : (
           <>
             <p className="text-xs font-medium text-slate-400">No routes found near here</p>
-            <p className="text-[10px] text-slate-600">Try searching for a different area.</p>
+            <p className="text-[10px] text-slate-500">Try searching for a different area.</p>
           </>
         )}
       </div>

@@ -258,7 +258,7 @@ function SavedPlansDrawer({
       )}
       <p
         role={syncStatus === 'failed' ? 'alert' : undefined}
-        className={`mt-2 px-2 text-[10px] ${syncStatus === 'failed' ? 'text-amber-300' : 'text-slate-600'}`}
+        className={`mt-2 px-2 text-[10px] ${syncStatus === 'failed' ? 'text-amber-300' : 'text-slate-500'}`}
       >
         {SYNC_NOTE[syncStatus]}
       </p>

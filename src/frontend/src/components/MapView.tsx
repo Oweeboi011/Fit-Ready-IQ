@@ -133,7 +133,7 @@ function MapUnavailable({ detail }: { detail: string }) {
   return (
     <div className="relative flex h-full w-full items-center justify-center bg-slate-950">
       <div className="max-w-xl px-6 text-center">
-        <MapIcon aria-hidden="true" className="mx-auto mb-4 h-10 w-10 text-slate-600" />
+        <MapIcon aria-hidden="true" className="mx-auto mb-4 h-10 w-10 text-slate-500" />
         <p className="text-base font-semibold text-white">We couldn&apos;t load the map</p>
         <p className="mx-auto mt-2 max-w-sm text-sm text-slate-400">
           Reloading usually fixes it. Your saved places and activities are safe.

@@ -94,7 +94,7 @@ export function PhotoGallery({
         </Frame>
       ) : (
         <Frame>
-          <Camera aria-hidden="true" className="mx-auto mb-2 h-6 w-6 text-slate-600" />
+          <Camera aria-hidden="true" className="mx-auto mb-2 h-6 w-6 text-slate-500" />
           <p className="text-sm text-slate-400">No photos available</p>
         </Frame>
       )}

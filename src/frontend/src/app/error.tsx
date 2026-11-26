@@ -45,7 +45,7 @@ export default function Error({
           </Link>
         </div>
         {error.digest && (
-          <p className="mt-6 font-mono text-[11px] text-slate-600">Reference {error.digest}</p>
+          <p className="mt-6 font-mono text-[11px] text-slate-500">Reference {error.digest}</p>
         )}
       </div>
     </div>

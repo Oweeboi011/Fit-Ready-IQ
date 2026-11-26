@@ -154,7 +154,11 @@
     --c-slate-200: 226 232 240;
     --c-slate-300: 203 213 225;
     --c-slate-400: 148 163 184;
-    --c-slate-500: 100 116 139;
+    /* 4.7:1 on the lightest panel (#1b2335), where slate-500 proper is 3.3:1.
+     * Small secondary text is set in this step all over the product, and
+     * WCAG 1.4.3 asks 4.5:1. Light mode keeps 100 116 139, which is 4.6:1
+     * on its near-white page, so only the dark step moves. */
+    --c-slate-500: 129 142 163;
     --c-slate-600: 71 85 105;
     --c-slate-700: 51 65 85;
     --c-slate-800: 30 41 59;

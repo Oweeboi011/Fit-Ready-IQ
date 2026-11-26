@@ -304,7 +304,7 @@ export default function DetailsModal({
       case 'challenging':
         return 'text-red-400 bg-red-500/10';
       default:
-        return 'text-slate-600 bg-ink/6';
+        return 'text-slate-500 bg-ink/6';
     }
   };
 
@@ -359,7 +359,7 @@ export default function DetailsModal({
             {data.type === 'route' ? (
               <Route aria-hidden="true" className="h-4 w-4 text-blue-400" />
             ) : data.type === 'mountain' ? (
-              <Mountain aria-hidden="true" className="h-4 w-4 text-slate-600" />
+              <Mountain aria-hidden="true" className="h-4 w-4 text-slate-500" />
             ) : (
               <Tent aria-hidden="true" className="h-4 w-4 text-emerald-400" />
             )}
@@ -859,7 +859,7 @@ export default function DetailsModal({
                             <span className="bg-ink/6 flex h-5 w-5 items-center justify-center rounded">
                               <ClipboardList
                                 aria-hidden="true"
-                                className="h-3 w-3 text-slate-600"
+                                className="h-3 w-3 text-slate-500"
                               />
                             </span>
                             Pre-Climb Briefing
@@ -960,7 +960,7 @@ export default function DetailsModal({
                         <div>
                           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wider text-slate-300 uppercase">
                             <span className="bg-ink/6 flex h-5 w-5 items-center justify-center rounded">
-                              <Backpack aria-hidden="true" className="h-3 w-3 text-slate-600" />
+                              <Backpack aria-hidden="true" className="h-3 w-3 text-slate-500" />
                             </span>
                             Recommended Gear
                           </h3>
@@ -1325,7 +1325,7 @@ export default function DetailsModal({
                   <div className="space-y-3">
                     <h3 className="flex items-center gap-2 text-sm font-semibold tracking-wider text-slate-300 uppercase">
                       <span className="bg-ink/6 flex h-5 w-5 items-center justify-center rounded">
-                        <ClipboardList aria-hidden="true" className="h-3 w-3 text-slate-600" />
+                        <ClipboardList aria-hidden="true" className="h-3 w-3 text-slate-500" />
                       </span>
                       Pre-Climb Briefing
                     </h3>
@@ -1422,7 +1422,7 @@ export default function DetailsModal({
                   <div>
                     <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wider text-slate-300 uppercase">
                       <span className="bg-ink/6 flex h-5 w-5 items-center justify-center rounded">
-                        <Backpack aria-hidden="true" className="h-3 w-3 text-slate-600" />
+                        <Backpack aria-hidden="true" className="h-3 w-3 text-slate-500" />
                       </span>
                       Recommended Gear
                     </h3>

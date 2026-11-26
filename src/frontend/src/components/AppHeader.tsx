@@ -115,7 +115,7 @@ export default function AppHeader({
              does nothing is a dead end for keyboard users, so this is a status
              indicator that still announces why sign-in is missing. */
           <span
-            className="flex h-8 w-8 items-center justify-center text-slate-600"
+            className="flex h-8 w-8 items-center justify-center text-slate-500"
             title="Sign-in unavailable — Firebase Auth is not configured"
           >
             <UserIcon aria-hidden="true" className="h-4 w-4" />
