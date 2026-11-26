@@ -59,7 +59,7 @@ flowchart LR
 
 The free OpenStreetMap services are proxied and cached at the edge. A daily cron deletes
 expired data in place of Firestore TTL, which would need a paid plan
-([runbook](docs/guides/runbooks/expiry-sweep.md)).
+([runbook](docs/guides/runbooks/EXPIRY-SWEEP.md)).
 
 ## Quick start
 
@@ -73,14 +73,14 @@ npm run dev                         # http://localhost:4790
 Optional: `docker-compose up -d` starts the Firestore and Auth emulators. Backend:
 `cd src/backend && poetry install && poetry run uvicorn src.main:app --reload --port 8000`.
 
-Before you push, run the gates in [harness.md](docs/guides/harness.md#running-it).
+Before you push, run the gates in [harness.md](docs/guides/HARNESS.md#running-it).
 
 ## Releases
 
 `feature/*` → `develop` → `main`. Each merge to `main` is a production release: Vercel
 deploys it, and [`release.yml`](.github/workflows/release.yml) tags it `vYYYY.MM.DD`,
 publishes generated release notes, and pushes the backend image to
-`ghcr.io/oweeboi011/fit-ready-iq-backend`. See [deployment](docs/guides/deployment.md).
+`ghcr.io/oweeboi011/fit-ready-iq-backend`. See [deployment](docs/guides/DEPLOYMENT.md).
 
 ## Layout
 
@@ -96,8 +96,8 @@ docs/adr/            why it is this way
 ## Documentation
 
 Start at [`docs/README.md`](docs/README.md). The guides most people need first are
-[architecture](docs/guides/architecture.md), [development](docs/guides/development.md),
-[the quality harness](docs/guides/harness.md) and [deployment](docs/guides/deployment.md).
+[architecture](docs/guides/ARCHITECTURE.md), [development](docs/guides/DEVELOPMENT.md),
+[the quality harness](docs/guides/HARNESS.md) and [deployment](docs/guides/DEPLOYMENT.md).
 Agents: [`.claude/CLAUDE.md`](.claude/CLAUDE.md). Report vulnerabilities through
 [`SECURITY.md`](SECURITY.md).
 

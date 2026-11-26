@@ -223,7 +223,7 @@ async function persistConversation(
  *
  * Enforced by the daily expiry sweep (`lib/expirySweep.ts`) on `expiresAt`, for
  * both `chat_sessions` and `chat_sessions/{id}/messages` (collection-group
- * scope). See docs/guides/runbooks/expiry-sweep.md — without `CRON_SECRET` the
+ * scope). See docs/guides/runbooks/EXPIRY-SWEEP.md — without `CRON_SECRET` the
  * sweep never runs and nothing is deleted.
  */
 const CHAT_RETENTION_DAYS = 90;

@@ -135,7 +135,7 @@ a subcollection), `audit_logs` and `places_cache`, capped at 10 000 deletes a
 run to stay inside the free quota. A new collection with `expiresAt` goes in
 `SWEEP_TARGETS` (`lib/expirySweep.ts`). Never set its `fieldOverrides` to
 `indexes: []`: the sweep queries that field. See
-`docs/guides/runbooks/expiry-sweep.md`.
+`docs/guides/runbooks/EXPIRY-SWEEP.md`.
 
 **Every route needs a rate-limit budget**, declared in `src/lib/rateLimitRules.ts`
 rather than inline, so the set is enumerable. `rateLimitCoverage.test.ts` fails
@@ -432,7 +432,7 @@ The subject must be **lower-case** (`subject-case`) — "UI" or "API" in a subje
 
 ## Quality harness and docs
 
-The full gate set, and what stays in human review, is `docs/guides/harness.md` (ADR-0006).
+The full gate set, and what stays in human review, is `docs/guides/HARNESS.md` (ADR-0006).
 Docs live in three folders (ADR-0007): `docs/guides` (what it is), `docs/solution-plan` (how we
 deliver it / what it should do), `docs/adr` (why). `npm run lint:docs` fails on broken links,
 empty files, or anything else under `docs/`. Link to the code that states a fact rather than

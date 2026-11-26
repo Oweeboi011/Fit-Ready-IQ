@@ -1,25 +1,25 @@
 # Architecture Decision Records
 
 The _why_ behind decisions that are expensive to reverse or easy to re-litigate by accident.
-What the system is lives in [`../guides`](../guides/architecture.md); what it should become
+What the system is lives in [`../guides`](../guides/ARCHITECTURE.md); what it should become
 lives in [`../solution-plan`](../solution-plan/SOLUTION-PLAN.md).
 
 | #                                                                   | Decision                                                                                | Status                                          |
 | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| [0001](0001-claude-code-as-canonical-agent-harness.md)              | Claude Code (`.claude/CLAUDE.md`) is the single agent guide; other agents get a pointer | Accepted                                        |
-| [0002](0002-mechanical-code-quality-gates.md)                       | Rules are enforced by tools (Gated / Reviewed / Advisory), biased to Gated              | Accepted, refined by 0006                       |
-| [0003](0003-trip-is-the-spine-and-safety-is-a-server-side-timer.md) | Trip is the central entity; safety is a server-side timer, not tracking                 | Accepted; Trip built, timer not yet             |
-| [0004](0004-routes-have-real-geometry.md)                           | A Route is a `[lng, lat]` line with metrics computed along it                           | Accepted, not implemented                       |
-| [0005](0005-documentation-governance-harnessing.md)                 | A change updates the docs it makes untrue in the same PR                                | Accepted; "no consolidation" superseded by 0007 |
-| [0006](0006-minimum-viable-harness.md)                              | Three harness stages, one tool per concern (knip, vulture, import-linter, secretlint)   | Accepted                                        |
-| [0007](0007-docs-taxonomy.md)                                       | Docs live in three folders: guides (what), solution-plan (how), adr (why)               | Accepted                                        |
-| [0008](0008-no-paywall-until-the-safety-timer.md)                   | Everything stays free until the safety timer ships; no payment provider yet             | Accepted                                        |
+| [0001](0001-CLAUDE-CODE-AS-CANONICAL-AGENT-HARNESS.md)              | Claude Code (`.claude/CLAUDE.md`) is the single agent guide; other agents get a pointer | Accepted                                        |
+| [0002](0002-MECHANICAL-CODE-QUALITY-GATES.md)                       | Rules are enforced by tools (Gated / Reviewed / Advisory), biased to Gated              | Accepted, refined by 0006                       |
+| [0003](0003-TRIP-IS-THE-SPINE-AND-SAFETY-IS-A-SERVER-SIDE-TIMER.md) | Trip is the central entity; safety is a server-side timer, not tracking                 | Accepted; Trip built, timer not yet             |
+| [0004](0004-ROUTES-HAVE-REAL-GEOMETRY.md)                           | A Route is a `[lng, lat]` line with metrics computed along it                           | Accepted, not implemented                       |
+| [0005](0005-DOCUMENTATION-GOVERNANCE-HARNESSING.md)                 | A change updates the docs it makes untrue in the same PR                                | Accepted; "no consolidation" superseded by 0007 |
+| [0006](0006-MINIMUM-VIABLE-HARNESS.md)                              | Three harness stages, one tool per concern (knip, vulture, import-linter, secretlint)   | Accepted                                        |
+| [0007](0007-DOCS-TAXONOMY.md)                                       | Docs live in three folders: guides (what), solution-plan (how), adr (why)               | Accepted                                        |
+| [0008](0008-NO-PAYWALL-UNTIL-THE-SAFETY-TIMER.md)                   | Everything stays free until the safety timer ships; no payment provider yet             | Accepted                                        |
 
 ## Writing one
 
 Write an ADR when a future contributor could reasonably reverse the decision without knowing
 why it was made. If a tool can decide it, it belongs in a gate
-([harness.md](../guides/harness.md)), not here.
+([harness.md](../guides/HARNESS.md)), not here.
 
 - File name `NNNN-short-title.md`: the next number, never reused.
 - Prose: the forces, the decision, what was rejected, and the cost. Aim for one screen.

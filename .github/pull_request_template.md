@@ -1,6 +1,7 @@
 ## Summary
 
 <!-- What does this PR do? 1-3 bullets. -->
+
 -
 
 ## Type of change
@@ -13,7 +14,7 @@
 ## Test plan
 
 - [ ] `npm run quality` and `npm run test:unit` pass (`src/frontend`)
-- [ ] Backend gates pass, if `src/backend/` changed (see `docs/guides/harness.md`)
+- [ ] Backend gates pass, if `src/backend/` changed (see `docs/guides/HARNESS.md`)
 - [ ] Manual smoke test for changed behavior
 
 ## Review (judgment the gates cannot make)
