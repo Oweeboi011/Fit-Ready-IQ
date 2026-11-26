@@ -1,7 +1,7 @@
 # Solution plan
 
 **What the product should do, and how it gets delivered.** What the product _is_ today lives in
-[`docs/guides`](../guides/architecture.md). Why it was designed this way lives in
+[`docs/guides`](../guides/ARCHITECTURE.md). Why it was designed this way lives in
 [`docs/adr`](../adr/README.md). Item-level status is kept next to the code in
 `src/frontend/src/lib/roadmap.ts`, which drives the in-app roadmap, so this page names
 outcomes and order rather than restating every ticket.
@@ -84,9 +84,9 @@ flowchart LR
 | Bug fix, refactor                     | PR + required checks + 1 review                                               |
 | Feature                               | The above, plus a `roadmap.ts` entry and a guide updated if behaviour changed |
 | Data model, external service, process | The above, plus an ADR                                                        |
-| Security-relevant                     | The above, plus [security.md](../guides/security.md) updated                  |
+| Security-relevant                     | The above, plus [security.md](../guides/SECURITY.md) updated                  |
 
-**Definition of done:** the harness is green ([harness.md](../guides/harness.md)), docs touched
+**Definition of done:** the harness is green ([harness.md](../guides/HARNESS.md)), docs touched
 by the change are updated in the same PR, and a new user-scoped collection is in
 `userDataFootprint.ts`, `firestore.rules` and the rules tests.
 
@@ -108,7 +108,7 @@ Measured at each release, not estimated:
 | Measure                                | Target  |
 | -------------------------------------- | ------- |
 | Time to first map render (p75, mobile) | < 2 s   |
-| Places API calls per session           | < 25    |
+| `/api/discover` calls per session      | < 25    |
 | Chat p95 latency                       | < 1.5 s |
 | Lighthouse performance, `/`            | > 90    |
 | Mutation score, `src/lib`              | ≥ 80%   |
@@ -118,5 +118,5 @@ Measured at each release, not estimated:
 
 Point-in-time assessments of reality against this plan. Each lists findings with their status.
 
-- [2026-09-28 solution audit](audits/2026-09-28-solution-audit.md): security, privacy,
+- [2026-09-28 solution audit](audits/2026-09-28-SOLUTION-AUDIT.md): security, privacy,
   delivery.

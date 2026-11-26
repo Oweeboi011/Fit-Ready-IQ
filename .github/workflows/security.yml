@@ -60,7 +60,7 @@ jobs:
     name: Semgrep
     runs-on: ubuntu-latest
     # Advisory until a run on the triaged tree comes back clean (see
-    # docs/guides/harness.md); then drop this line and add it to branch protection.
+    # docs/guides/HARNESS.md); then drop this line and add it to branch protection.
     continue-on-error: true
     container:
       # Pinned by digest, like the actions: a moved tag is a supply-chain change.

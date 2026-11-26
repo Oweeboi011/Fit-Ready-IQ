@@ -2,8 +2,8 @@
 
 The minimum set of checks that keeps this codebase honest. A check belongs here if a machine
 can decide it. Anything that needs judgment goes on the [review checklist](#what-stays-human)
-instead. Why it is shaped this way: [ADR-0002](../adr/0002-mechanical-code-quality-gates.md)
-(gate over review) and [ADR-0006](../adr/0006-minimum-viable-harness.md) (this set and no more).
+instead. Why it is shaped this way: [ADR-0002](../adr/0002-MECHANICAL-CODE-QUALITY-GATES.md)
+(gate over review) and [ADR-0006](../adr/0006-MINIMUM-VIABLE-HARNESS.md) (this set and no more).
 
 ## Three stages, nothing else
 
@@ -113,7 +113,7 @@ suppress.
   surviving mutants matter.
 - **Polyline order** is `[lng, lat]`. No tool catches a swap.
 - **Docs.** A change to branch flow, layout, data model or a public route updates its doc in
-  the same PR ([ADR-0005](../adr/0005-documentation-governance-harnessing.md)).
+  the same PR ([ADR-0005](../adr/0005-DOCUMENTATION-GOVERNANCE-HARNESSING.md)).
 
 ## Adding a gate
 

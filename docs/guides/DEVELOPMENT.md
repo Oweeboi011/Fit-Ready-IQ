@@ -1,7 +1,7 @@
 # Development
 
 Setup, the test suites, and the problems people actually hit. For the gates themselves, see
-[harness.md](harness.md).
+[harness.md](HARNESS.md).
 
 ## Setup
 

@@ -96,7 +96,7 @@ const CSP_RESOURCE_POLICY = [
  * Once it has run enforced in production for a release, make this the default
  * and delete the flag.
  *
- * See docs/guides/runbooks/csp-enforcement.md.
+ * See docs/guides/runbooks/CSP-ENFORCEMENT.md.
  */
 const CSP_ENFORCE_RESOURCES = process.env.CSP_ENFORCE_RESOURCES === 'true';
 

@@ -1,0 +1,102 @@
+name: Release
+
+# Every merge to main is a release (develop → main is the only way in), so
+# every push here is tagged, given GitHub-generated notes, and its backend image
+# published to GHCR. Before this nothing was tagged and the Releases and
+# Packages panels stayed empty however often the product shipped.
+#
+# Versions are CalVer in Manila time: vYYYY.MM.DD, then .2, .3 for a second
+# release that day.
+# The product has no API consumers to signal breaking changes to, so a date
+# says more than a semver number nobody bumps.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One release at a time, so two quick merges cannot pick the same tag.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Tag and release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Pick the tag
+        id: tag
+        run: |
+          # A re-run, or a manual dispatch on an already-released commit,
+          # reuses that commit's tag instead of minting a second one.
+          existing=$(git tag --points-at HEAD --list 'v*' | sort -V | tail -1)
+          if [ -n "$existing" ]; then
+            echo "tag=$existing" >> "$GITHUB_OUTPUT"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Manila time: the team ships from the Philippines, where a UTC date
+          # would give any release before 08:00 the previous day's tag.
+          base="v$(TZ=Asia/Manila date +%Y.%m.%d)"
+          tag="$base"
+          n=2
+          while git rev-parse -q --verify "refs/tags/$tag" >/dev/null; do
+            tag="$base.$n"
+            n=$((n + 1))
+          done
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+
+      - name: Create the release
+        if: steps.tag.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" \
+            --generate-notes --latest
+
+  backend-image:
+    name: Publish backend image
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build and push to GHCR
+        # The backend is not deployed (see deployment.md); the image is
+        # published so every release has a runnable artifact of it. The source
+        # label is what lists it under this repository's Packages.
+        env:
+          TAG: ${{ needs.release.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+          REPO: ${{ github.repository }}
+        run: |
+          image="ghcr.io/${REPO,,}-backend"
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+          docker build src/backend \
+            --label "org.opencontainers.image.source=https://github.com/$REPO" \
+            --label "org.opencontainers.image.version=$TAG" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --label "org.opencontainers.image.description=Fit-Ready-IQ FastAPI backend (not deployed)" \
+            -t "$image:$TAG" -t "$image:latest"
+          docker push "$image:$TAG"
+          docker push "$image:latest"

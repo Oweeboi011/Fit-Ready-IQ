@@ -19,7 +19,7 @@ flowchart TB
     end
     FS[("Firestore")]
     FA["Firebase Auth<br/>Google · Apple"]
-    EXT["Gemini Flash · Strava · Google Routes ·<br/>Google Weather / OpenWeather ·<br/>Waymarked Trails · Photon · OpenTopoData"]
+    EXT["Gemini Flash · Strava · OSRM ·<br/>Google Weather / OpenWeather ·<br/>Waymarked Trails · Photon · OpenTopoData · Komoot"]
 
     M --> OSM
     M -->|ID token| API
@@ -42,7 +42,7 @@ flowchart TB
 ## Frontend layers
 
 Dependencies point inward only. `dependency-cruiser` enforces the layers and ESLint enforces
-the credential boundary ([harness](harness.md)).
+the credential boundary ([harness](HARNESS.md)).
 
 ```mermaid
 flowchart LR
@@ -152,7 +152,7 @@ erDiagram
 - **Expiry.** `rate_limits`, `chat_sessions` (plus `messages` at collection-group scope),
   `audit_logs` and `places_cache` carry `expiresAt`, which a daily cron (`/api/cron/expire`)
   sweeps in place of Firestore TTL, which needs the Blaze plan; see
-  [runbooks/expiry-sweep.md](runbooks/expiry-sweep.md).
+  [runbooks/EXPIRY-SWEEP.md](runbooks/EXPIRY-SWEEP.md).
 - **User data.** Every user-scoped collection is listed in `lib/userDataFootprint.ts`. Export
   and erasure both walk that list, so a new collection goes there in the same change.
 - **Polylines.** They are stored as `[lng, lat]` (GeoJSON order).

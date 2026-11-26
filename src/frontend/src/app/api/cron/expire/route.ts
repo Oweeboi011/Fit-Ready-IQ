@@ -12,7 +12,7 @@ export const runtime = 'nodejs';
  * Daily expiry sweep, called by Vercel Cron (`crons` in vercel.json).
  *
  * Stands in for Firestore TTL policies, which need the Blaze plan; see
- * `lib/expirySweep.ts` and docs/guides/runbooks/expiry-sweep.md.
+ * `lib/expirySweep.ts` and docs/guides/runbooks/EXPIRY-SWEEP.md.
  *
  * Vercel sends `Authorization: Bearer $CRON_SECRET` on every cron invocation
  * when that variable is set. Without it the route refuses everyone: an open

@@ -6,8 +6,8 @@ import tseslint from 'typescript-eslint';
  * (2026-08-06). Exempting them lets the rules be errors everywhere else;
  * shrinking these two lists is the ratchet.
  *
- * Do not add entries — see docs/guides/harness.md and
- * docs/adr/0002-mechanical-code-quality-gates.md.
+ * Do not add entries — see docs/guides/HARNESS.md and
+ * docs/adr/0002-MECHANICAL-CODE-QUALITY-GATES.md.
  */
 const LEGACY_OVERSIZED = [
   // 818 lines, `Home` 626 — down from 2,229/1,911 after extracting the
@@ -186,7 +186,7 @@ const config = [
   // ── Banned APIs and the shared primitives ──────────────────────────────────
   // Each of these has a house replacement that already does the job properly;
   // the ban is what makes reaching for the replacement the path of least
-  // resistance. See docs/guides/harness.md.
+  // resistance. See docs/guides/HARNESS.md.
   {
     files: ['src/**/*.{ts,tsx}'],
     ignores: ['src/**/*.test.{ts,tsx}'],

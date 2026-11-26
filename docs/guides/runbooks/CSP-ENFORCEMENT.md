@@ -3,7 +3,7 @@
 The full resource policy — the directives that decide where scripts, images,
 connections and frames may come from — has been Report-Only since it was
 introduced. That was the right way to introduce it: this app loads a lot at
-runtime (the Maps SDK pulls further scripts and workers, Firebase Auth opens
+runtime (MapLibre runs a worker and fetches tiles and fonts, Firebase Auth opens
 provider popups, the radar layer fetches third-party tiles), and a wrong CSP
 breaks a working page. But Report-Only enforces nothing, so until this is done
 the app carries the maintenance cost of a CSP and none of the protection.
@@ -58,6 +58,6 @@ directive in `CSP_RESOURCE_POLICY` in `next.config.js` and redeploy.
 
 Resist the reflex to widen a directive to `*` or to add `'unsafe-inline'` to
 something that does not already have it. `script-src` already carries
-`'unsafe-inline'` and `'unsafe-eval'` because Next's hydration bootstrap and the
-Maps SDK genuinely require them; that is a known gap with its own remediation
+`'unsafe-inline'` and `'unsafe-eval'` because Next's hydration bootstrap
+genuinely requires them; that is a known gap with its own remediation
 (nonce-based CSP, §12 of the security guide), not a precedent.

@@ -96,9 +96,20 @@ export default function PrivacyPage() {
           <p>To work, the product sends data to these services:</p>
           <ul className="list-disc space-y-2 pl-5">
             <li>
-              <strong className="text-white">Google</strong>: map locations to Maps, Places,
-              Elevation, Geocoding, Routes and Weather; your assistant messages to Gemini; and your
-              account and stored data to Firebase, which hosts them.
+              <strong className="text-white">Google</strong>: a location to Weather for forecasts;
+              your assistant messages to Gemini; and your account and stored data to Firebase, which
+              hosts them.
+            </li>
+            <li>
+              <strong className="text-white">OpenStreetMap services</strong>: map locations and
+              searches to OpenFreeMap (map tiles), Photon and Nominatim (search and place names),
+              Waymarked Trails (routes), OSRM (directions) and OpenTopoData (elevation); place names
+              to Wikidata and Wikimedia Commons for photos; and your browser fetches weather radar
+              tiles from RainViewer.
+            </li>
+            <li>
+              <strong className="text-white">Komoot</strong>: only when you paste a Komoot link, to
+              read that tour.
             </li>
             <li>
               <strong className="text-white">Strava</strong>: only if you connect it, to fetch your

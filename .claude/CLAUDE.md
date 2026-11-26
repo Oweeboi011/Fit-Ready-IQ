@@ -135,7 +135,7 @@ a subcollection), `audit_logs` and `places_cache`, capped at 10 000 deletes a
 run to stay inside the free quota. A new collection with `expiresAt` goes in
 `SWEEP_TARGETS` (`lib/expirySweep.ts`). Never set its `fieldOverrides` to
 `indexes: []`: the sweep queries that field. See
-`docs/guides/runbooks/expiry-sweep.md`.
+`docs/guides/runbooks/EXPIRY-SWEEP.md`.
 
 **Every route needs a rate-limit budget**, declared in `src/lib/rateLimitRules.ts`
 rather than inline, so the set is enumerable. `rateLimitCoverage.test.ts` fails
@@ -379,14 +379,15 @@ feature/* → develop → main
 
 ### Workflows
 
-| File               | Triggers                                         | What it does                                                                                                                                                                                     |
-| ------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ci.yml`           | PR to `main`/`develop`, push to `main`/`develop` | `npm run quality` gates + unit tests + build (frontend); ruff + mypy + import-linter + vulture + pytest (backend)                                                                                |
-| `e2e.yml`          | PR to `main`/`develop`                           | Playwright E2E (uses real secrets from GitHub Secrets). Skipped for Dependabot and fork PRs, which get no secrets                                                                                |
-| `mutation.yml`     | PR to `main`/`develop` when `src/lib/` changed   | Stryker mutation tests                                                                                                                                                                           |
-| `security.yml`     | PRs + push to `main`/`develop` + weekly Monday   | npm audit (`--audit-level=high`) + gitleaks secret scan + CodeQL                                                                                                                                 |
-| `agent-review.yml` | PR open/synchronize                              | Posts AI review comment via Claude Haiku. Needs `ANTHROPIC_API_KEY` secret. Add `[skip review]` to PR title to suppress.                                                                         |
-| `uptime.yml`       | Every 15 min, manual dispatch                    | Curls `{PRODUCTION_URL}/api/health` (10 s timeout, 2 retries); fails on non-2xx, warns on `degraded`. Needs the `PRODUCTION_URL` repo variable — **unset until 2026-09-28, so it never passed**. |
+| File               | Triggers                                         | What it does                                                                                                                                                                      |
+| ------------------ | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ci.yml`           | PR to `main`/`develop`, push to `main`/`develop` | `npm run quality` gates + unit tests + build (frontend); ruff + mypy + import-linter + vulture + pytest (backend)                                                                 |
+| `e2e.yml`          | PR to `main`/`develop`                           | Playwright E2E (uses real secrets from GitHub Secrets). Skipped for Dependabot and fork PRs, which get no secrets                                                                 |
+| `mutation.yml`     | PR to `main`/`develop` when `src/lib/` changed   | Stryker mutation tests                                                                                                                                                            |
+| `security.yml`     | PRs + push to `main`/`develop` + weekly Monday   | npm audit (`--audit-level=high`) + gitleaks secret scan + CodeQL                                                                                                                  |
+| `agent-review.yml` | PR open/synchronize                              | Posts AI review comment via Claude Haiku. Needs `ANTHROPIC_API_KEY` secret. Add `[skip review]` to PR title to suppress.                                                          |
+| `uptime.yml`       | Every 15 min, manual dispatch                    | Curls `{PRODUCTION_URL}/api/health` (10 s timeout, 2 retries); fails on non-2xx, warns on `degraded`. `PRODUCTION_URL` is the Vercel app URL, not the homepage.                   |
+| `release.yml`      | Push to `main`, manual dispatch                  | Tags `vYYYY.MM.DD` (`.2`… same day), GitHub Release with generated notes, backend image to `ghcr.io/oweeboi011/fit-ready-iq-backend`. Reuses the tag on an already-tagged commit. |
 
 The AI review workflow uses `claude-haiku-4-5-20251001`, trims diffs to 10 KB, and caps output at 1 024 tokens (~$0.004/PR).
 
@@ -431,7 +432,7 @@ The subject must be **lower-case** (`subject-case`) — "UI" or "API" in a subje
 
 ## Quality harness and docs
 
-The full gate set, and what stays in human review, is `docs/guides/harness.md` (ADR-0006).
+The full gate set, and what stays in human review, is `docs/guides/HARNESS.md` (ADR-0006).
 Docs live in three folders (ADR-0007): `docs/guides` (what it is), `docs/solution-plan` (how we
 deliver it / what it should do), `docs/adr` (why). `npm run lint:docs` fails on broken links,
 empty files, or anything else under `docs/`. Link to the code that states a fact rather than
